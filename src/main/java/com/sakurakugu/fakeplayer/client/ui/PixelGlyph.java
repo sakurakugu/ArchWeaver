@@ -14,10 +14,10 @@ public enum PixelGlyph {
             graphics.fill(x, y + 2, x + 1, y + 4, color);
             graphics.fill(x + 3, y + 2, x + 10, y + 4, color);
             graphics.fill(x + 10, y + 3, x + 11, y + 10, color);
-            graphics.fill(x + 9, y + 4, x + 10, y + 5, color);
-            graphics.fill(x + 11, y + 4, x + 12, y + 8, color);
-            graphics.fill(x + 9, y + 8, x + 10, y + 11, color);
-            graphics.fill(x + 3, y + 9, x + 9, y + 11, color);
+            graphics.fill(x + 8, y + 4, x + 10, y + 5, color);
+            graphics.fill(x + 9, y + 5, x + 10, y + 11, color);
+            graphics.fill(x + 8, y + 8, x + 9, y + 11, color);
+            graphics.fill(x + 3, y + 9, x + 8, y + 11, color);
         }
     },
     /** 实心软盘，快门和标签镂空。 */
@@ -41,7 +41,6 @@ public enum PixelGlyph {
             graphics.fill(x + 10, y + 11, x + 11, y + 12, color);
         }
     },
-
     CLOSE(10, 12) {
         @Override
         protected void draw(GuiGraphicsExtractor graphics, int x, int y, int color) {
