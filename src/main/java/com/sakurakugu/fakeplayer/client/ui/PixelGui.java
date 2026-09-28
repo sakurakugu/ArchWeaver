@@ -25,6 +25,33 @@ public final class PixelGui {
         graphics.fill(right - 2, y + 1, right - 1, y + 2, 0xFF8B8B8B);
     }
 
+    /** 绘制地图顶部二态开关，左右位置使用灰阶滑块区分。 */
+    public static void drawLargeSwitch(
+        GuiGraphicsExtractor graphics, int x, int y, int width, int height,
+        boolean enabled, boolean hovered
+    ) {
+        // 悬停时只高亮选中的手柄，轨道边框保持原色。
+        drawSolidControl(graphics, x, y, width, height, false);
+        int right = x + width;
+        int bottom = y + height;
+        int middle = x + width / 2;
+
+        // 轨道只保留最外侧边框，避免手柄两端和中线出现空隙。
+        int trackLeft = x + 1;
+        int trackTop = y + 1;
+        int trackRight = right - 1;
+        int trackBottom = bottom - 1;
+        graphics.fill(trackLeft, trackTop, trackRight, trackBottom, 0xFF565F5B);
+        graphics.fill(trackLeft, trackTop, trackRight, trackTop + 1, 0xFF111514);
+        graphics.fill(trackLeft, trackTop, trackLeft + 1, trackBottom, 0xFF111514);
+        graphics.fill(trackLeft, trackBottom - 1, trackRight, trackBottom, 0xFFA5AEAA);
+        graphics.fill(trackRight - 1, trackTop, trackRight, trackBottom, 0xFFA5AEAA);
+
+        // 手柄直接占满对应半区，左右端点及中线都不额外缩进。
+        drawSolidControl(graphics, enabled ? middle : x, y,
+            enabled ? right - middle : middle - x, height, hovered);
+    }
+
     /** 绘制原版物品栏槽位使用的凹陷边框。 */
     public static void drawInventorySlotBackground(
         GuiGraphicsExtractor graphics, int x, int y, int width, int height, int color

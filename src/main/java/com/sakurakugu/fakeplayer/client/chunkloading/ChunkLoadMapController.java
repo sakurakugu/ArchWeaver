@@ -49,6 +49,12 @@ public final class ChunkLoadMapController {
     /** 草稿版本号，只在草稿真的变化时自增。 */
     public int draftVersion() { return draftVersion; }
     public boolean dirty() { return !paintedView.isEmpty() || !erasedView.isEmpty(); }
+    /**
+     * 撤销栈里还有上一笔草稿，撤回按钮据此置灰。
+     * 提交后要等服务端确认才知道草稿是否落地，确认一到就会清空草稿和撤销栈，
+     * 这段等待期里撤回只会把本地草稿改回一个马上被丢弃的状态，所以一并禁掉。
+     */
+    public boolean canUndo() { return !awaitingApply && !undo.isEmpty(); }
 
     public void accept(ChunkMapSnapshotPayload value) {
         boolean acknowledged = awaitingApply && value.revision() != snapshot.revision();

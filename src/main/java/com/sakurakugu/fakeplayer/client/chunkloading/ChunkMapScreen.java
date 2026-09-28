@@ -4,6 +4,7 @@ import com.mojang.authlib.GameProfile;
 import com.sakurakugu.fakeplayer.chunkloading.ChunkKey;
 import com.sakurakugu.fakeplayer.client.ui.SolidButton;
 import com.sakurakugu.fakeplayer.client.ui.PixelGlyph;
+import com.sakurakugu.fakeplayer.client.ui.SegmentedSwitchButton;
 import com.sakurakugu.fakeplayer.client.ui.SolidSliderButton;
 import com.sakurakugu.fakeplayer.client.ui.ToggleSwitchButton;
 import com.sakurakugu.fakeplayer.network.ChunkLoaderActionPayload;
@@ -13,8 +14,10 @@ import com.sakurakugu.fakeplayer.network.OpenFakePlayerPagePayload;
 import com.sakurakugu.fakeplayer.network.ToggleGlobalSettingPayload;
 import java.util.Map;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.EditBox;
+import net.minecraft.client.gui.components.events.GuiEventListener;
 import net.minecraft.client.gui.components.PlayerFaceExtractor;
 import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.render.TextureSetup;
@@ -78,6 +81,7 @@ public final class ChunkMapScreen extends Screen implements ChunkLoadMapFrontend
     private boolean managementOpen;
     private int snapshotRefreshTicks;
     private Button saveButton;
+    private Button undoButton;
     private final Button[] globalSettingButtons = new Button[GLOBAL_SETTING_KEYS.length];
     private int page;
     private int selectedIndex = -1;
@@ -99,6 +103,7 @@ public final class ChunkMapScreen extends Screen implements ChunkLoadMapFrontend
     public void tick() {
         super.tick();
         if (saveButton != null) saveButton.active = controller.dirty();
+        if (undoButton != null) undoButton.active = controller.mode() == ChunkMapEditMode.EDIT && controller.canUndo();
         if (minecraft.player != null && minecraft.getConnection() != null && snapshotRefreshTicks-- <= 0) {
             ClientPacketDistributor.sendToServer(ClientChunkLoadingState.request(false, false, false));
             snapshotRefreshTicks = 10;
@@ -108,6 +113,7 @@ public final class ChunkMapScreen extends Screen implements ChunkLoadMapFrontend
     @Override
     protected void init() {
         saveButton = null;
+        undoButton = null;
         if (managementOpen) {
             addManagementControls();
             return;
@@ -129,21 +135,22 @@ public final class ChunkMapScreen extends Screen implements ChunkLoadMapFrontend
                 Component.translatable("gui.back"), button -> showSettings(false)));
             return;
         }
-        int modeCount = ChunkMapEditMode.values().length;
-        int buttonWidth = Mth.clamp((width - 118) / modeCount, 32, 44);
+        int modeSwitchWidth = Mth.clamp(width - 118, 64, 80);
         int x = 6;
-        for (ChunkMapEditMode mode : ChunkMapEditMode.values()) {
-            SolidButton button = addRenderableWidget(new SolidButton(x, 6, buttonWidth, 20,
-                Component.literal(label(mode)), ignored -> setEditMode(mode)));
-            if (mode == ChunkMapEditMode.EDIT) {
-                button.setTooltip(Tooltip.create(Component.literal("左键强加载，右键擦除，中键平移")));
-            }
-            x += buttonWidth;
-        }
-        addRenderableWidget(new SolidButton(x + 6, 6, 48, 20,
-            Component.translatable("gui.fakeplayer.chunkloader.map_undo"), button -> controller.undo()));
-        addWeakLoadingSwitch(x + 60);
+        SegmentedSwitchButton modeSwitch = addRenderableWidget(new SegmentedSwitchButton(
+            x, 6, modeSwitchWidth, 20,
+            Component.translatable("gui.fakeplayer.chunkloader.map_browse_mode"),
+            Component.translatable("gui.fakeplayer.chunkloader.map_edit_mode"),
+            () -> controller.mode() == ChunkMapEditMode.EDIT,
+            selectedRight -> setEditMode(selectedRight ? ChunkMapEditMode.EDIT : ChunkMapEditMode.BROWSE)));
+        modeSwitch.setTooltip(Tooltip.create(
+            Component.translatable("gui.fakeplayer.chunkloader.map_edit_mode_tooltip")));
+        x += modeSwitchWidth;
+        addWeakLoadingSwitch(x + 6);
 
+        undoButton = addRenderableWidget(new SolidButton(width - 62, 7, 18, 18, PixelGlyph.UNDO,
+            Component.translatable("gui.fakeplayer.chunkloader.map_undo"), button -> controller.undo()));
+        undoButton.active = controller.mode() == ChunkMapEditMode.EDIT && controller.canUndo();
         saveButton = addRenderableWidget(new SolidButton(width - 42, 7, 18, 18, PixelGlyph.SAVE,
             Component.translatable("gui.fakeplayer.chunkloader.map_save"), button -> controller.apply()));
         saveButton.active = controller.dirty();
@@ -475,12 +482,15 @@ public final class ChunkMapScreen extends Screen implements ChunkLoadMapFrontend
         graphics.pose().popMatrix();
     }
 
-    /** 顶部开关：是否画出强加载区块外围的弱加载范围。窗口很窄时只留开关本身，标签自己滚动。 */
+    /** 顶部开关：是否显示弱加载区块。窗口很窄时只留开关本身，标签自己滚动。 */
     private void addWeakLoadingSwitch(int x) {
-        int switchWidth = Math.max(24, Math.min(96, width - 48 - x));
+        Component label = Component.translatable("gui.fakeplayer.chunkloader.map_weak_range");
+        int preferredWidth = ToggleSwitchButton.preferredBoxedWidth(font, label);
+        // 右边留出撤回、保存、关闭三个按钮的位置（最左边的撤回按钮从 width-62 开始）
+        int switchWidth = Math.max(31, Math.min(preferredWidth, Math.min(96, width - 68 - x)));
         addRenderableWidget(new ToggleSwitchButton(x, 6, switchWidth, 20,
-            Component.translatable("gui.fakeplayer.chunkloader.map_weak_range"), 0xFFFFFFFF,
-            ChunkMapClientConfig::weakLoadingVisible, button -> toggleWeakLoading()));
+            label, 0xFFFFFFFF,
+            ChunkMapClientConfig::weakLoadingVisible, button -> toggleWeakLoading(), true));
     }
 
     private void toggleWeakLoading() {
@@ -727,6 +737,8 @@ public final class ChunkMapScreen extends Screen implements ChunkLoadMapFrontend
     public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
         if (super.mouseClicked(event, doubleClick)) return true;
         if (settingsOpen || managementOpen) return false;
+        // 置灰的按钮不是点击目标，别让这一下透到地图上涂掉按钮底下的区块
+        if (isOverWidget(event.x(), event.y())) return false;
         int[] chunk = chunkAt(event.x(), event.y());
         if (chunk == null) return false;
         dragging = true;
@@ -747,7 +759,7 @@ public final class ChunkMapScreen extends Screen implements ChunkLoadMapFrontend
             centerBlockZ -= deltaY / pixelsPerBlock;
         } else {
             int[] chunk = chunkAt(event.x(), event.y());
-            if (chunk != null && isEditButton(draggingButton)) {
+            if (chunk != null && isEditButton(draggingButton) && !isOverWidget(event.x(), event.y())) {
                 controller.edit(chunk[0], chunk[1], draggingButton == 1);
             }
         }
@@ -757,6 +769,18 @@ public final class ChunkMapScreen extends Screen implements ChunkLoadMapFrontend
     /** 编辑模式里认的按键：左键强加载，右键擦除。 */
     private static boolean isEditButton(int button) {
         return button == 0 || button == 1;
+    }
+
+    /** 光标是否压在任一可见控件上；置灰控件同样算，用来挡住透传到地图的点击。 */
+    private boolean isOverWidget(double x, double y) {
+        for (GuiEventListener child : children()) {
+            if (child instanceof AbstractWidget widget && widget.visible
+                && x >= widget.getX() && x < widget.getX() + widget.getWidth()
+                && y >= widget.getY() && y < widget.getY() + widget.getHeight()) {
+                return true;
+            }
+        }
+        return false;
     }
 
     @Override
@@ -772,7 +796,10 @@ public final class ChunkMapScreen extends Screen implements ChunkLoadMapFrontend
         if (settingsOpen || managementOpen) {
             return super.mouseScrolled(mouseX, mouseY, horizontalAmount, verticalAmount);
         }
-        if (!insideMap(mouseX, mouseY)) return super.mouseScrolled(mouseX, mouseY, horizontalAmount, verticalAmount);
+        // 顶部和底部工具条上的滚轮归控件，别让它缩放底下的地图
+        if (!insideMap(mouseX, mouseY) || isOverWidget(mouseX, mouseY)) {
+            return super.mouseScrolled(mouseX, mouseY, horizontalAmount, verticalAmount);
+        }
         double worldX = screenToWorldX(mouseX);
         double worldZ = screenToWorldZ(mouseY);
         double next = Mth.clamp(pixelsPerBlock * Math.pow(1.2D, verticalAmount), MIN_SCALE, MAX_SCALE);

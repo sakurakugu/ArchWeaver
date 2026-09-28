@@ -1,0 +1,677 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>像素图标编辑器</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #1e1e1e; color: #ddd; font: 13px/1.5 "Microsoft YaHei", sans-serif; display: flex; height: 100vh; }
+  aside { width: 300px; background: #252525; border-right: 1px solid #3a3a3a; padding: 12px; overflow-y: auto; flex-shrink: 0; }
+  aside.right { border-right: none; border-left: 1px solid #3a3a3a; width: 360px; }
+  main { flex: 1; display: flex; align-items: center; justify-content: center; overflow: auto; position: relative; }
+  h3 { margin: 14px 0 6px; font-size: 13px; color: #fff; border-bottom: 1px solid #3a3a3a; padding-bottom: 3px; }
+  h3:first-child { margin-top: 0; }
+  button, select, input[type=number], input[type=text] {
+    background: #3a3a3a; color: #ddd; border: 1px solid #555; border-radius: 3px; padding: 3px 8px; font: inherit;
+  }
+  button { cursor: pointer; }
+  button:hover { background: #474747; }
+  button.on { background: #2f5d8a; border-color: #4a88c7; color: #fff; }
+  input[type=number] { width: 56px; }
+  input[type=text] { width: 100%; }
+  .tools { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; }
+  .tools button { padding: 5px 0; }
+  .line { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; margin: 4px 0; }
+  .pal { display: flex; align-items: center; gap: 6px; padding: 3px 4px; border-radius: 3px; cursor: pointer; border: 1px solid transparent; }
+  .pal.sel { border-color: #4a88c7; background: #2d3a47; }
+  .pal .sw { width: 20px; height: 20px; border: 1px solid #000; }
+  .pal input[type=color] { width: 28px; height: 22px; padding: 0; border: none; background: none; }
+  .pal .ch { font-family: Consolas, monospace; color: #999; width: 12px; }
+  .pal .nm { flex: 1; }
+  textarea { width: 100%; height: 170px; background: #151515; color: #cfe; border: 1px solid #444; font: 12px/1.4 Consolas, monospace; resize: vertical; white-space: pre; overflow-wrap: normal; overflow-x: auto; }
+  #editor { image-rendering: pixelated; cursor: crosshair; box-shadow: 0 0 0 1px #000; }
+  canvas.pv { image-rendering: pixelated; display: block; }
+  .pvs { display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end; }
+  .pvs .lbl { font-size: 11px; color: #888; text-align: center; }
+  .hint { color: #888; font-size: 12px; }
+  #status { position: absolute; left: 10px; bottom: 8px; color: #888; font-family: Consolas, monospace; }
+  #toast { position: fixed; top: 14px; left: 50%; transform: translateX(-50%); background: #2f5d8a; color: #fff; padding: 5px 14px; border-radius: 4px; opacity: 0; transition: opacity .2s; pointer-events: none; }
+</style>
+</head>
+<body>
+<aside>
+  <h3>工具</h3>
+  <div class="tools" id="tools"></div>
+  <div class="line">
+    <label><input type="checkbox" id="mirror"> 水平镜像 (M)</label>
+  </div>
+  <div class="hint">左键画，右键擦除。Ctrl+Z 撤销，Ctrl+Y 重做。</div>
+
+  <h3>调色板</h3>
+  <div id="palette"></div>
+  <div class="line">
+    <button id="addColor">+ 添加颜色</button>
+  </div>
+  <div class="hint">第一项对应 Java 参数 <code>color</code>（常态白色、禁用灰色），其余颜色固定写成 ARGB。</div>
+
+  <h3>画布</h3>
+  <div class="line">
+    宽 <input type="number" id="w" min="1" max="64">
+    高 <input type="number" id="h" min="1" max="64">
+    <button id="resize">应用</button>
+  </div>
+  <div class="line">
+    缩放 <input type="range" id="zoom" min="8" max="48" style="flex:1">
+  </div>
+  <div class="line">
+    背景 <select id="bg">
+      <option value="button">按钮灰</option>
+      <option value="checker">棋盘格</option>
+      <option value="dark">深色</option>
+    </select>
+    <label><input type="checkbox" id="gridLines" checked> 网格</label>
+  </div>
+  <div class="line">
+    <button data-shift="0,-1">↑</button>
+    <button data-shift="0,1">↓</button>
+    <button data-shift="-1,0">←</button>
+    <button data-shift="1,0">→</button>
+    <span class="hint">平移（循环）</span>
+  </div>
+  <div class="line">
+    <button id="flipH">水平翻转</button>
+    <button id="flipV">垂直翻转</button>
+    <button id="rotate">旋转 90°</button>
+  </div>
+  <div class="line">
+    <button id="trim">裁剪到内容</button>
+    <button id="clear">清空</button>
+  </div>
+  <div class="line">
+    预设 <select id="preset"><option value="">选择…</option></select>
+  </div>
+</aside>
+
+<main>
+  <canvas id="editor"></canvas>
+  <div id="status"></div>
+</main>
+
+<aside class="right">
+  <h3>按钮预览</h3>
+  <div class="line">
+    按钮 <input type="number" id="btnW" min="4" max="64"> × <input type="number" id="btnH" min="4" max="64">
+    GUI 缩放 <select id="pvScale"><option>1</option><option>2</option><option selected>3</option><option>4</option></select>
+  </div>
+  <div class="pvs" id="previews"></div>
+
+  <h3>Java</h3>
+  <div class="line">
+    <input type="text" id="enumName" placeholder="枚举名，如 SAVE" style="flex:1;width:auto">
+  </div>
+  <div class="line">
+    <input type="text" id="enumDoc" placeholder="Javadoc 注释（可留空）">
+  </div>
+  <div class="line">
+    <label><input type="checkbox" id="fillsOnly"> 仅 fill 语句</label>
+    <button id="copyJava">复制</button>
+    <button id="importJava">从下方导入</button>
+  </div>
+  <textarea id="java" spellcheck="false"></textarea>
+  <div class="hint">导入支持 <code>graphics.fill(x + a, y + b, x + c, y + d, color / 0xAARRGGBB)</code> 形式，带循环的代码无法解析。</div>
+
+  <h3>文本像素表</h3>
+  <div class="line">
+    <button id="copyText">复制</button>
+    <button id="importText">从下方导入</button>
+  </div>
+  <textarea id="text" spellcheck="false" style="height:140px"></textarea>
+
+  <h3>图片</h3>
+  <div class="line">
+    倍率 <select id="pngScale"><option>1</option><option>2</option><option>4</option><option selected>8</option><option>16</option></select>
+    <label><input type="checkbox" id="pngBtn"> 带按钮底</label>
+  </div>
+  <div class="line">
+    <button id="savePng">下载 PNG</button>
+    <button id="copyPng">复制图片</button>
+    <button id="loadPng">导入图片</button>
+    <input type="file" id="pngFile" accept="image/*" hidden>
+  </div>
+  <div class="hint">导入图片：半透明以下视为透明，其他像素归到最近的调色板颜色，差太远会新增颜色。</div>
+</aside>
+
+<div id="toast"></div>
+
+<script>
+// ===== 状态 =====
+const CHARS = '#+abcdefghijklmnopqrstuvwxyz';
+const TOOLS = [
+  ['pen', '画笔', 'B'], ['eraser', '橡皮', 'E'], ['fill', '填充', 'G'], ['picker', '吸管', 'I'],
+  ['line', '直线', 'L'], ['rect', '矩形框', 'R'], ['rectFill', '实心矩形', 'F'],
+];
+const PRESETS = {
+  'SAVE（S1 实心软盘）': ['.#########..', '##.....#.##.', '##.....#.###', '##.......###', '############', '############',
+    '##........##', '##.######.##', '##........##', '##.######.##', '##........##', '.##########.'],
+  'UNDO（U1 粗弯钩箭头）': ['...#........', '..##........', '.###........', '##########..', '###########.', '.###......##',
+    '..##......##', '...#......##', '.........###', '.....######.', '.....#####..'],
+  'CLOSE（关闭）': ['..........', '..........', '.##....##.', '.###..###.', '..######..', '...####...', '...####...',
+    '..######..', '.###..###.', '.##....##.', '..........', '..........'],
+};
+
+let state = {
+  w: 12, h: 12, px: new Array(144).fill(0),
+  palette: [{ name: '主色', color: '#ffffff' }, { name: '深色', color: '#373737' }],
+  cur: 1, tool: 'pen', mirror: false, zoom: 28, bg: 'button', grid: true,
+  btnW: 18, btnH: 18, name: 'ICON', doc: '',
+};
+const undoStack = [], redoStack = [];
+
+const $ = id => document.getElementById(id);
+const editor = $('editor'), ectx = editor.getContext('2d');
+
+function load() {
+  try {
+    const saved = JSON.parse(localStorage.getItem('fakeplayer-pixel-editor'));
+    if (saved && saved.px && saved.px.length === saved.w * saved.h) state = { ...state, ...saved };
+  } catch (e) { /* 忽略损坏的存档 */ }
+}
+function persist() {
+  localStorage.setItem('fakeplayer-pixel-editor', JSON.stringify(state));
+}
+function toast(msg) {
+  const t = $('toast'); t.textContent = msg; t.style.opacity = 1;
+  clearTimeout(toast.timer); toast.timer = setTimeout(() => t.style.opacity = 0, 1200);
+}
+
+// ===== 历史 =====
+function snapshot() { return JSON.stringify({ w: state.w, h: state.h, px: state.px, palette: state.palette }); }
+function pushHistory() {
+  undoStack.push(snapshot());
+  if (undoStack.length > 200) undoStack.shift();
+  redoStack.length = 0;
+}
+function restore(snap) { Object.assign(state, JSON.parse(snap)); state.cur = Math.min(state.cur, state.palette.length); refreshAll(); }
+function undo() { if (undoStack.length) { redoStack.push(snapshot()); restore(undoStack.pop()); } }
+function redo() { if (redoStack.length) { undoStack.push(snapshot()); restore(redoStack.pop()); } }
+
+// ===== 像素操作 =====
+const get = (x, y) => state.px[y * state.w + x];
+function set(x, y, v) {
+  if (x < 0 || y < 0 || x >= state.w || y >= state.h) return;
+  state.px[y * state.w + x] = v;
+  if (state.mirror) state.px[y * state.w + (state.w - 1 - x)] = v;
+}
+function floodFill(x, y, v) {
+  const target = get(x, y);
+  if (target === v) return;
+  const stack = [[x, y]];
+  while (stack.length) {
+    const [cx, cy] = stack.pop();
+    if (cx < 0 || cy < 0 || cx >= state.w || cy >= state.h || get(cx, cy) !== target) continue;
+    set(cx, cy, v);
+    stack.push([cx + 1, cy], [cx - 1, cy], [cx, cy + 1], [cx, cy - 1]);
+  }
+}
+function linePoints(x0, y0, x1, y1) {
+  const pts = [], dx = Math.abs(x1 - x0), dy = -Math.abs(y1 - y0), sx = x0 < x1 ? 1 : -1, sy = y0 < y1 ? 1 : -1;
+  let err = dx + dy;
+  for (;;) {
+    pts.push([x0, y0]);
+    if (x0 === x1 && y0 === y1) break;
+    const e2 = 2 * err;
+    if (e2 >= dy) { err += dy; x0 += sx; }
+    if (e2 <= dx) { err += dx; y0 += sy; }
+  }
+  return pts;
+}
+function rectPoints(x0, y0, x1, y1, filled) {
+  const pts = [], [ax, bx] = [Math.min(x0, x1), Math.max(x0, x1)], [ay, by] = [Math.min(y0, y1), Math.max(y0, y1)];
+  for (let y = ay; y <= by; y++) for (let x = ax; x <= bx; x++) {
+    if (filled || x === ax || x === bx || y === ay || y === by) pts.push([x, y]);
+  }
+  return pts;
+}
+function resize(nw, nh, ox = 0, oy = 0) {
+  const px = new Array(nw * nh).fill(0);
+  for (let y = 0; y < nh; y++) for (let x = 0; x < nw; x++) {
+    const sx = x + ox, sy = y + oy;
+    if (sx >= 0 && sy >= 0 && sx < state.w && sy < state.h) px[y * nw + x] = get(sx, sy);
+  }
+  state.w = nw; state.h = nh; state.px = px;
+}
+function transform(nw, nh, fn) {
+  const px = new Array(nw * nh).fill(0);
+  for (let y = 0; y < state.h; y++) for (let x = 0; x < state.w; x++) {
+    const [tx, ty] = fn(x, y);
+    px[ty * nw + tx] = get(x, y);
+  }
+  state.w = nw; state.h = nh; state.px = px;
+}
+function bounds() {
+  let x0 = state.w, y0 = state.h, x1 = -1, y1 = -1;
+  for (let y = 0; y < state.h; y++) for (let x = 0; x < state.w; x++) if (get(x, y)) {
+    x0 = Math.min(x0, x); y0 = Math.min(y0, y); x1 = Math.max(x1, x); y1 = Math.max(y1, y);
+  }
+  return x1 < 0 ? null : { x0, y0, x1, y1 };
+}
+
+// ===== 编辑器绘制 =====
+let hover = null, drag = null;
+
+function drawEditor() {
+  const z = state.zoom, W = state.w * z, H = state.h * z;
+  editor.width = W; editor.height = H;
+  if (state.bg === 'checker') {
+    for (let y = 0; y < state.h * 2; y++) for (let x = 0; x < state.w * 2; x++) {
+      ectx.fillStyle = (x + y) % 2 ? '#3a3a3a' : '#2e2e2e';
+      ectx.fillRect(x * z / 2, y * z / 2, z / 2, z / 2);
+    }
+  } else {
+    ectx.fillStyle = state.bg === 'button' ? '#8b8b8b' : '#161616';
+    ectx.fillRect(0, 0, W, H);
+  }
+  const preview = dragPreview();
+  for (let y = 0; y < state.h; y++) for (let x = 0; x < state.w; x++) {
+    const key = x + ',' + y;
+    const v = preview && preview.has(key) ? preview.get(key) : get(x, y);
+    if (!v) {
+      if (preview && preview.has(key)) { ectx.fillStyle = 'rgba(255,60,60,0.35)'; ectx.fillRect(x * z, y * z, z, z); }
+      continue;
+    }
+    ectx.fillStyle = state.palette[v - 1]?.color || '#f0f';
+    ectx.fillRect(x * z, y * z, z, z);
+  }
+  if (state.grid) {
+    ectx.strokeStyle = 'rgba(0,0,0,0.18)'; ectx.lineWidth = 1;
+    ectx.beginPath();
+    for (let i = 1; i < state.w; i++) { ectx.moveTo(i * z + 0.5, 0); ectx.lineTo(i * z + 0.5, H); }
+    for (let i = 1; i < state.h; i++) { ectx.moveTo(0, i * z + 0.5); ectx.lineTo(W, i * z + 0.5); }
+    ectx.stroke();
+    // 中线辅助对称
+    ectx.strokeStyle = 'rgba(80,160,255,0.45)';
+    ectx.beginPath();
+    ectx.moveTo(W / 2 + 0.5, 0); ectx.lineTo(W / 2 + 0.5, H);
+    ectx.moveTo(0, H / 2 + 0.5); ectx.lineTo(W, H / 2 + 0.5);
+    ectx.stroke();
+  }
+  if (hover) {
+    ectx.strokeStyle = '#ffcc00'; ectx.lineWidth = 2;
+    ectx.strokeRect(hover.x * z + 1, hover.y * z + 1, z - 2, z - 2);
+  }
+  const b = bounds();
+  $('status').textContent = `${state.w}×${state.h}` + (hover ? `  (${hover.x}, ${hover.y})` : '') +
+    (b ? `  内容 ${b.x1 - b.x0 + 1}×${b.y1 - b.y0 + 1}` : '  空');
+}
+
+// 直线/矩形拖拽中的预览像素
+function dragPreview() {
+  if (!drag || !['line', 'rect', 'rectFill'].includes(drag.tool) || !hover) return null;
+  const pts = drag.tool === 'line'
+    ? linePoints(drag.x, drag.y, hover.x, hover.y)
+    : rectPoints(drag.x, drag.y, hover.x, hover.y, drag.tool === 'rectFill');
+  const m = new Map();
+  for (const [x, y] of pts) {
+    m.set(x + ',' + y, drag.value);
+    if (state.mirror) m.set((state.w - 1 - x) + ',' + y, drag.value);
+  }
+  return m;
+}
+
+function cellAt(e) {
+  const r = editor.getBoundingClientRect();
+  const x = Math.floor((e.clientX - r.left) / state.zoom), y = Math.floor((e.clientY - r.top) / state.zoom);
+  return x >= 0 && y >= 0 && x < state.w && y < state.h ? { x, y } : null;
+}
+
+editor.addEventListener('contextmenu', e => e.preventDefault());
+editor.addEventListener('mousedown', e => {
+  const c = cellAt(e); if (!c) return;
+  const erase = e.button === 2 || state.tool === 'eraser';
+  const value = erase ? 0 : state.cur;
+  if (state.tool === 'picker' && e.button === 0) {
+    const v = get(c.x, c.y);
+    if (v) { state.cur = v; renderPalette(); }
+    return;
+  }
+  pushHistory();
+  if (state.tool === 'fill' && !erase) { floodFill(c.x, c.y, value); commit(); return; }
+  if (state.tool === 'fill' && erase) { floodFill(c.x, c.y, 0); commit(); return; }
+  const tool = erase && state.tool !== 'line' && !state.tool.startsWith('rect') ? 'pen' : state.tool;
+  drag = { tool, value, x: c.x, y: c.y, last: c };
+  if (tool === 'pen' || tool === 'eraser') { set(c.x, c.y, value); drawEditor(); }
+});
+window.addEventListener('mousemove', e => {
+  const c = cellAt(e);
+  hover = c;
+  if (drag && c && (drag.tool === 'pen' || drag.tool === 'eraser')) {
+    for (const [x, y] of linePoints(drag.last.x, drag.last.y, c.x, c.y)) set(x, y, drag.value);
+    drag.last = c;
+  }
+  drawEditor();
+});
+window.addEventListener('mouseup', () => {
+  if (!drag) return;
+  const preview = dragPreview();
+  if (preview) for (const [k, v] of preview) { const [x, y] = k.split(',').map(Number); set(x, y, v); }
+  drag = null;
+  commit();
+});
+editor.addEventListener('mouseleave', () => { hover = null; drawEditor(); });
+editor.addEventListener('wheel', e => {
+  if (!e.ctrlKey) return;
+  e.preventDefault();
+  state.zoom = Math.max(8, Math.min(48, state.zoom + (e.deltaY < 0 ? 2 : -2)));
+  $('zoom').value = state.zoom; drawEditor(); persist();
+}, { passive: false });
+
+// ===== 面板 =====
+function renderTools() {
+  const host = $('tools'); host.innerHTML = '';
+  for (const [id, name, key] of TOOLS) {
+    const b = document.createElement('button');
+    b.textContent = `${name} ${key}`;
+    b.className = state.tool === id ? 'on' : '';
+    b.onclick = () => { state.tool = id; renderTools(); persist(); };
+    host.appendChild(b);
+  }
+}
+
+function renderPalette() {
+  const host = $('palette'); host.innerHTML = '';
+  state.palette.forEach((p, i) => {
+    const row = document.createElement('div');
+    row.className = 'pal' + (state.cur === i + 1 ? ' sel' : '');
+    row.innerHTML = `<span class="ch">${CHARS[i]}</span><input type="color" value="${p.color}"><span class="nm">${p.name}</span>` +
+      `<span class="hint">${i === 0 ? 'color' : toArgb(p.color)}</span>` + (i > 1 ? '<button title="删除">×</button>' : '');
+    row.onclick = e => { if (e.target.tagName === 'INPUT' || e.target.tagName === 'BUTTON') return; state.cur = i + 1; renderPalette(); persist(); };
+    row.querySelector('input').oninput = e => { p.color = e.target.value; refreshAll(); };
+    const del = row.querySelector('button');
+    if (del) del.onclick = () => {
+      pushHistory();
+      // 删除颜色时，使用该色的像素清空，后面的索引前移
+      state.px = state.px.map(v => v === i + 1 ? 0 : v > i + 1 ? v - 1 : v);
+      state.palette.splice(i, 1);
+      state.cur = Math.min(state.cur, state.palette.length);
+      refreshAll();
+    };
+    host.appendChild(row);
+  });
+}
+
+function toArgb(hex) { return '0xFF' + hex.slice(1).toUpperCase(); }
+function nearestColorIndex(r, g, b, addIfFar) {
+  let best = -1, bestD = Infinity;
+  state.palette.forEach((p, i) => {
+    const pr = parseInt(p.color.slice(1, 3), 16), pg = parseInt(p.color.slice(3, 5), 16), pb = parseInt(p.color.slice(5, 7), 16);
+    const d = (pr - r) ** 2 + (pg - g) ** 2 + (pb - b) ** 2;
+    if (d < bestD) { bestD = d; best = i; }
+  });
+  if (addIfFar && bestD > 40 * 40 && state.palette.length < CHARS.length) {
+    state.palette.push({ name: '颜色 ' + (state.palette.length + 1), color: '#' + [r, g, b].map(v => v.toString(16).padStart(2, '0')).join('') });
+    return state.palette.length;
+  }
+  return best + 1;
+}
+
+// ===== 预览 =====
+function drawControl(ctx, x, y, w, h, hovered) {
+  const f = (x0, y0, x1, y1, c) => { ctx.fillStyle = c; ctx.fillRect(x0, y0, x1 - x0, y1 - y0); };
+  const r = x + w, b = y + h;
+  f(x, y, r, b, hovered ? '#ffffff' : '#373737');
+  f(x + 1, y + 1, r - 1, b - 1, '#8b8b8b');
+  f(x + 1, y + 1, r - 1, y + 2, '#aaaaaa');
+  f(x + 1, y + 1, x + 2, b - 1, '#aaaaaa');
+  f(x + 1, b - 2, r - 1, b - 1, '#565656');
+  f(r - 2, y + 1, r - 1, b - 1, '#565656');
+  f(x + 1, b - 2, x + 2, b - 1, '#8b8b8b');
+  f(r - 2, y + 1, r - 1, y + 2, '#8b8b8b');
+}
+function drawGlyph(ctx, gx, gy, mainColor) {
+  for (let y = 0; y < state.h; y++) for (let x = 0; x < state.w; x++) {
+    const v = get(x, y); if (!v) continue;
+    ctx.fillStyle = v === 1 ? mainColor : state.palette[v - 1].color;
+    ctx.fillRect(gx + x, gy + y, 1, 1);
+  }
+}
+function renderPreviews() {
+  const host = $('previews'); host.innerHTML = '';
+  const s = +$('pvScale').value, bw = state.btnW, bh = state.btnH;
+  const main = state.palette[0].color;
+  const items = [['常态', 'normal'], ['悬停', 'hover'], ['禁用', 'disabled'], ['原始', 'raw']];
+  for (const [label, mode] of items) {
+    const cw = mode === 'raw' ? state.w : bw, ch = mode === 'raw' ? state.h : bh;
+    const cv = document.createElement('canvas');
+    cv.className = 'pv'; cv.width = cw; cv.height = ch;
+    cv.style.width = cw * s + 'px'; cv.style.height = ch * s + 'px';
+    const ctx = cv.getContext('2d');
+    if (mode === 'raw') {
+      ctx.fillStyle = '#161616'; ctx.fillRect(0, 0, cw, ch);
+      drawGlyph(ctx, 0, 0, main);
+    } else {
+      drawControl(ctx, 0, 0, bw, bh, mode === 'hover');
+      // 与 PixelGlyph.drawCentered 一致的整数居中
+      drawGlyph(ctx, Math.floor((bw - state.w) / 2), Math.floor((bh - state.h) / 2), mode === 'disabled' ? '#777777' : main);
+    }
+    const wrap = document.createElement('div');
+    wrap.appendChild(cv);
+    const l = document.createElement('div'); l.className = 'lbl'; l.textContent = label;
+    wrap.appendChild(l);
+    host.appendChild(wrap);
+  }
+}
+
+// ===== 导出 =====
+// 贪心合并同色矩形：先向右延伸，再整行向下延伸
+function mergeRects() {
+  const used = new Array(state.w * state.h).fill(false), rects = [];
+  for (let y = 0; y < state.h; y++) for (let x = 0; x < state.w; x++) {
+    const v = get(x, y);
+    if (!v || used[y * state.w + x]) continue;
+    let x2 = x;
+    while (x2 + 1 < state.w && get(x2 + 1, y) === v && !used[y * state.w + x2 + 1]) x2++;
+    let y2 = y;
+    outer: while (y2 + 1 < state.h) {
+      for (let i = x; i <= x2; i++) if (get(i, y2 + 1) !== v || used[(y2 + 1) * state.w + i]) break outer;
+      y2++;
+    }
+    for (let yy = y; yy <= y2; yy++) for (let xx = x; xx <= x2; xx++) used[yy * state.w + xx] = true;
+    rects.push({ x, y, x2: x2 + 1, y2: y2 + 1, v });
+  }
+  return rects;
+}
+function javaCode() {
+  const p = (b, n) => n === 0 ? b : `${b} + ${n}`;
+  const fills = mergeRects().map(r =>
+    `graphics.fill(${p('x', r.x)}, ${p('y', r.y)}, ${p('x', r.x2)}, ${p('y', r.y2)}, ${r.v === 1 ? 'color' : toArgb(state.palette[r.v - 1].color)});`);
+  if ($('fillsOnly').checked) return fills.join('\n');
+  const name = (state.name || 'ICON').toUpperCase().replace(/[^A-Z0-9_]/g, '_');
+  const doc = state.doc.trim() ? `    /** ${state.doc.trim()} */\n` : '';
+  return `${doc}    ${name}(${state.w}, ${state.h}) {\n        @Override\n        protected void draw(GuiGraphicsExtractor graphics, int x, int y, int color) {\n` +
+    fills.map(f => '            ' + f).join('\n') + `\n        }\n    },`;
+}
+function textMap() {
+  const rows = [];
+  for (let y = 0; y < state.h; y++) {
+    let r = '';
+    for (let x = 0; x < state.w; x++) { const v = get(x, y); r += v ? CHARS[v - 1] : '.'; }
+    rows.push(r);
+  }
+  return rows.join('\n');
+}
+function exportCanvas() {
+  const s = +$('pngScale').value, withBtn = $('pngBtn').checked;
+  const w = withBtn ? state.btnW : state.w, h = withBtn ? state.btnH : state.h;
+  const small = document.createElement('canvas'); small.width = w; small.height = h;
+  const sctx = small.getContext('2d');
+  if (withBtn) {
+    drawControl(sctx, 0, 0, w, h, false);
+    drawGlyph(sctx, Math.floor((w - state.w) / 2), Math.floor((h - state.h) / 2), state.palette[0].color);
+  } else drawGlyph(sctx, 0, 0, state.palette[0].color);
+  const big = document.createElement('canvas'); big.width = w * s; big.height = h * s;
+  const bctx = big.getContext('2d'); bctx.imageSmoothingEnabled = false;
+  bctx.drawImage(small, 0, 0, w * s, h * s);
+  return big;
+}
+
+// ===== 导入 =====
+function importText(src, silent) {
+  const rows = src.split(/\r?\n/).map(r => r.trim().replace(/^['"`]|['"`],?$/g, '')).filter(r => r.length);
+  if (!rows.length) return toast('没有内容');
+  const w = Math.max(...rows.map(r => r.length));
+  pushHistory();
+  state.w = w; state.h = rows.length; state.px = new Array(w * rows.length).fill(0);
+  rows.forEach((r, y) => [...r].forEach((ch, x) => {
+    if (ch === '.' || ch === ' ') return;
+    let idx = CHARS.indexOf(ch);
+    if (idx < 0) idx = 0;
+    while (state.palette.length <= idx) state.palette.push({ name: '颜色 ' + (state.palette.length + 1), color: '#ff00ff' });
+    state.px[y * w + x] = idx + 1;
+  }));
+  refreshAll(); if (!silent) toast('已导入文本');
+}
+function importJava(src) {
+  const head = src.match(/([A-Z_][A-Z0-9_]*)\s*\(\s*(\d+)\s*,\s*(\d+)\s*\)\s*\{/);
+  const coord = '(x|y)(?:\\s*\\+\\s*(\\d+))?';
+  const re = new RegExp(`fill\\(\\s*${coord}\\s*,\\s*${coord}\\s*,\\s*${coord}\\s*,\\s*${coord}\\s*,\\s*([^)]+?)\\s*\\)`, 'g');
+  const rects = [];
+  let m;
+  while ((m = re.exec(src))) {
+    const n = i => +(m[i] || 0);
+    rects.push({ x: n(2), y: n(4), x2: n(6), y2: n(8), c: m[9] });
+  }
+  if (!rects.length) return toast('没找到 graphics.fill 调用');
+  pushHistory();
+  const w = head ? +head[2] : Math.max(...rects.map(r => r.x2));
+  const h = head ? +head[3] : Math.max(...rects.map(r => r.y2));
+  state.w = w; state.h = h; state.px = new Array(w * h).fill(0);
+  for (const r of rects) {
+    let v = 1;
+    const hex = r.c.match(/0x([0-9a-fA-F]{8})/);
+    if (hex) {
+      const rgb = hex[1].slice(2).toLowerCase();
+      v = nearestColorIndex(parseInt(rgb.slice(0, 2), 16), parseInt(rgb.slice(2, 4), 16), parseInt(rgb.slice(4, 6), 16), true);
+      // 已有颜色只是相近时直接复用，完全不同才新增
+    } else if (r.c.trim() !== 'color') {
+      v = 1;
+    }
+    for (let y = r.y; y < Math.min(r.y2, h); y++) for (let x = r.x; x < Math.min(r.x2, w); x++) state.px[y * w + x] = v;
+  }
+  if (head) { state.name = head[1]; $('enumName').value = head[1]; }
+  const doc = src.match(/\/\*\*\s*(.*?)\s*\*\//);
+  if (doc) { state.doc = doc[1]; $('enumDoc').value = doc[1]; }
+  refreshAll(); toast(`已导入 ${rects.length} 个矩形`);
+}
+function importImage(file) {
+  const img = new Image();
+  img.onload = () => {
+    if (img.width > 64 || img.height > 64) {
+      const guess = prompt(`图片 ${img.width}×${img.height} 较大，输入缩小倍率（每 N 像素取 1 格）`, '8');
+      if (!guess) return;
+      sampleImage(img, Math.max(1, +guess));
+    } else sampleImage(img, 1);
+    URL.revokeObjectURL(img.src);
+  };
+  img.src = URL.createObjectURL(file);
+}
+function sampleImage(img, step) {
+  const c = document.createElement('canvas'); c.width = img.width; c.height = img.height;
+  const ctx = c.getContext('2d'); ctx.drawImage(img, 0, 0);
+  const data = ctx.getImageData(0, 0, img.width, img.height).data;
+  const w = Math.floor(img.width / step), h = Math.floor(img.height / step);
+  pushHistory();
+  state.w = w; state.h = h; state.px = new Array(w * h).fill(0);
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    const i = ((y * step + (step >> 1)) * img.width + (x * step + (step >> 1))) * 4;
+    if (data[i + 3] < 128) continue;
+    state.px[y * w + x] = nearestColorIndex(data[i], data[i + 1], data[i + 2], true);
+  }
+  refreshAll(); toast(`已导入 ${w}×${h}`);
+}
+
+// ===== 刷新 =====
+function refreshAll() {
+  $('w').value = state.w; $('h').value = state.h; $('zoom').value = state.zoom;
+  $('btnW').value = state.btnW; $('btnH').value = state.btnH;
+  $('bg').value = state.bg; $('gridLines').checked = state.grid; $('mirror').checked = state.mirror;
+  renderTools(); renderPalette(); drawEditor(); renderPreviews();
+  $('java').value = javaCode();
+  $('text').value = textMap();
+  persist();
+}
+function commit() { drawEditor(); renderPreviews(); $('java').value = javaCode(); $('text').value = textMap(); persist(); }
+
+// ===== 绑定 =====
+$('addColor').onclick = () => { pushHistory(); state.palette.push({ name: '颜色 ' + (state.palette.length + 1), color: '#aa5500' }); state.cur = state.palette.length; refreshAll(); };
+$('resize').onclick = () => {
+  const nw = Math.max(1, Math.min(64, +$('w').value)), nh = Math.max(1, Math.min(64, +$('h').value));
+  pushHistory(); resize(nw, nh); refreshAll();
+};
+$('zoom').oninput = e => { state.zoom = +e.target.value; drawEditor(); persist(); };
+$('bg').onchange = e => { state.bg = e.target.value; drawEditor(); persist(); };
+$('gridLines').onchange = e => { state.grid = e.target.checked; drawEditor(); persist(); };
+$('mirror').onchange = e => { state.mirror = e.target.checked; persist(); };
+document.querySelectorAll('[data-shift]').forEach(b => b.onclick = () => {
+  const [dx, dy] = b.dataset.shift.split(',').map(Number);
+  pushHistory();
+  transform(state.w, state.h, (x, y) => [(x + dx + state.w) % state.w, (y + dy + state.h) % state.h]);
+  refreshAll();
+});
+$('flipH').onclick = () => { pushHistory(); transform(state.w, state.h, (x, y) => [state.w - 1 - x, y]); refreshAll(); };
+$('flipV').onclick = () => { pushHistory(); transform(state.w, state.h, (x, y) => [x, state.h - 1 - y]); refreshAll(); };
+$('rotate').onclick = () => { pushHistory(); const h = state.h; transform(state.h, state.w, (x, y) => [h - 1 - y, x]); refreshAll(); };
+$('trim').onclick = () => {
+  const b = bounds(); if (!b) return toast('画布是空的');
+  pushHistory(); resize(b.x1 - b.x0 + 1, b.y1 - b.y0 + 1, b.x0, b.y0); refreshAll();
+};
+$('clear').onclick = () => { pushHistory(); state.px.fill(0); refreshAll(); };
+for (const name of Object.keys(PRESETS)) {
+  const o = document.createElement('option'); o.value = name; o.textContent = name; $('preset').appendChild(o);
+}
+$('preset').onchange = e => {
+  if (!e.target.value) return;
+  importText(PRESETS[e.target.value].join('\n'));
+  state.name = e.target.value.split('（')[0]; $('enumName').value = state.name; commit();
+  e.target.value = '';
+};
+$('btnW').onchange = e => { state.btnW = +e.target.value; renderPreviews(); persist(); };
+$('btnH').onchange = e => { state.btnH = +e.target.value; renderPreviews(); persist(); };
+$('pvScale').onchange = renderPreviews;
+$('enumName').oninput = e => { state.name = e.target.value; $('java').value = javaCode(); persist(); };
+$('enumDoc').oninput = e => { state.doc = e.target.value; $('java').value = javaCode(); persist(); };
+$('fillsOnly').onchange = () => { $('java').value = javaCode(); };
+$('copyJava').onclick = () => navigator.clipboard.writeText(javaCode()).then(() => toast('Java 已复制'));
+$('importJava').onclick = () => importJava($('java').value);
+$('copyText').onclick = () => navigator.clipboard.writeText(textMap()).then(() => toast('文本已复制'));
+$('importText').onclick = () => importText($('text').value);
+$('savePng').onclick = () => exportCanvas().toBlob(b => {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(b); a.download = (state.name || 'icon').toLowerCase() + '.png'; a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+});
+$('copyPng').onclick = () => exportCanvas().toBlob(b =>
+  navigator.clipboard.write([new ClipboardItem({ 'image/png': b })]).then(() => toast('图片已复制'), () => toast('浏览器不允许复制图片')));
+$('loadPng').onclick = () => $('pngFile').click();
+$('pngFile').onchange = e => { if (e.target.files[0]) importImage(e.target.files[0]); e.target.value = ''; };
+
+window.addEventListener('keydown', e => {
+  if (['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName)) return;
+  const k = e.key.toLowerCase();
+  if (e.ctrlKey && k === 'z' && !e.shiftKey) { e.preventDefault(); undo(); return; }
+  if (e.ctrlKey && (k === 'y' || (k === 'z' && e.shiftKey))) { e.preventDefault(); redo(); return; }
+  if (e.ctrlKey) return;
+  const tool = TOOLS.find(t => t[2].toLowerCase() === k);
+  if (tool) { state.tool = tool[0]; renderTools(); persist(); return; }
+  if (k === 'm') { state.mirror = !state.mirror; $('mirror').checked = state.mirror; persist(); return; }
+  if (k === 'x' && state.palette.length > 1) { state.cur = state.cur === 1 ? 2 : 1; renderPalette(); return; }
+  const n = parseInt(k, 10);
+  if (n >= 1 && n <= state.palette.length) { state.cur = n; renderPalette(); }
+});
+
+load();
+$('enumName').value = state.name; $('enumDoc').value = state.doc;
+if (!state.px.some(v => v)) importText(PRESETS['SAVE（S1 实心软盘）'].join('\n'));
+refreshAll();
+</script>
+</body>
+</html>

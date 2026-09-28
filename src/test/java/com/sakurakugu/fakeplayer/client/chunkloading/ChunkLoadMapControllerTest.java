@@ -161,6 +161,23 @@ class ChunkLoadMapControllerTest {
         assertTrue(controller.painted().isEmpty());
     }
 
+    @Test
+    void canUndoOnlyWhileThereIsAStrokeToTakeBack() {
+        var controller = new ChunkLoadMapController(snapshot(1L));
+        assertFalse(controller.canUndo(), "还没涂过，不该能撤回");
+
+        // 浏览模式不进撤销栈，按钮也就一直灰着
+        controller.edit(3, 4, false);
+        assertFalse(controller.canUndo());
+
+        controller.setMode(ChunkMapEditMode.EDIT);
+        controller.edit(3, 4, false);
+        assertTrue(controller.canUndo());
+
+        controller.undo();
+        assertFalse(controller.canUndo());
+    }
+
     static ChunkMapSnapshotPayload snapshot(long revision) {
         return snapshot(revision, List.of());
     }
