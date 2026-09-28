@@ -10,6 +10,7 @@
     "PlayerEnderChestMixin",
     "PlayerListInvoker",
     "ServerGamePacketListenerMixin",
+    "FakePlayerChunkMapMixin",
     "TickRateManagerMixin"
   ],
   "client": [

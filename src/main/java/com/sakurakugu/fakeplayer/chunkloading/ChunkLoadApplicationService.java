@@ -44,7 +44,8 @@ public final class ChunkLoadApplicationService {
             case SET_ENABLED -> update(server, data, edit.targetId(), region -> region.withEnabled(edit.enabled()));
             case DELETE_REGION -> data.region(edit.targetId()).map(region -> ChunkLoaderManager.remove(server, region.name()))
                 .orElseGet(() -> ChunkLoaderManager.Result.failure("区域不存在"));
-            case SET_FAKE_POLICY -> FakePlayerSimulationService.setPolicy(server, edit.targetId(), edit.enabled(),
+            case SET_FAKE_POLICY -> FakePlayerSimulationService.setPolicy(server, edit.targetId(),
+                edit.enabled() ? FakePlayerLoadMode.DOLL : FakePlayerLoadMode.PLAYER,
                 edit.simulationDistance());
         };
     }

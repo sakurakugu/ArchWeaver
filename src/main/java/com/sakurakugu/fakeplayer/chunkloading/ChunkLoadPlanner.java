@@ -58,7 +58,7 @@ public final class ChunkLoadPlanner {
             if (region.enabled()) manual = Math.addExact(manual, region.chunks().size());
         }
         for (FakePlayerLoadPolicy policy : policies) {
-            if (policy.enabled()) {
+            if (policy.usesCustomSimulation()) {
                 long diameter = Math.addExact(Math.multiplyExact((long) policy.simulationDistance(), 2L), 1L);
                 player = Math.addExact(player, Math.multiplyExact(diameter, diameter));
             }

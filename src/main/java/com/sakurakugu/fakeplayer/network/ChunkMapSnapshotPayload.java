@@ -3,6 +3,7 @@ package com.sakurakugu.fakeplayer.network;
 import com.sakurakugu.fakeplayer.FakePlayerMod;
 import com.sakurakugu.fakeplayer.chunkloading.ChunkLoaderSavedData;
 import com.sakurakugu.fakeplayer.chunkloading.FakePlayerLoadPolicy;
+import com.sakurakugu.fakeplayer.chunkloading.FakePlayerLoadMode;
 import com.sakurakugu.fakeplayer.chunkloading.FakePlayerSimulationService;
 import com.sakurakugu.fakeplayer.chunkloading.ManualLoadRegion;
 import com.sakurakugu.fakeplayer.entity.FakePlayerManager;
@@ -115,11 +116,11 @@ public record ChunkMapSnapshotPayload(
             .limit(MAX_FAKE_PLAYERS)
             .map(fake -> {
                 FakePlayerLoadPolicy policy = data.policy(fake.getUUID())
-                    .orElse(new FakePlayerLoadPolicy(fake.getUUID(), false, 0));
+                    .orElse(new FakePlayerLoadPolicy(fake.getUUID(), FakePlayerLoadMode.PLAYER, 0));
                 var activeRange = FakePlayerSimulationService.activeRange(fake.getUUID()).orElse(null);
                 return new FakePlayerView(fake.getUUID(), fake.getGameProfile().name(),
                     fake.level().dimension().identifier().toString(), fake.getBlockX(), fake.getBlockY(),
-                    fake.getBlockZ(), fake.getYRot(), true, policy.enabled(), policy.simulationDistance(),
+                    fake.getBlockZ(), fake.getYRot(), true, policy.mode(), policy.simulationDistance(),
                     activeRange != null, activeRange == null ? "" : activeRange.dimension(),
                     activeRange == null ? 0 : activeRange.chunkX(), activeRange == null ? 0 : activeRange.chunkZ(),
                     activeRange == null ? 0 : activeRange.distance());
@@ -254,12 +255,12 @@ public record ChunkMapSnapshotPayload(
     }
 
     public record FakePlayerView(UUID id, String name, String dimension, int x, int y, int z, float yaw,
-                                 boolean online, boolean enabled, int simulationDistance,
+                                 boolean online, FakePlayerLoadMode mode, int simulationDistance,
                                  boolean loadingActive, String loadingDimension, int loadingChunkX,
                                  int loadingChunkZ, int loadingDistance) {
         private FakePlayerView(RegistryFriendlyByteBuf buffer) {
             this(buffer.readUUID(), buffer.readUtf(32), buffer.readUtf(256), buffer.readInt(), buffer.readInt(),
-                buffer.readInt(), buffer.readFloat(), buffer.readBoolean(), buffer.readBoolean(), buffer.readVarInt(),
+                buffer.readInt(), buffer.readFloat(), buffer.readBoolean(), buffer.readEnum(FakePlayerLoadMode.class), buffer.readVarInt(),
                 buffer.readBoolean(), buffer.readUtf(256), buffer.readInt(), buffer.readInt(), buffer.readVarInt());
             if (!Float.isFinite(yaw)) throw new IllegalArgumentException("假玩家朝向非法");
             if (simulationDistance < 0 || simulationDistance > ChunkLoaderSavedData.MAX_SIMULATION_DISTANCE) {
@@ -268,6 +269,7 @@ public record ChunkMapSnapshotPayload(
             if (loadingDistance < 0 || loadingDistance > ChunkLoaderSavedData.MAX_SIMULATION_DISTANCE) {
                 throw new IllegalArgumentException("假玩家活动加载距离非法");
             }
+            if (mode == null) throw new IllegalArgumentException("假玩家加载模式为空");
             if (loadingActive && loadingDimension.isEmpty()) throw new IllegalArgumentException("假玩家活动加载维度为空");
         }
 
@@ -275,7 +277,7 @@ public record ChunkMapSnapshotPayload(
             buffer.writeUUID(id); buffer.writeUtf(name, 32); buffer.writeUtf(dimension, 256);
             buffer.writeInt(x); buffer.writeInt(y); buffer.writeInt(z);
             buffer.writeFloat(yaw);
-            buffer.writeBoolean(online); buffer.writeBoolean(enabled); buffer.writeVarInt(simulationDistance);
+            buffer.writeBoolean(online); buffer.writeEnum(mode); buffer.writeVarInt(simulationDistance);
             buffer.writeBoolean(loadingActive); buffer.writeUtf(loadingDimension, 256);
             buffer.writeInt(loadingChunkX); buffer.writeInt(loadingChunkZ); buffer.writeVarInt(loadingDistance);
         }

@@ -1,6 +1,7 @@
 package com.sakurakugu.fakeplayer.client;
 
 import com.sakurakugu.fakeplayer.menu.FakePlayerInventoryMenu;
+import com.sakurakugu.fakeplayer.chunkloading.FakePlayerLoadMode;
 import com.sakurakugu.fakeplayer.network.RenameFakePlayerPayload;
 import com.sakurakugu.fakeplayer.network.FakePlayerSimulationPayload;
 import com.sakurakugu.fakeplayer.network.FakePlayerViewRotationPayload;
@@ -13,6 +14,7 @@ import com.sakurakugu.fakeplayer.client.ui.OverlayPanelManager;
 import com.sakurakugu.fakeplayer.client.ui.PixelGui;
 import com.sakurakugu.fakeplayer.client.ui.RotationPad;
 import com.sakurakugu.fakeplayer.client.ui.ToggleSwitchButton;
+import com.sakurakugu.fakeplayer.client.ui.SegmentedSwitchButton;
 import com.sakurakugu.fakeplayer.client.ui.TransferButton;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.AbstractWidget;
@@ -173,7 +175,7 @@ public final class FakePlayerInventoryScreen extends AbstractContainerScreen<Fak
     private boolean syncingAimInputs;
     private EditBox nameInput;
     private SolidDropdownButton<GameType> gameModeButton;
-    private boolean simulationEnabled;
+    private FakePlayerLoadMode simulationMode = FakePlayerLoadMode.PLAYER;
     private int simulationDistance;
     private boolean simulationStateInitialized;
     private int lastSentPitch;
@@ -501,27 +503,36 @@ public final class FakePlayerInventoryScreen extends AbstractContainerScreen<Fak
             SIMULATION_PANEL_LAYOUT, Component.translatable("gui.fakeplayer.simulation.title"));
         addRenderableWidget(simulationPanel);
         if (!simulationStateInitialized) {
-            simulationEnabled = menu.simulationEnabled();
+            simulationMode = menu.simulationMode();
             simulationDistance = menu.simulationDistance();
             simulationStateInitialized = true;
         }
-        ToggleSwitchButton enabled = addRenderableWidget(new ToggleSwitchButton(
-            left + 6, top + 24, simulationPanel.contentWidth() - 12, 16,
-            Component.translatable("gui.fakeplayer.simulation.enabled"), () -> simulationEnabled,
-            button -> simulationEnabled = !simulationEnabled));
+        IntegerSliderButton[] distanceControl = new IntegerSliderButton[1];
+        SegmentedSwitchButton mode = addRenderableWidget(new SegmentedSwitchButton(
+            left + 6, top + 24, simulationPanel.contentWidth() - 12, 18,
+            Component.translatable("gui.fakeplayer.simulation.player"),
+            Component.translatable("gui.fakeplayer.simulation.doll"),
+            () -> simulationMode == FakePlayerLoadMode.DOLL,
+            doll -> {
+                simulationMode = doll ? FakePlayerLoadMode.DOLL : FakePlayerLoadMode.PLAYER;
+                if (distanceControl[0] != null) distanceControl[0].active = doll;
+            }));
+        mode.setTooltip(Tooltip.create(Component.translatable("gui.fakeplayer.simulation.mode_tooltip")));
         IntegerSliderButton slider = addRenderableWidget(new IntegerSliderButton(
             left + 6, top + 47, simulationPanel.contentWidth() - 12, 16,
             0, 32, simulationDistance,
             value -> Component.translatable("gui.fakeplayer.simulation.distance", value),
             value -> simulationDistance = value));
+        slider.active = simulationMode == FakePlayerLoadMode.DOLL;
+        distanceControl[0] = slider;
         Button apply = addRenderableWidget(new SolidButton(
             left + 6, top + 70, simulationPanel.contentWidth() - 12, 16,
             Component.translatable("gui.fakeplayer.simulation.apply"), button -> {
                 ClientPacketDistributor.sendToServer(new FakePlayerSimulationPayload(
-                    menu.containerId, simulationEnabled, simulationDistance));
+                    menu.containerId, simulationMode, simulationDistance));
             }));
         addRenderableWidget(simulationPanel.createTab(new ItemStack(Items.GRASS_BLOCK), 2));
-        simulationPanel.bindContents(enabled, slider, apply);
+        simulationPanel.bindContents(mode, slider, apply);
     }
 
     private void copyPosition() {

@@ -52,7 +52,7 @@ public final class CommonEvents {
 
     @SubscribeEvent
     public static void serverTick(ServerTickEvent.Post event) {
-        if (event.getServer().getTickCount() % 10 == 0) FakePlayerSimulationService.tick(event.getServer());
+        FakePlayerSimulationService.tick(event.getServer());
     }
 
     @SubscribeEvent

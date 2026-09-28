@@ -31,8 +31,10 @@ public final class FakePlayerSimulationService {
     }
 
     public static void reconcile(MinecraftServer server) {
-        ACTIVE.clear();
-        for (FakeServerPlayer fake : FakePlayerManager.all(server)) update(fake);
+        tick(server);
+        for (FakeServerPlayer fake : FakePlayerManager.all(server)) {
+            fake.level().getChunkSource().move(fake);
+        }
     }
 
     public static void tick(MinecraftServer server) {
@@ -50,12 +52,23 @@ public final class FakePlayerSimulationService {
             range.chunkX(), range.chunkZ(), range.distance()));
     }
 
+    public static boolean usesDollMode(FakeServerPlayer fake) {
+        return ChunkLoaderManager.data(fake.server()).policy(fake.getUUID())
+            .map(FakePlayerLoadPolicy::usesCustomSimulation).orElse(false);
+    }
+
+    public static int dollSimulationDistance(FakeServerPlayer fake) {
+        return ChunkLoaderManager.data(fake.server()).policy(fake.getUUID())
+            .filter(FakePlayerLoadPolicy::usesCustomSimulation)
+            .map(FakePlayerLoadPolicy::simulationDistance).orElse(-1);
+    }
+
     public static ChunkLoaderManager.Result setPolicy(MinecraftServer server, UUID fakePlayerId,
-                                                       boolean enabled, int distance) {
+                                                       FakePlayerLoadMode mode, int distance) {
         if (distance < 0 || distance > FakePlayerConfig.maxFakePlayerSimulationDistance()) {
             return ChunkLoaderManager.Result.failure("模拟距离必须在 0-" + FakePlayerConfig.maxFakePlayerSimulationDistance() + " 之间");
         }
-        FakePlayerLoadPolicy policy = new FakePlayerLoadPolicy(fakePlayerId, enabled, distance);
+        FakePlayerLoadPolicy policy = new FakePlayerLoadPolicy(fakePlayerId, mode, distance);
         var policies = new java.util.ArrayList<>(ChunkLoaderManager.data(server).policies());
         policies.removeIf(value -> value.fakePlayerId().equals(fakePlayerId));
         policies.add(policy);
@@ -66,7 +79,12 @@ public final class FakePlayerSimulationService {
         ChunkLoaderManager.data(server).putPolicy(policy);
         FakeServerPlayer fake = FakePlayerManager.all(server).stream()
             .filter(value -> value.getUUID().equals(fakePlayerId)).findFirst().orElse(null);
-        if (fake != null) update(fake); else removeActive(fakePlayerId);
+        if (fake != null) {
+            update(fake);
+            fake.level().getChunkSource().move(fake);
+        } else {
+            removeActive(fakePlayerId);
+        }
         ChunkLoaderBackupStore.save(server, ChunkLoaderManager.data(server));
         return ChunkLoaderManager.Result.success();
     }
@@ -79,16 +97,17 @@ public final class FakePlayerSimulationService {
 
     private static void update(FakeServerPlayer fake) {
         FakePlayerLoadPolicy policy = ChunkLoaderManager.data(fake.server()).policy(fake.getUUID()).orElse(null);
-        if (policy == null || !policy.enabled()
+        if (policy == null || !policy.usesCustomSimulation()
             || policy.simulationDistance() > FakePlayerConfig.maxFakePlayerSimulationDistance()) {
             removeActive(fake.getUUID());
             return;
         }
-        ActiveRange next = new ActiveRange(fake.level(), fake.chunkPosition().x(), fake.chunkPosition().z(),
-            policy.simulationDistance(), ChunkLoadPlanner.square(fake.chunkPosition().x(), fake.chunkPosition().z(),
-            policy.simulationDistance()));
         ActiveRange previous = ACTIVE.get(fake.getUUID());
-        if (next.sameLocation(previous)) return;
+        int chunkX = fake.chunkPosition().x();
+        int chunkZ = fake.chunkPosition().z();
+        if (previous != null && previous.sameLocation(fake.level(), chunkX, chunkZ, policy.simulationDistance())) return;
+        ActiveRange next = new ActiveRange(fake.level(), chunkX, chunkZ, policy.simulationDistance(),
+            ChunkLoadPlanner.square(chunkX, chunkZ, policy.simulationDistance()));
         try {
             if (previous != null) setDifference(fake.getUUID(), previous, next, false);
             setDifference(fake.getUUID(), next, previous, true);
@@ -112,7 +131,7 @@ public final class FakePlayerSimulationService {
     }
 
     private static void set(ServerLevel level, UUID id, long chunk, boolean add) {
-        CONTROLLER.forceChunk(level, id, ChunkPos.getX(chunk), ChunkPos.getZ(chunk), add, false);
+        CONTROLLER.forceChunk(level, id, ChunkPos.getX(chunk), ChunkPos.getZ(chunk), add, true);
     }
 
     private static void validate(ServerLevel level, TicketHelper helper) {
@@ -121,7 +140,7 @@ public final class FakePlayerSimulationService {
             FakePlayerLoadPolicy policy = data.policy(entry.getKey()).orElse(null);
             FakeServerPlayer fake = FakePlayerManager.all(level.getServer()).stream()
                 .filter(value -> value.getUUID().equals(entry.getKey()) && value.level() == level).findFirst().orElse(null);
-            if (policy == null || !policy.enabled() || fake == null) {
+            if (policy == null || !policy.usesCustomSimulation() || fake == null) {
                 helper.removeAllTickets(entry.getKey());
                 continue;
             }
@@ -133,9 +152,8 @@ public final class FakePlayerSimulationService {
     }
 
     private record ActiveRange(ServerLevel level, int chunkX, int chunkZ, int distance, Set<Long> chunks) {
-        private boolean sameLocation(ActiveRange other) {
-            return other != null && level == other.level && chunkX == other.chunkX && chunkZ == other.chunkZ
-                && distance == other.distance;
+        private boolean sameLocation(ServerLevel level, int chunkX, int chunkZ, int distance) {
+            return this.level == level && this.chunkX == chunkX && this.chunkZ == chunkZ && this.distance == distance;
         }
     }
 

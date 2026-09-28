@@ -32,7 +32,7 @@ class ChunkLoaderSavedDataTest {
         ChunkLoaderSavedData original = new ChunkLoaderSavedData();
         ManualLoadRegion region = region("Spawn").withEnabled(false);
         original.addRegion(region);
-        original.putPolicy(new FakePlayerLoadPolicy(UUID.randomUUID(), true, 7));
+        original.putPolicy(new FakePlayerLoadPolicy(UUID.randomUUID(), FakePlayerLoadMode.DOLL, 7));
 
         var json = ChunkLoaderSavedData.CODEC.encodeStart(JsonOps.INSTANCE, original).getOrThrow();
         ChunkLoaderSavedData decoded = ChunkLoaderSavedData.CODEC.parse(JsonOps.INSTANCE, json).getOrThrow();
@@ -81,5 +81,16 @@ class ChunkLoaderSavedDataTest {
     static ManualLoadRegion region(String name) {
         return new ManualLoadRegion(UUID.nameUUIDFromBytes(name.getBytes(StandardCharsets.UTF_8)), name, OVERWORLD,
             Set.of(ChunkKey.pack(1, 2), ChunkKey.pack(2, 2), ChunkKey.pack(2, 3)), true);
+    }
+
+    @Test
+    void codecRejectsUnknownFakePlayerMode() {
+        ChunkLoaderSavedData original = new ChunkLoaderSavedData();
+        original.putPolicy(new FakePlayerLoadPolicy(UUID.randomUUID(), FakePlayerLoadMode.DOLL, 4));
+        var json = ChunkLoaderSavedData.CODEC.encodeStart(JsonOps.INSTANCE, original).getOrThrow();
+        json.getAsJsonObject().getAsJsonArray("fake_player_policies").get(0).getAsJsonObject()
+            .addProperty("mode", "UNKNOWN");
+
+        assertTrue(ChunkLoaderSavedData.CODEC.parse(JsonOps.INSTANCE, json).error().isPresent());
     }
 }

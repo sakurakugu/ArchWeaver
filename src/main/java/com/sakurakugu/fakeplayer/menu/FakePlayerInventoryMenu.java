@@ -3,6 +3,7 @@ package com.sakurakugu.fakeplayer.menu;
 import com.sakurakugu.fakeplayer.config.FakePlayerConfig;
 import com.sakurakugu.fakeplayer.chunkloading.ChunkLoaderManager;
 import com.sakurakugu.fakeplayer.chunkloading.FakePlayerLoadPolicy;
+import com.sakurakugu.fakeplayer.chunkloading.FakePlayerLoadMode;
 import com.sakurakugu.fakeplayer.entity.FakePlayerActions;
 import com.sakurakugu.fakeplayer.entity.FakePlayerManager;
 import com.sakurakugu.fakeplayer.entity.FakePlayerPossession;
@@ -171,7 +172,7 @@ public final class FakePlayerInventoryMenu extends AbstractContainerMenu {
     private int positionXSnapshot;
     private int positionYSnapshot;
     private int positionZSnapshot;
-    private int simulationEnabledSnapshot;
+    private int simulationModeSnapshot;
     private int simulationDistanceSnapshot;
     private final DataSlot health;
     private final DataSlot maxHealth;
@@ -188,7 +189,7 @@ public final class FakePlayerInventoryMenu extends AbstractContainerMenu {
     private final DataSlot positionX;
     private final DataSlot positionY;
     private final DataSlot positionZ;
-    private final DataSlot simulationEnabled;
+    private final DataSlot simulationMode;
     private final DataSlot simulationDistance;
 
     public FakePlayerInventoryMenu(int containerId, Inventory inventory, RegistryFriendlyByteBuf data) {
@@ -210,7 +211,7 @@ public final class FakePlayerInventoryMenu extends AbstractContainerMenu {
             data.readVarInt(),
             data.readVarInt(),
             data.readBoolean(),
-            data.readBoolean(),
+            data.readVarInt(),
             data.readVarInt()
         );
     }
@@ -229,11 +230,11 @@ public final class FakePlayerInventoryMenu extends AbstractContainerMenu {
             target.actions().repeatInterval(FakePlayerActions.ScheduledAction.USE),
             target.actions().repeatInterval(FakePlayerActions.ScheduledAction.JUMP),
             Math.round(target.getXRot()), Math.round(target.getYRot()), Math.round(target.yBodyRot),
-            target.actions().bodyFollowsHead(), simulationEnabled(target), simulationDistance(target));
+            target.actions().bodyFollowsHead(), simulationMode(target), simulationDistance(target));
     }
 
-    private static boolean simulationEnabled(FakeServerPlayer target) {
-        return simulationPolicyFor(target).enabled();
+    private static int simulationMode(FakeServerPlayer target) {
+        return simulationPolicyFor(target).mode().ordinal();
     }
 
     private static int simulationDistance(FakeServerPlayer target) {
@@ -242,7 +243,7 @@ public final class FakePlayerInventoryMenu extends AbstractContainerMenu {
 
     private static FakePlayerLoadPolicy simulationPolicyFor(FakeServerPlayer target) {
         return ChunkLoaderManager.data(target.server()).policy(target.getUUID())
-            .orElse(new FakePlayerLoadPolicy(target.getUUID(), false, 0));
+            .orElse(new FakePlayerLoadPolicy(target.getUUID(), FakePlayerLoadMode.PLAYER, 0));
     }
 
     private FakePlayerInventoryMenu(
@@ -263,7 +264,7 @@ public final class FakePlayerInventoryMenu extends AbstractContainerMenu {
         int yaw,
         int bodyYaw,
         boolean bodyFollowsHead,
-        boolean simulationEnabled,
+        int simulationMode,
         int simulationDistance
     ) {
         super(ModMenus.FAKE_PLAYER_INVENTORY.get(), containerId);
@@ -277,7 +278,7 @@ public final class FakePlayerInventoryMenu extends AbstractContainerMenu {
         this.yawSnapshot = yaw;
         this.bodyYawSnapshot = bodyYaw;
         this.bodyFollowsHeadSnapshot = bodyFollowsHead ? 1 : 0;
-        this.simulationEnabledSnapshot = simulationEnabled ? 1 : 0;
+        this.simulationModeSnapshot = simulationMode;
         this.simulationDistanceSnapshot = simulationDistance;
         this.pitchData = addDataSlot(new DataSlot() {
             public int get() { return target == null ? pitchSnapshot : Math.round(target.getXRot()); }
@@ -344,11 +345,11 @@ public final class FakePlayerInventoryMenu extends AbstractContainerMenu {
         this.positionZ = syncedValue(
             () -> target == null ? positionZSnapshot : target.getBlockZ(),
             value -> positionZSnapshot = value);
-        this.simulationEnabled = syncedValue(
-            () -> target == null ? simulationEnabledSnapshot
+        this.simulationMode = syncedValue(
+            () -> target == null ? simulationModeSnapshot
                 : ChunkLoaderManager.data(target.server()).policy(target.getUUID())
-                    .map(policy -> policy.enabled() ? 1 : 0).orElse(0),
-            value -> simulationEnabledSnapshot = value);
+                    .map(policy -> policy.mode().ordinal()).orElse(0),
+            value -> simulationModeSnapshot = value);
         this.simulationDistance = syncedValue(
             () -> target == null ? simulationDistanceSnapshot
                 : ChunkLoaderManager.data(target.server()).policy(target.getUUID())
@@ -997,7 +998,11 @@ public final class FakePlayerInventoryMenu extends AbstractContainerMenu {
     public int positionX() { return positionX.get(); }
     public int positionY() { return positionY.get(); }
     public int positionZ() { return positionZ.get(); }
-    public boolean simulationEnabled() { return simulationEnabled.get() != 0; }
+    public FakePlayerLoadMode simulationMode() {
+        int ordinal = simulationMode.get();
+        return ordinal >= 0 && ordinal < FakePlayerLoadMode.values().length
+            ? FakePlayerLoadMode.values()[ordinal] : FakePlayerLoadMode.PLAYER;
+    }
     public int simulationDistance() { return simulationDistance.get(); }
 
     public int selectedHotbarSlot() {

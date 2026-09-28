@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 import com.sakurakugu.fakeplayer.chunkloading.ChunkKey;
+import com.sakurakugu.fakeplayer.chunkloading.FakePlayerLoadMode;
 import org.junit.jupiter.api.Test;
 
 class ChunkMapSnapshotPayloadTest {
@@ -58,6 +59,6 @@ class ChunkMapSnapshotPayloadTest {
     private static ChunkMapSnapshotPayload.FakePlayerView view(boolean active, String dimension,
                                                                 int chunkX, int chunkZ, int distance) {
         return new ChunkMapSnapshotPayload.FakePlayerView(UUID.randomUUID(), "Loader", "minecraft:overworld",
-            0, 64, 0, 0.0F, true, true, distance, active, dimension, chunkX, chunkZ, distance);
+            0, 64, 0, 0.0F, true, FakePlayerLoadMode.DOLL, distance, active, dimension, chunkX, chunkZ, distance);
     }
 }

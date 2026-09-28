@@ -98,7 +98,7 @@ public final class ModNetworking {
                     && FakePlayerConfig.canUseCommands(player.createCommandSourceStack())
                     && menu.target() != null) {
                     var result = FakePlayerSimulationService.setPolicy(player.level().getServer(), menu.target().getUUID(),
-                        payload.enabled(), payload.distance());
+                        payload.mode(), payload.distance());
                     if (result.successful()) menu.broadcastChanges();
                     else player.sendSystemMessage(Component.literal(result.reason()));
                 }

@@ -6,6 +6,7 @@ import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.context.CommandContext;
 import com.sakurakugu.fakeplayer.chunkloading.ChunkLoaderManager;
 import com.sakurakugu.fakeplayer.chunkloading.FakePlayerSimulationService;
+import com.sakurakugu.fakeplayer.chunkloading.FakePlayerLoadMode;
 import com.sakurakugu.fakeplayer.chunkloading.ManualLoadRegion;
 import com.sakurakugu.fakeplayer.config.FakePlayerConfig;
 import com.sakurakugu.fakeplayer.entity.FakePlayerManager;
@@ -43,10 +44,12 @@ public final class ChunkLoaderCommand {
                 .executes(context -> setEnabled(context, false))))
             .then(Commands.literal("fake").then(fakeArgument()
                 .then(Commands.literal("info").executes(ChunkLoaderCommand::fakeInfo))
-                .then(Commands.literal("disable").executes(ChunkLoaderCommand::disableFake))
-                .then(Commands.literal("set").then(Commands.argument("distance",
-                    IntegerArgumentType.integer(0, 32))
-                    .executes(ChunkLoaderCommand::setFake)))))
+                .then(Commands.literal("mode").then(Commands.literal("player")
+                    .executes(context -> setFakeMode(context, FakePlayerLoadMode.PLAYER, 0)))
+                    .then(Commands.literal("doll").then(Commands.argument("distance",
+                        IntegerArgumentType.integer(0, 32))
+                        .executes(context -> setFakeMode(context, FakePlayerLoadMode.DOLL,
+                            IntegerArgumentType.getInteger(context, "distance"))))))))
             .then(Commands.literal("remove").then(anchorArgument().executes(ChunkLoaderCommand::remove)))
             .then(Commands.literal("configure").then(anchorArgument()
                 .then(Commands.argument("radius", IntegerArgumentType.integer(0,
@@ -139,25 +142,14 @@ public final class ChunkLoaderCommand {
         return 1;
     }
 
-    private static int setFake(CommandContext<CommandSourceStack> context) {
+    private static int setFakeMode(CommandContext<CommandSourceStack> context, FakePlayerLoadMode mode,
+                                   int distance) {
         FakeServerPlayer fake = getFake(context);
         if (fake == null) return 0;
-        int distance = IntegerArgumentType.getInteger(context, "distance");
-        var result = FakePlayerSimulationService.setPolicy(context.getSource().getServer(), fake.getUUID(), true, distance);
-        if (!result.successful()) return failure(context, Component.literal("无法设置假人模拟距离：" + result.reason()));
-        context.getSource().sendSuccess(() -> Component.literal("已启用假人 " + fake.getName().getString()
-            + " 的模拟加载，距离 " + distance + " 区块"), true);
-        return 1;
-    }
-
-    private static int disableFake(CommandContext<CommandSourceStack> context) {
-        FakeServerPlayer fake = getFake(context);
-        if (fake == null) return 0;
-        int distance = ChunkLoaderManager.data(context.getSource().getServer()).policy(fake.getUUID())
-            .map(policy -> policy.simulationDistance()).orElse(0);
-        var result = FakePlayerSimulationService.setPolicy(context.getSource().getServer(), fake.getUUID(), false, distance);
-        if (!result.successful()) return failure(context, Component.literal("无法关闭假人模拟加载：" + result.reason()));
-        context.getSource().sendSuccess(() -> Component.literal("已关闭假人 " + fake.getName().getString() + " 的模拟加载"), true);
+        var result = FakePlayerSimulationService.setPolicy(context.getSource().getServer(), fake.getUUID(), mode, distance);
+        if (!result.successful()) return failure(context, Component.literal("无法设置假人加载模式：" + result.reason()));
+        context.getSource().sendSuccess(() -> Component.literal("已将假人 " + fake.getName().getString()
+            + " 切换为" + (mode == FakePlayerLoadMode.PLAYER ? "玩家模式" : "玩偶模式，模拟距离 " + distance + " 区块")), true);
         return 1;
     }
 
@@ -165,10 +157,11 @@ public final class ChunkLoaderCommand {
         FakeServerPlayer fake = getFake(context);
         if (fake == null) return 0;
         var policy = ChunkLoaderManager.data(context.getSource().getServer()).policy(fake.getUUID()).orElse(null);
-        boolean enabled = policy != null && policy.enabled();
+        FakePlayerLoadMode mode = policy == null ? FakePlayerLoadMode.PLAYER : policy.mode();
         int distance = policy == null ? 0 : policy.simulationDistance();
         context.getSource().sendSuccess(() -> Component.literal("假人 " + fake.getName().getString()
-            + " 的模拟加载：" + (enabled ? "已启用" : "未启用") + "，距离 " + distance + " 区块"), false);
+            + " 的加载模式：" + (mode == FakePlayerLoadMode.PLAYER ? "玩家" : "玩偶")
+            + "，模拟距离 " + distance + " 区块"), false);
         return 1;
     }
 

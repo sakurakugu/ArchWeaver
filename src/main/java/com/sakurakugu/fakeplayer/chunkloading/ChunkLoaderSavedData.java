@@ -35,7 +35,14 @@ public final class ChunkLoaderSavedData extends SavedData {
     ).apply(instance, ManualLoadRegion::new));
     public static final Codec<FakePlayerLoadPolicy> POLICY_CODEC = RecordCodecBuilder.create(instance -> instance.group(
         UUIDUtil.CODEC.fieldOf("fake_player_id").forGetter(FakePlayerLoadPolicy::fakePlayerId),
-        Codec.BOOL.optionalFieldOf("enabled", false).forGetter(FakePlayerLoadPolicy::enabled),
+        Codec.STRING.comapFlatMap(name -> {
+            try {
+                return DataResult.success(FakePlayerLoadMode.valueOf(name));
+            } catch (IllegalArgumentException exception) {
+                return DataResult.error(() -> "未知的假玩家加载模式: " + name);
+            }
+        }, FakePlayerLoadMode::name).fieldOf("mode")
+            .forGetter(FakePlayerLoadPolicy::mode),
         Codec.intRange(0, MAX_SIMULATION_DISTANCE).fieldOf("simulation_distance")
             .forGetter(FakePlayerLoadPolicy::simulationDistance)
     ).apply(instance, FakePlayerLoadPolicy::new));
