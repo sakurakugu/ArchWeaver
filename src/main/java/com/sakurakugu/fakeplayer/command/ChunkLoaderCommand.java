@@ -147,9 +147,17 @@ public final class ChunkLoaderCommand {
         FakeServerPlayer fake = getFake(context);
         if (fake == null) return 0;
         var result = FakePlayerSimulationService.setPolicy(context.getSource().getServer(), fake.getUUID(), mode, distance);
-        if (!result.successful()) return failure(context, Component.literal("无法设置假人加载模式：" + result.reason()));
-        context.getSource().sendSuccess(() -> Component.literal("已将假人 " + fake.getName().getString()
-            + " 切换为" + (mode == FakePlayerLoadMode.PLAYER ? "玩家模式" : "玩偶模式，模拟距离 " + distance + " 区块")), true);
+        if (!result.successful()) {
+            return failure(context, Component.translatable("commands.fakeplayer.chunkloader.fake_mode_failed", result.reason()));
+        }
+        if (mode == FakePlayerLoadMode.PLAYER) {
+            context.getSource().sendSuccess(() -> Component.translatable(
+                "commands.fakeplayer.chunkloader.fake_mode_set", fake.getName().getString(),
+                Component.translatable("commands.fakeplayer.chunkloader.fake_mode_player")), true);
+        } else {
+            context.getSource().sendSuccess(() -> Component.translatable(
+                "commands.fakeplayer.chunkloader.fake_mode_set_doll", fake.getName().getString(), distance), true);
+        }
         return 1;
     }
 
@@ -159,9 +167,11 @@ public final class ChunkLoaderCommand {
         var policy = ChunkLoaderManager.data(context.getSource().getServer()).policy(fake.getUUID()).orElse(null);
         FakePlayerLoadMode mode = policy == null ? FakePlayerLoadMode.PLAYER : policy.mode();
         int distance = policy == null ? 0 : policy.simulationDistance();
-        context.getSource().sendSuccess(() -> Component.literal("假人 " + fake.getName().getString()
-            + " 的加载模式：" + (mode == FakePlayerLoadMode.PLAYER ? "玩家" : "玩偶")
-            + "，模拟距离 " + distance + " 区块"), false);
+        Component modeLabel = Component.translatable(mode == FakePlayerLoadMode.PLAYER
+            ? "commands.fakeplayer.chunkloader.fake_mode_player"
+            : "commands.fakeplayer.chunkloader.fake_mode_doll");
+        context.getSource().sendSuccess(() -> Component.translatable(
+            "commands.fakeplayer.chunkloader.fake_mode_info", fake.getName().getString(), modeLabel, distance), false);
         return 1;
     }
 
@@ -169,7 +179,7 @@ public final class ChunkLoaderCommand {
         String name = StringArgumentType.getString(context, "anchor");
         ManualLoadRegion anchor = ChunkLoaderManager.data(context.getSource().getServer()).region(name).orElse(null);
         if (anchor == null) {
-            return failure(context, Component.translatable("commands.fakeplayer.chunkloader.failed", "找不到加载点"));
+            return failure(context, Component.translatable("commands.fakeplayer.chunkloader.not_found", name));
         }
         context.getSource().sendSuccess(() -> Component.translatable("commands.fakeplayer.chunkloader.info",
             anchor.name(), anchor.enabled(), anchor.dimension(), "-", 0,
@@ -193,7 +203,7 @@ public final class ChunkLoaderCommand {
         String name = StringArgumentType.getString(context, "fake");
         FakeServerPlayer fake = FakePlayerManager.find(context.getSource().getServer(), name);
         if (fake == null) {
-            context.getSource().sendFailure(Component.literal("找不到在线假人：" + name));
+            context.getSource().sendFailure(Component.translatable("commands.fakeplayer.not_found", name));
         }
         return fake;
     }

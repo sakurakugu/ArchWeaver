@@ -27,6 +27,7 @@ import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.resources.Identifier;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.player.PlayerSkin;
@@ -175,8 +176,11 @@ public final class ChunkMapScreen extends Screen implements ChunkLoadMapFrontend
         PlayerMarker hoveredPlayer = playerMarkerAt(mouseX, mouseY);
         drawHoveredChunk(graphics, mouseX, mouseY, hoveredPlayer);
 
-        Component heading = Component.literal(title.getString() + "  [" + label(controller.mode())
-            + (controller.mode() == ChunkMapEditMode.EDIT ? " 左键涂 右键擦 中键平移" : "") + "]");
+        MutableComponent heading = title.copy().append("  [").append(label(controller.mode()));
+        if (controller.mode() == ChunkMapEditMode.EDIT) {
+            heading.append(" ").append(Component.translatable("gui.fakeplayer.chunkloader.map_edit_hint"));
+        }
+        heading.append("]");
         drawFloatingText(graphics, heading, width / 2, 32, 0xFFFFFFFF);
         int centerChunkX = Mth.floor(centerBlockX) >> 4;
         int centerChunkZ = Mth.floor(centerBlockZ) >> 4;
@@ -848,10 +852,11 @@ public final class ChunkMapScreen extends Screen implements ChunkLoadMapFrontend
         });
     }
 
-    /** 按钮和标题都用这套短标签，和界面其它地方一样直接写中文。 */
-    private static String label(ChunkMapEditMode mode) { return switch (mode) {
-        case BROWSE -> "浏览"; case EDIT -> "强/擦除";
-    }; }
+    /** 按钮和标题共用短标签，保证标题也能随语言切换。 */
+    private static Component label(ChunkMapEditMode mode) { return Component.translatable(switch (mode) {
+        case BROWSE -> "gui.fakeplayer.chunkloader.map_browse_mode";
+        case EDIT -> "gui.fakeplayer.chunkloader.map_edit_mode";
+    }); }
 
     @Override
     public void acceptSnapshot(ChunkMapSnapshotPayload snapshot) {
