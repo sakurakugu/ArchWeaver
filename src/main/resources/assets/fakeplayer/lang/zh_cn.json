@@ -281,9 +281,9 @@
   "gui.fakeplayer.chunkloader.action_success.backup": "已创建区块加载点备份",
   "gui.fakeplayer.chunkloader.action_success.restore": "已恢复区块加载点备份",
   "gui.fakeplayer.simulation.title": "模拟加载",
-  "gui.fakeplayer.simulation.player": "玩家",
-  "gui.fakeplayer.simulation.doll": "玩偶",
-  "gui.fakeplayer.simulation.mode_tooltip": "玩家模式：模拟距离跟随服务器设置\n玩偶模式：模拟距离手动设置",
+  "gui.fakeplayer.simulation.auto": "自动",
+  "gui.fakeplayer.simulation.manual": "手动",
+  "gui.fakeplayer.simulation.mode_tooltip": "自动：模拟距离跟随服务器设置\n手动：模拟距离手动设置",
   "gui.fakeplayer.simulation.distance": "距离：%s 区块",
   "gui.fakeplayer.simulation.apply": "应用"
 }

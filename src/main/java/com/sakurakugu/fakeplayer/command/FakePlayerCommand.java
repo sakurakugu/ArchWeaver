@@ -6,6 +6,7 @@ import com.mojang.brigadier.arguments.FloatArgumentType;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
+import com.mojang.brigadier.builder.RequiredArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.sakurakugu.fakeplayer.FakePlayerMod;
@@ -41,7 +42,7 @@ import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec2;
 import net.minecraft.world.phys.Vec3;
 
-/** 注册并处理 {@code /fakeplayer} 与 {@code /player} 命令。 */
+/** 注册并处理 {@code /fakeplayer}、{@code /fakeplayer player} 与 {@code /player} 命令。 */
 public final class FakePlayerCommand {
     private FakePlayerCommand() {
     }
@@ -62,16 +63,26 @@ public final class FakePlayerCommand {
                 .then(Commands.literal("list").executes(FakePlayerCommand::list))
                 .then(guiCommand("gui"))
                 .then(guiCommand("setting"))
+                .then(Commands.literal("player").then(playerTargetCommand()))
                 .then(Commands.argument("name", StringArgumentType.word())
                     .executes(context -> spawn(context, name(context))))
         );
 
-        LiteralArgumentBuilder<CommandSourceStack> player = Commands.literal("player")
-            .requires(FakePlayerConfig::canUseCommands);
-        var target = Commands.argument("name", StringArgumentType.word())
-            .suggests((context, builder) -> SharedSuggestionProvider.suggest(
-                context.getSource().getServer().getPlayerList().getPlayers().stream()
-                    .map(value -> value.getGameProfile().name()), builder));
+        // /player <名称> <动作> 与 /fakeplayer player <名称> <动作> 等价，两份命令树各自独立注册。
+        dispatcher.register(
+            Commands.literal("player")
+                .requires(FakePlayerConfig::canUseCommands)
+                .then(playerTargetCommand())
+        );
+    }
+
+    /** {@code /player <名称> <动作>} 与 {@code /fakeplayer player <名称> <动作>} 共用的目标参数与动作分支。 */
+    private static RequiredArgumentBuilder<CommandSourceStack, String> playerTargetCommand() {
+        RequiredArgumentBuilder<CommandSourceStack, String> target =
+            Commands.argument("name", StringArgumentType.word())
+                .suggests((context, builder) -> SharedSuggestionProvider.suggest(
+                    context.getSource().getServer().getPlayerList().getPlayers().stream()
+                        .map(value -> value.getGameProfile().name()), builder));
 
         target.then(spawnCommand());
         target.then(Commands.literal("kill").executes(FakePlayerCommand::kill));
@@ -109,8 +120,7 @@ public final class FakePlayerCommand {
         target.then(repeatingCommand("attack", (fake, mode, interval) -> fake.actions().attack(mode, interval)));
         target.then(repeatingCommand("use", (fake, mode, interval) -> fake.actions().use(mode, interval)));
         target.then(simpleAction("stop", fake -> fake.actions().stop()));
-        player.then(target);
-        dispatcher.register(player);
+        return target;
     }
 
     private static LiteralArgumentBuilder<CommandSourceStack> automationCommand() {

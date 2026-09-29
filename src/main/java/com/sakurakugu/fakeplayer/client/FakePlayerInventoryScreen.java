@@ -120,6 +120,10 @@ public final class FakePlayerInventoryScreen extends AbstractContainerScreen<Fak
     private static final OverlayPanelManager.Layout MOUNT_PANEL_LAYOUT = nextPanelLayout(
         AUTOMATION_PANEL_LAYOUT, 94, 83);
     private static final OverlayPanelManager.Layout SIMULATION_PANEL_LAYOUT = panelLayout(8, 100, 92);
+    // 应用按钮三态文字色：红=有未保存改动，绿=已保存，白=无需保存。
+    private static final int APPLY_DIRTY_COLOR = 0xFFFF5555;
+    private static final int APPLY_SAVED_COLOR = 0xFF55FF55;
+    private static final int APPLY_IDLE_COLOR = 0xFFFFFFFF;
     private static final int MOUNT_BUTTON_HEIGHT = 16;
     private static final int AIM_PAD_SIZE = 62;
     private static final int CONTINUOUS_BUTTON_HEIGHT = 16;
@@ -178,6 +182,8 @@ public final class FakePlayerInventoryScreen extends AbstractContainerScreen<Fak
     private FakePlayerLoadMode simulationMode = FakePlayerLoadMode.PLAYER;
     private int simulationDistance;
     private boolean simulationStateInitialized;
+    private SolidButton simulationApplyButton;
+    private boolean simulationApplied;
     private int lastSentPitch;
     private int lastSentYaw;
 
@@ -504,14 +510,14 @@ public final class FakePlayerInventoryScreen extends AbstractContainerScreen<Fak
         addRenderableWidget(simulationPanel);
         if (!simulationStateInitialized) {
             simulationMode = menu.simulationMode();
-            simulationDistance = Math.min(menu.simulationDistance(), menu.simulationDistanceLimit());
+            simulationDistance = savedSimulationDistance();
             simulationStateInitialized = true;
         }
         IntegerSliderButton[] distanceControl = new IntegerSliderButton[1];
         SegmentedSwitchButton mode = addRenderableWidget(new SegmentedSwitchButton(
             left + 6, top + 24, simulationPanel.contentWidth() - 12, 18,
-            Component.translatable("gui.fakeplayer.simulation.player"),
-            Component.translatable("gui.fakeplayer.simulation.doll"),
+            Component.translatable("gui.fakeplayer.simulation.auto"),
+            Component.translatable("gui.fakeplayer.simulation.manual"),
             () -> simulationMode == FakePlayerLoadMode.DOLL,
             doll -> {
                 simulationMode = doll ? FakePlayerLoadMode.DOLL : FakePlayerLoadMode.PLAYER;
@@ -526,14 +532,34 @@ public final class FakePlayerInventoryScreen extends AbstractContainerScreen<Fak
             value -> simulationDistance = value));
         slider.active = simulationMode == FakePlayerLoadMode.DOLL;
         distanceControl[0] = slider;
-        Button apply = addRenderableWidget(new SolidButton(
+        SolidButton apply = addRenderableWidget(new SolidButton(
             left + 6, top + 70, simulationPanel.contentWidth() - 12, 16,
             Component.translatable("gui.fakeplayer.simulation.apply"), button -> {
                 ClientPacketDistributor.sendToServer(new FakePlayerSimulationPayload(
                     menu.containerId, simulationMode, simulationDistance));
+                simulationApplied = true;
             }));
+        simulationApplyButton = apply;
+        updateSimulationApplyColor();
         addRenderableWidget(simulationPanel.createTab(new ItemStack(Items.GRASS_BLOCK), 2));
         simulationPanel.bindContents(mode, slider, apply);
+    }
+
+    /** 服务端已保存的模拟距离；存档值可能大于当前服务器上限，取夹紧后的值。 */
+    private int savedSimulationDistance() {
+        return Math.min(menu.simulationDistance(), menu.simulationDistanceLimit());
+    }
+
+    /** 应用按钮文字色：与已保存策略不一致为红，刚保存成功为绿，其余为白。 */
+    private void updateSimulationApplyColor() {
+        if (simulationApplyButton == null) return;
+        if (simulationMode != menu.simulationMode()
+            || (simulationMode == FakePlayerLoadMode.DOLL
+                && simulationDistance != savedSimulationDistance())) {
+            simulationApplyButton.setTextColor(APPLY_DIRTY_COLOR);
+        } else {
+            simulationApplyButton.setTextColor(simulationApplied ? APPLY_SAVED_COLOR : APPLY_IDLE_COLOR);
+        }
     }
 
     private void copyPosition() {
@@ -811,6 +837,7 @@ public final class FakePlayerInventoryScreen extends AbstractContainerScreen<Fak
         super.containerTick();
         updateFlyingButtons();
         syncAimInputs();
+        updateSimulationApplyColor();
         if (heldAction < 0) {
             return;
         }

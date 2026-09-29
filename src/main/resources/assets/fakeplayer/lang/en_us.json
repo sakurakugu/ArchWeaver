@@ -281,9 +281,9 @@
   "gui.fakeplayer.chunkloader.action_success.backup": "Created a chunk loader backup",
   "gui.fakeplayer.chunkloader.action_success.restore": "Restored the chunk loader backup",
   "gui.fakeplayer.simulation.title": "Simulation Loading",
-  "gui.fakeplayer.simulation.player": "Player",
-  "gui.fakeplayer.simulation.doll": "Doll",
-  "gui.fakeplayer.simulation.mode_tooltip": "Player mode: Simulation distance follows server settings\nDoll mode: Simulation distance is set manually",
+  "gui.fakeplayer.simulation.auto": "Auto",
+  "gui.fakeplayer.simulation.manual": "Manual",
+  "gui.fakeplayer.simulation.mode_tooltip": "Auto: Simulation distance follows server settings\nManual: Simulation distance is set manually",
   "gui.fakeplayer.simulation.distance": "Distance: %s chunks",
   "gui.fakeplayer.simulation.apply": "Apply"
 }
