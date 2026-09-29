@@ -53,6 +53,21 @@ class ChunkLoadPlannerTest {
         assertThrows(ArithmeticException.class, () -> ChunkLoadPlanner.square(0, 0, Integer.MAX_VALUE));
     }
 
+    @Test
+    void deduplicatesOverlappingPlayerRangesByDimension() {
+        UUID firstId = UUID.randomUUID();
+        UUID secondId = UUID.randomUUID();
+        var first = new ChunkLoadPlanner.SimulationRange(firstId, OVERWORLD,
+            ChunkLoadPlanner.square(0, 0, 1));
+        var overlapping = new ChunkLoadPlanner.SimulationRange(secondId, OVERWORLD,
+            ChunkLoadPlanner.square(1, 0, 1));
+        var separateDimension = new ChunkLoadPlanner.SimulationRange(UUID.randomUUID(),
+            Identifier.withDefaultNamespace("the_nether"), ChunkLoadPlanner.square(0, 0, 1));
+
+        assertEquals(12, ChunkLoadPlanner.uniquePlayerChunks(List.of(first, overlapping)));
+        assertEquals(18, ChunkLoadPlanner.uniquePlayerChunks(List.of(first, separateDimension)));
+    }
+
     private static ManualLoadRegion region(String name, long chunk) {
         return new ManualLoadRegion(UUID.nameUUIDFromBytes(name.getBytes()), name, OVERWORLD, Set.of(chunk), true);
     }

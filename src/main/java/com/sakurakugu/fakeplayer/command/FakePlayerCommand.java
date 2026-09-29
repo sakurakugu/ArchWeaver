@@ -180,7 +180,6 @@ public final class FakePlayerCommand {
     private static LiteralArgumentBuilder<CommandSourceStack> spawnCommand() {
         LiteralArgumentBuilder<CommandSourceStack> spawn = Commands.literal("spawn")
             .executes(context -> spawn(context, name(context)));
-        spawn.then(gamemodeBranch());
         spawn.then(gamemodeBranch("gamemode"));
 
         var position = Commands.argument("position", Vec3Argument.vec3())
@@ -189,9 +188,7 @@ public final class FakePlayerCommand {
             .executes(context -> spawn(context, name(context)));
         var dimension = Commands.argument("dimension", DimensionArgument.dimension())
             .executes(context -> spawn(context, name(context)));
-        dimension.then(gamemodeBranch());
         dimension.then(gamemodeBranch("gamemode"));
-        rotation.then(gamemodeBranch());
         rotation.then(gamemodeBranch("gamemode"));
         rotation.then(Commands.literal("in")
             .requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS))
@@ -199,10 +196,6 @@ public final class FakePlayerCommand {
         position.then(Commands.literal("facing").then(rotation));
         spawn.then(Commands.literal("at").then(position));
         return spawn;
-    }
-
-    private static LiteralArgumentBuilder<CommandSourceStack> gamemodeBranch() {
-        return gamemodeBranch("in");
     }
 
     private static LiteralArgumentBuilder<CommandSourceStack> gamemodeBranch(String literal) {

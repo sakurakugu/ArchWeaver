@@ -4,6 +4,7 @@ import com.sakurakugu.fakeplayer.config.FakePlayerConfig;
 import com.sakurakugu.fakeplayer.chunkloading.ChunkLoaderManager;
 import com.sakurakugu.fakeplayer.chunkloading.FakePlayerLoadPolicy;
 import com.sakurakugu.fakeplayer.chunkloading.FakePlayerLoadMode;
+import com.sakurakugu.fakeplayer.chunkloading.FakePlayerSimulationService;
 import com.sakurakugu.fakeplayer.entity.FakePlayerActions;
 import com.sakurakugu.fakeplayer.entity.FakePlayerManager;
 import com.sakurakugu.fakeplayer.entity.FakePlayerPossession;
@@ -162,6 +163,7 @@ public final class FakePlayerMenuOpener {
                 data.writeBoolean(fake.actions().bodyFollowsHead());
                 data.writeVarInt(simulation.mode().ordinal());
                 data.writeVarInt(simulation.simulationDistance());
+                data.writeVarInt(FakePlayerSimulationService.maxSimulationDistance(viewer.level().getServer()));
             }
         );
     }

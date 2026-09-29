@@ -2,10 +2,14 @@ package com.sakurakugu.fakeplayer.chunkloading;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 import net.minecraft.core.registries.Registries;
+import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.Level;
 
@@ -66,12 +70,32 @@ public final class ChunkLoadPlanner {
         return new BudgetUsage(manual, player);
     }
 
+    /** 按维度和区块坐标去重，计算当前假人模拟范围实际覆盖的区块数。 */
+    public static long uniquePlayerChunks(Collection<SimulationRange> ranges) {
+        Map<Identifier, Set<Long>> chunksByDimension = new HashMap<>();
+        for (SimulationRange range : ranges) {
+            chunksByDimension.computeIfAbsent(range.dimension(), ignored -> new HashSet<>())
+                .addAll(range.chunks());
+        }
+        return chunksByDimension.values().stream().mapToLong(Set::size).sum();
+    }
+
     public record ClaimDiff(Set<ChunkLoadClaim> added, Set<ChunkLoadClaim> removed) {
     }
 
     public record BudgetUsage(long manualTotal, long player) {
         public long manualTotal() {
             return manualTotal;
+        }
+    }
+
+    /** 在线假人当前实际提交的模拟范围。 */
+    public record SimulationRange(UUID fakePlayerId, Identifier dimension, Set<Long> chunks) {
+        public SimulationRange {
+            if (fakePlayerId == null || dimension == null || chunks == null) {
+                throw new IllegalArgumentException("假人模拟范围参数不能为空");
+            }
+            chunks = Set.copyOf(chunks);
         }
     }
 }

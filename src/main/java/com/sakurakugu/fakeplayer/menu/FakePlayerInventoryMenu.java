@@ -4,6 +4,7 @@ import com.sakurakugu.fakeplayer.config.FakePlayerConfig;
 import com.sakurakugu.fakeplayer.chunkloading.ChunkLoaderManager;
 import com.sakurakugu.fakeplayer.chunkloading.FakePlayerLoadPolicy;
 import com.sakurakugu.fakeplayer.chunkloading.FakePlayerLoadMode;
+import com.sakurakugu.fakeplayer.chunkloading.FakePlayerSimulationService;
 import com.sakurakugu.fakeplayer.entity.FakePlayerActions;
 import com.sakurakugu.fakeplayer.entity.FakePlayerManager;
 import com.sakurakugu.fakeplayer.entity.FakePlayerPossession;
@@ -174,6 +175,7 @@ public final class FakePlayerInventoryMenu extends AbstractContainerMenu {
     private int positionZSnapshot;
     private int simulationModeSnapshot;
     private int simulationDistanceSnapshot;
+    private int simulationDistanceLimitSnapshot;
     private final DataSlot health;
     private final DataSlot maxHealth;
     private final DataSlot food;
@@ -191,6 +193,7 @@ public final class FakePlayerInventoryMenu extends AbstractContainerMenu {
     private final DataSlot positionZ;
     private final DataSlot simulationMode;
     private final DataSlot simulationDistance;
+    private final DataSlot simulationDistanceLimit;
 
     public FakePlayerInventoryMenu(int containerId, Inventory inventory, RegistryFriendlyByteBuf data) {
         this(
@@ -212,6 +215,7 @@ public final class FakePlayerInventoryMenu extends AbstractContainerMenu {
             data.readVarInt(),
             data.readBoolean(),
             data.readVarInt(),
+            data.readVarInt(),
             data.readVarInt()
         );
     }
@@ -230,7 +234,8 @@ public final class FakePlayerInventoryMenu extends AbstractContainerMenu {
             target.actions().repeatInterval(FakePlayerActions.ScheduledAction.USE),
             target.actions().repeatInterval(FakePlayerActions.ScheduledAction.JUMP),
             Math.round(target.getXRot()), Math.round(target.getYRot()), Math.round(target.yBodyRot),
-            target.actions().bodyFollowsHead(), simulationMode(target), simulationDistance(target));
+            target.actions().bodyFollowsHead(), simulationMode(target), simulationDistance(target),
+            FakePlayerSimulationService.maxSimulationDistance(target.server()));
     }
 
     private static int simulationMode(FakeServerPlayer target) {
@@ -265,7 +270,8 @@ public final class FakePlayerInventoryMenu extends AbstractContainerMenu {
         int bodyYaw,
         boolean bodyFollowsHead,
         int simulationMode,
-        int simulationDistance
+        int simulationDistance,
+        int simulationDistanceLimit
     ) {
         super(ModMenus.FAKE_PLAYER_INVENTORY.get(), containerId);
         this.target = target;
@@ -280,6 +286,7 @@ public final class FakePlayerInventoryMenu extends AbstractContainerMenu {
         this.bodyFollowsHeadSnapshot = bodyFollowsHead ? 1 : 0;
         this.simulationModeSnapshot = simulationMode;
         this.simulationDistanceSnapshot = simulationDistance;
+        this.simulationDistanceLimitSnapshot = simulationDistanceLimit;
         this.pitchData = addDataSlot(new DataSlot() {
             public int get() { return target == null ? pitchSnapshot : Math.round(target.getXRot()); }
             public void set(int value) { pitchSnapshot = value; }
@@ -355,6 +362,10 @@ public final class FakePlayerInventoryMenu extends AbstractContainerMenu {
                 : ChunkLoaderManager.data(target.server()).policy(target.getUUID())
                     .map(FakePlayerLoadPolicy::simulationDistance).orElse(0),
             value -> simulationDistanceSnapshot = value);
+        this.simulationDistanceLimit = syncedValue(
+            () -> target == null ? simulationDistanceLimitSnapshot
+                : FakePlayerSimulationService.maxSimulationDistance(target.server()),
+            value -> simulationDistanceLimitSnapshot = value);
         this.automationMaskSnapshot = automationMask;
         this.continuousControlMaskSnapshot = continuousControlMask;
         this.continuousIntervals[0] = attackInterval;
@@ -1004,6 +1015,7 @@ public final class FakePlayerInventoryMenu extends AbstractContainerMenu {
             ? FakePlayerLoadMode.values()[ordinal] : FakePlayerLoadMode.PLAYER;
     }
     public int simulationDistance() { return simulationDistance.get(); }
+    public int simulationDistanceLimit() { return simulationDistanceLimit.get(); }
 
     public int selectedHotbarSlot() {
         return selectedHotbarSlot.get();

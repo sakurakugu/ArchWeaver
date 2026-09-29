@@ -166,7 +166,9 @@ public final class ChunkLoaderCommand {
         if (fake == null) return 0;
         var policy = ChunkLoaderManager.data(context.getSource().getServer()).policy(fake.getUUID()).orElse(null);
         FakePlayerLoadMode mode = policy == null ? FakePlayerLoadMode.PLAYER : policy.mode();
-        int distance = policy == null ? 0 : policy.simulationDistance();
+        int distance = policy == null ? 0
+            : policy.usesCustomSimulation() ? FakePlayerSimulationService.dollSimulationDistance(fake)
+            : policy.simulationDistance();
         Component modeLabel = Component.translatable(mode == FakePlayerLoadMode.PLAYER
             ? "commands.fakeplayer.chunkloader.fake_mode_player"
             : "commands.fakeplayer.chunkloader.fake_mode_doll");

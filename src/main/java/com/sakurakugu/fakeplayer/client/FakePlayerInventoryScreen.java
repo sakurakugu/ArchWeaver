@@ -504,7 +504,7 @@ public final class FakePlayerInventoryScreen extends AbstractContainerScreen<Fak
         addRenderableWidget(simulationPanel);
         if (!simulationStateInitialized) {
             simulationMode = menu.simulationMode();
-            simulationDistance = menu.simulationDistance();
+            simulationDistance = Math.min(menu.simulationDistance(), menu.simulationDistanceLimit());
             simulationStateInitialized = true;
         }
         IntegerSliderButton[] distanceControl = new IntegerSliderButton[1];
@@ -520,7 +520,8 @@ public final class FakePlayerInventoryScreen extends AbstractContainerScreen<Fak
         mode.setTooltip(Tooltip.create(Component.translatable("gui.fakeplayer.simulation.mode_tooltip")));
         IntegerSliderButton slider = addRenderableWidget(new IntegerSliderButton(
             left + 6, top + 47, simulationPanel.contentWidth() - 12, 16,
-            0, 32, simulationDistance,
+            0, Math.max(1, menu.simulationDistanceLimit()),
+            Math.min(simulationDistance, menu.simulationDistanceLimit()),
             value -> Component.translatable("gui.fakeplayer.simulation.distance", value),
             value -> simulationDistance = value));
         slider.active = simulationMode == FakePlayerLoadMode.DOLL;

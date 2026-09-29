@@ -118,9 +118,12 @@ public record ChunkMapSnapshotPayload(
                 FakePlayerLoadPolicy policy = data.policy(fake.getUUID())
                     .orElse(new FakePlayerLoadPolicy(fake.getUUID(), FakePlayerLoadMode.PLAYER, 0));
                 var activeRange = FakePlayerSimulationService.activeRange(fake.getUUID()).orElse(null);
+                int simulationDistance = policy.usesCustomSimulation()
+                    ? FakePlayerSimulationService.dollSimulationDistance(fake)
+                    : policy.simulationDistance();
                 return new FakePlayerView(fake.getUUID(), fake.getGameProfile().name(),
                     fake.level().dimension().identifier().toString(), fake.getBlockX(), fake.getBlockY(),
-                    fake.getBlockZ(), fake.getYRot(), true, policy.mode(), policy.simulationDistance(),
+                    fake.getBlockZ(), fake.getYRot(), true, policy.mode(), simulationDistance,
                     activeRange != null, activeRange == null ? "" : activeRange.dimension(),
                     activeRange == null ? 0 : activeRange.chunkX(), activeRange == null ? 0 : activeRange.chunkZ(),
                     activeRange == null ? 0 : activeRange.distance());
