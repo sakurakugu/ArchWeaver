@@ -9,4 +9,4 @@ plugins {
 }
 
 rootProject.name = 'fake-player'
-
+include 'common', 'neoforge'

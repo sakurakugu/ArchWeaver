@@ -51,7 +51,17 @@ Neoforge 高版本没有类似 Carpet 的假人 mod，还有做生电机器时�
 .\gradlew.bat build
 ```
 
-构建产物位于 `build/libs/`。
+生成的 JAR 会自动复制到根目录的 `build` 中并重命名为：
+
+- `build/v<模组版本>/autotorch-v<模组版本>-mc<MC版本>-<加载器类型>.jar`
+
+运行开发客户端分别使用：
+
+```powershell
+.\gradlew.bat :neoforge:runClient
+```
+
+在 Windows 上，也可以运行 `tools\1.一键启动mc脚本.ps1`。
 
 ## 详细说明
 

@@ -1,98 +1,49 @@
 plugins {
-    id 'java-library'
-    id 'maven-publish'
-    id 'net.neoforged.moddev' version '2.0.142'
-    id 'idea'
+    id 'net.neoforged.moddev' version '2.0.142' apply false
 }
 
-version = mod_version
-group = mod_group_id
-
-base {
-    archivesName = "${mod_id}-${minecraft_version}"
+allprojects {
+    group = mod_group_id
+    version = mod_version
 }
 
-java.toolchain.languageVersion = JavaLanguageVersion.of(25)
-
-dependencies {
-    testImplementation platform('org.junit:junit-bom:5.11.4')
-    testImplementation 'org.junit.jupiter:junit-jupiter'
-    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
-}
-
-sourceSets.test {
-    compileClasspath += sourceSets.main.compileClasspath
-    runtimeClasspath += sourceSets.main.runtimeClasspath
-}
-
-neoForge {
-    version = project.neo_version
-
-    runs {
-        client {
-            client()
-            programArgument '--username'
-            programArgument 'Player1'
-        }
-        clientServer1 {
-            client()
-            ideName = 'Minecraft Client Server 1'
-            gameDirectory = project.layout.projectDirectory.dir('run/client-server-1')
-            programArgument '--username'
-            programArgument 'Player1'
-            programArgument '--server'
-            programArgument '127.0.0.1:25565'
-        }
-        clientServer2 {
-            client()
-            ideName = 'Minecraft Client Server 2'
-            gameDirectory = project.layout.projectDirectory.dir('run/client-server-2')
-            programArgument '--username'
-            programArgument 'Player2'
-            programArgument '--server'
-            programArgument '127.0.0.1:25565'
-        }
-        server {
-            server()
-            programArgument '--nogui'
-        }
+subprojects {
+    repositories {
+        mavenCentral()
     }
 
-    mods {
-        "${mod_id}" {
-            sourceSet(sourceSets.main)
+    plugins.withType(JavaPlugin).configureEach {
+        java.toolchain.languageVersion = JavaLanguageVersion.of(25)
+        tasks.withType(JavaCompile).configureEach {
+            options.encoding = 'UTF-8'
         }
     }
 }
 
-var generateModMetadata = tasks.register('generateModMetadata', ProcessResources) {
-    var replaceProperties = [
-        minecraft_version: minecraft_version,
-        minecraft_version_range: minecraft_version_range,
-        neo_version: neo_version,
-        mod_id: mod_id,
-        mod_name: mod_name,
-        mod_license: mod_license,
-        mod_version: mod_version
-    ]
-    inputs.properties replaceProperties
-    expand replaceProperties
-    from 'src/main/templates'
-    into 'build/generated/sources/modMetadata'
+def artifactModId = rootProject.property('mod_id')
+def artifactMinecraftVersion = rootProject.property('minecraft_version')
+def artifactVersion = rootProject.property('mod_version')
+
+// 复制并重命名发布包
+def copyBuildArtifacts = tasks.register('copyBuildArtifacts', Copy) {
+    group = 'build'
+    description = '复制并重命名 NeoForge 发布包到根目录 build/v<版本>。'
+    dependsOn ':neoforge:build'
+    into layout.buildDirectory.dir("v${artifactVersion}")
+    from(project(':neoforge').layout.buildDirectory.dir('libs')) {
+        include "${artifactModId}-${artifactMinecraftVersion}-neoforge-${artifactVersion}.jar"
+        rename { "${artifactModId}-v${artifactVersion}-mc${artifactMinecraftVersion}-neoforge.jar" }
+    }
 }
 
-sourceSets.main.resources.srcDir generateModMetadata
-neoForge.ideSyncTask generateModMetadata
-
-tasks.withType(JavaCompile).configureEach {
-    options.encoding = 'UTF-8'
+tasks.register('buildAll') {
+    group = 'build'
+    description = '构建 NeoForge 模组。'
+    dependsOn copyBuildArtifacts
 }
 
-tasks.named('test', Test) {
-    useJUnitPlatform()
-}
-
-idea.module {
-    downloadSources = true
-    downloadJavadoc = true
+tasks.register('build') {
+    group = 'build'
+    description = '构建并测试通用代码与 NeoForge 模组。'
+    dependsOn ':common:test', copyBuildArtifacts
 }
