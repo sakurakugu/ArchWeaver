@@ -44,6 +44,7 @@ repo/
 
 ### 其他 ###
 other/
+tmp/
 TODO.md
 
 ### Python ###

@@ -81,6 +81,7 @@
   "f3.fakeplayer.chunkloader.line": "加载区域: %s",
   "f3.fakeplayer.chunkloader.entry": "%1$s · 区块: %2$s · %3$s",
   "fakeplayer.chunkloader.fake_label": "假人加载",
+  "key.category.fakeplayer.main": "假人",
   "key.fakeplayer.open_chunk_map": "打开区块加载地图",
   "key.fakeplayer.stop_possession": "退出附身",
   "gui.close": "关闭",

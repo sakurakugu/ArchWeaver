@@ -78,6 +78,7 @@
   "commands.fakeplayer.chunkloader.fake_mode_info": "Fake player %1$s loading mode: %2$s, simulation distance %3$s chunks",
   "commands.fakeplayer.chunkloader.fake_mode_player": "Player mode",
   "commands.fakeplayer.chunkloader.fake_mode_doll": "Doll mode",
+  "key.category.fakeplayer.main": "Fake Player",
   "key.fakeplayer.open_chunk_map": "Open chunk loading map",
   "key.fakeplayer.stop_possession": "Stop possessing",
   "f3.fakeplayer.chunkloader.line": "Load regions: %s",
