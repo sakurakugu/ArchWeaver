@@ -2,7 +2,6 @@ package com.sakurakugu.fakeplayer.event;
 
 import com.sakurakugu.fakeplayer.FakePlayerMod;
 import com.sakurakugu.fakeplayer.command.FakePlayerCommand;
-import com.sakurakugu.fakeplayer.command.BotCommand;
 import com.sakurakugu.fakeplayer.command.ChunkLoaderCommand;
 import com.sakurakugu.fakeplayer.chunkloading.ChunkLoaderManager;
 import com.sakurakugu.fakeplayer.chunkloading.FakePlayerSimulationService;
@@ -39,7 +38,6 @@ public final class CommonEvents {
     @SubscribeEvent
     public static void registerCommands(RegisterCommandsEvent event) {
         FakePlayerCommand.register(event.getDispatcher());
-        BotCommand.register(event.getDispatcher());
         ChunkLoaderCommand.register(event.getDispatcher());
     }
 

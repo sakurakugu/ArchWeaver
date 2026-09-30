@@ -1,9 +1,9 @@
 package com.sakurakugu.fakeplayer.client;
 
-import com.sakurakugu.fakeplayer.menu.BotManagementMenu;
-import com.sakurakugu.fakeplayer.menu.BotManagementMenu.GroupSummary;
-import com.sakurakugu.fakeplayer.menu.BotManagementMenu.PresetSummary;
-import com.sakurakugu.fakeplayer.network.BotActionPayload;
+import com.sakurakugu.fakeplayer.menu.PresetManagementMenu;
+import com.sakurakugu.fakeplayer.menu.PresetManagementMenu.GroupSummary;
+import com.sakurakugu.fakeplayer.menu.PresetManagementMenu.PresetSummary;
+import com.sakurakugu.fakeplayer.network.PresetActionPayload;
 import com.sakurakugu.fakeplayer.client.chunkloading.ClientChunkLoadingState;
 import com.sakurakugu.fakeplayer.client.ui.SolidButton;
 import com.sakurakugu.fakeplayer.platform.PlatformNetworking;
@@ -15,7 +15,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.player.Inventory;
 
 /** 管理假人预设及分组。 */
-public final class BotManagementScreen extends AbstractContainerScreen<BotManagementMenu> {
+public final class PresetManagementScreen extends AbstractContainerScreen<PresetManagementMenu> {
     private static final int PANEL_WIDTH = 380;
     private static final int PANEL_HEIGHT = 270;
     private static final int PAGE_SIZE = 5;
@@ -28,7 +28,7 @@ public final class BotManagementScreen extends AbstractContainerScreen<BotManage
     private int addPresetIndex;
     private int removePresetIndex;
 
-    public BotManagementScreen(BotManagementMenu menu, Inventory inventory, Component title) {
+    public PresetManagementScreen(PresetManagementMenu menu, Inventory inventory, Component title) {
         super(menu, inventory, title, PANEL_WIDTH, PANEL_HEIGHT);
         showingGroups = menu.openGroupsInitially();
     }
@@ -42,11 +42,11 @@ public final class BotManagementScreen extends AbstractContainerScreen<BotManage
     private void rebuildControls() {
         clearWidgets();
         addRenderableWidget(new SolidButton(leftPos + 16, topPos + 43, 100, 20,
-            Component.translatable("gui.fakeplayer.bot.presets"), button -> setTab(false)));
+            Component.translatable("gui.fakeplayer.preset.presets"), button -> setTab(false)));
         addRenderableWidget(new SolidButton(leftPos + 120, topPos + 43, 100, 20,
-            Component.translatable("gui.fakeplayer.bot.groups"), button -> setTab(true)));
+            Component.translatable("gui.fakeplayer.preset.groups"), button -> setTab(true)));
         addRenderableWidget(new SolidButton(leftPos + 298, topPos + 43, 66, 20,
-            Component.translatable("gui.fakeplayer.bot.back"), button ->
+            Component.translatable("gui.fakeplayer.preset.back"), button ->
                 PlatformNetworking.sendToServer(ClientChunkLoadingState.request(true, false, true))));
 
         if (showingGroups) {
@@ -69,30 +69,30 @@ public final class BotManagementScreen extends AbstractContainerScreen<BotManage
         PresetSummary selected = selectedPreset();
         if (selected != null) {
             addRenderableWidget(new SolidButton(leftPos + 164, topPos + 153, 88, 22,
-                Component.translatable("gui.fakeplayer.bot.load"), button ->
-                    send(BotActionPayload.Action.LOAD_PRESET, selected.id(), "", "")));
+                Component.translatable("gui.fakeplayer.preset.load"), button ->
+                    send(PresetActionPayload.Action.LOAD_PRESET, selected.id(), "", "")));
             addRenderableWidget(new SolidButton(leftPos + 258, topPos + 153, 88, 22,
-                Component.translatable("gui.fakeplayer.bot.delete"), button ->
-                    send(BotActionPayload.Action.REMOVE_PRESET, selected.id(), "", "")));
+                Component.translatable("gui.fakeplayer.preset.delete"), button ->
+                    send(PresetActionPayload.Action.REMOVE_PRESET, selected.id(), "", "")));
         }
 
         EditBox id = addRenderableWidget(new EditBox(font, leftPos + 16, topPos + 231, 78, 20,
-            Component.translatable("gui.fakeplayer.bot.preset_id")));
+            Component.translatable("gui.fakeplayer.preset.preset_id")));
         id.setMaxLength(64);
-        id.setHint(Component.translatable("gui.fakeplayer.bot.preset_id"));
+        id.setHint(Component.translatable("gui.fakeplayer.preset.preset_id"));
         EditBox description = addRenderableWidget(new EditBox(font, leftPos + 202, topPos + 231, 105, 20,
-            Component.translatable("gui.fakeplayer.bot.description")));
+            Component.translatable("gui.fakeplayer.preset.description")));
         description.setMaxLength(256);
-        description.setHint(Component.translatable("gui.fakeplayer.bot.description"));
+        description.setHint(Component.translatable("gui.fakeplayer.preset.description"));
         Button player = addRenderableWidget(new SolidButton(leftPos + 98, topPos + 231, 100, 20,
             onlinePlayerLabel(), button -> {
             onlinePlayerIndex = cycle(onlinePlayerIndex, menu.onlinePlayers().size());
             button.setMessage(onlinePlayerLabel());
         }));
         Button save = new SolidButton(leftPos + 311, topPos + 231, 53, 20,
-            Component.translatable("gui.fakeplayer.bot.save"), button -> {
+            Component.translatable("gui.fakeplayer.preset.save"), button -> {
             if (!menu.onlinePlayers().isEmpty()) {
-                send(BotActionPayload.Action.SAVE_PRESET, id.getValue(),
+                send(PresetActionPayload.Action.SAVE_PRESET, id.getValue(),
                     menu.onlinePlayers().get(onlinePlayerIndex), description.getValue());
             }
         });
@@ -107,7 +107,7 @@ public final class BotManagementScreen extends AbstractContainerScreen<BotManage
         for (int index = first; index < end; index++) {
             int selected = index;
             GroupSummary group = menu.groups().get(index);
-            Component label = Component.translatable("gui.fakeplayer.bot.group_entry",
+            Component label = Component.translatable("gui.fakeplayer.preset.group_entry",
                 group.id(), group.presetIds().size());
             addRenderableWidget(new SolidButton(leftPos + 16, topPos + 72 + (index - first) * 25,
                 132, ROW_HEIGHT, label, button -> select(selected)));
@@ -115,14 +115,14 @@ public final class BotManagementScreen extends AbstractContainerScreen<BotManage
         GroupSummary selected = selectedGroup();
         if (selected != null) {
             addRenderableWidget(new SolidButton(leftPos + 158, topPos + 153, 61, 22,
-                Component.translatable("gui.fakeplayer.bot.load"), button ->
-                    send(BotActionPayload.Action.LOAD_GROUP, selected.id(), "", "")));
+                Component.translatable("gui.fakeplayer.preset.load"), button ->
+                    send(PresetActionPayload.Action.LOAD_GROUP, selected.id(), "", "")));
             addRenderableWidget(new SolidButton(leftPos + 223, topPos + 153, 61, 22,
-                Component.translatable("gui.fakeplayer.bot.unload"), button ->
-                    send(BotActionPayload.Action.UNLOAD_GROUP, selected.id(), "", "")));
+                Component.translatable("gui.fakeplayer.preset.unload"), button ->
+                    send(PresetActionPayload.Action.UNLOAD_GROUP, selected.id(), "", "")));
             addRenderableWidget(new SolidButton(leftPos + 288, topPos + 153, 76, 22,
-                Component.translatable("gui.fakeplayer.bot.delete"), button ->
-                    send(BotActionPayload.Action.REMOVE_GROUP, selected.id(), "", "")));
+                Component.translatable("gui.fakeplayer.preset.delete"), button ->
+                    send(PresetActionPayload.Action.REMOVE_GROUP, selected.id(), "", "")));
 
             Button member = addRenderableWidget(new SolidButton(leftPos + 158, topPos + 187, 140, 20,
                 removePresetLabel(selected), button -> {
@@ -130,9 +130,9 @@ public final class BotManagementScreen extends AbstractContainerScreen<BotManage
                 button.setMessage(removePresetLabel(selected));
             }));
             Button remove = new SolidButton(leftPos + 302, topPos + 187, 62, 20,
-                Component.translatable("gui.fakeplayer.bot.remove_member"), button -> {
+                Component.translatable("gui.fakeplayer.preset.remove_member"), button -> {
                 if (!selected.presetIds().isEmpty()) {
-                    send(BotActionPayload.Action.REMOVE_FROM_GROUP, selected.id(),
+                    send(PresetActionPayload.Action.REMOVE_FROM_GROUP, selected.id(),
                         selected.presetIds().get(Math.min(removePresetIndex, selected.presetIds().size() - 1)), "");
                 }
             });
@@ -142,12 +142,12 @@ public final class BotManagementScreen extends AbstractContainerScreen<BotManage
         }
 
         EditBox groupId = addRenderableWidget(new EditBox(font, leftPos + 16, topPos + 218, 132, 20,
-            Component.translatable("gui.fakeplayer.bot.group_id")));
+            Component.translatable("gui.fakeplayer.preset.group_id")));
         groupId.setMaxLength(64);
-        groupId.setHint(Component.translatable("gui.fakeplayer.bot.group_id"));
+        groupId.setHint(Component.translatable("gui.fakeplayer.preset.group_id"));
         addRenderableWidget(new SolidButton(leftPos + 152, topPos + 218, 72, 20,
-            Component.translatable("gui.fakeplayer.bot.create"), button ->
-                send(BotActionPayload.Action.CREATE_GROUP, groupId.getValue(), "", "")));
+            Component.translatable("gui.fakeplayer.preset.create"), button ->
+                send(PresetActionPayload.Action.CREATE_GROUP, groupId.getValue(), "", "")));
 
         Button preset = addRenderableWidget(new SolidButton(leftPos + 228, topPos + 218, 85, 20,
             addPresetLabel(), button -> {
@@ -155,10 +155,10 @@ public final class BotManagementScreen extends AbstractContainerScreen<BotManage
             button.setMessage(addPresetLabel());
         }));
         Button add = new SolidButton(leftPos + 317, topPos + 218, 47, 20,
-            Component.translatable("gui.fakeplayer.bot.add"), button -> {
+            Component.translatable("gui.fakeplayer.preset.add"), button -> {
             GroupSummary group = selectedGroup();
             if (group != null && !menu.presets().isEmpty()) {
-                send(BotActionPayload.Action.ADD_TO_GROUP, group.id(), menu.presets().get(addPresetIndex).id(), "");
+                send(PresetActionPayload.Action.ADD_TO_GROUP, group.id(), menu.presets().get(addPresetIndex).id(), "");
             }
         });
         add.active = selected != null && !menu.presets().isEmpty();
@@ -219,19 +219,19 @@ public final class BotManagementScreen extends AbstractContainerScreen<BotManage
 
     private Component onlinePlayerLabel() {
         return menu.onlinePlayers().isEmpty()
-            ? Component.translatable("gui.fakeplayer.bot.no_online")
+            ? Component.translatable("gui.fakeplayer.preset.no_online")
             : Component.literal(menu.onlinePlayers().get(Math.min(onlinePlayerIndex, menu.onlinePlayers().size() - 1)));
     }
 
     private Component addPresetLabel() {
         return menu.presets().isEmpty()
-            ? Component.translatable("gui.fakeplayer.bot.no_presets")
+            ? Component.translatable("gui.fakeplayer.preset.no_presets")
             : Component.literal(menu.presets().get(Math.min(addPresetIndex, menu.presets().size() - 1)).id());
     }
 
     private Component removePresetLabel(GroupSummary group) {
         return group.presetIds().isEmpty()
-            ? Component.translatable("gui.fakeplayer.bot.no_members")
+            ? Component.translatable("gui.fakeplayer.preset.no_members")
             : Component.literal(group.presetIds().get(Math.min(removePresetIndex, group.presetIds().size() - 1)));
     }
 
@@ -239,8 +239,8 @@ public final class BotManagementScreen extends AbstractContainerScreen<BotManage
         return size == 0 ? 0 : (current + 1) % size;
     }
 
-    private void send(BotActionPayload.Action action, String first, String second, String third) {
-        PlatformNetworking.sendToServer(new BotActionPayload(menu.containerId, action, first, second, third));
+    private void send(PresetActionPayload.Action action, String first, String second, String third) {
+        PlatformNetworking.sendToServer(new PresetActionPayload(menu.containerId, action, first, second, third));
     }
 
     @Override
@@ -256,7 +256,7 @@ public final class BotManagementScreen extends AbstractContainerScreen<BotManage
     @Override
     protected void extractLabels(GuiGraphicsExtractor graphics, int mouseX, int mouseY) {
         graphics.centeredText(font, title, PANEL_WIDTH / 2, 12, 0xFFFFFFFF);
-        graphics.centeredText(font, Component.translatable("gui.fakeplayer.bot.page", page + 1, pageCount()),
+        graphics.centeredText(font, Component.translatable("gui.fakeplayer.preset.page", page + 1, pageCount()),
             82, 192, 0xFFC6C6C6);
         if (showingGroups) {
             drawGroupDetails(graphics);
@@ -269,14 +269,14 @@ public final class BotManagementScreen extends AbstractContainerScreen<BotManage
         PresetSummary preset = selectedPreset();
         if (preset == null) {
             graphics.centeredText(font, Component.translatable(menu.presets().isEmpty()
-                ? "gui.fakeplayer.bot.no_presets" : "gui.fakeplayer.bot.select_preset"), 260, 111, 0xFFAAAAAA);
+                ? "gui.fakeplayer.preset.no_presets" : "gui.fakeplayer.preset.select_preset"), 260, 111, 0xFFAAAAAA);
             return;
         }
         graphics.text(font, Component.literal(preset.id()), 166, 78, 0xFFFFFFFF, false);
-        graphics.text(font, Component.translatable("gui.fakeplayer.bot.player", preset.playerName()),
+        graphics.text(font, Component.translatable("gui.fakeplayer.preset.player", preset.playerName()),
             166, 96, 0xFFC6C6C6, false);
         String description = preset.description().isBlank()
-            ? Component.translatable("gui.fakeplayer.bot.no_description").getString()
+            ? Component.translatable("gui.fakeplayer.preset.no_description").getString()
             : preset.description();
         graphics.text(font, Component.literal(shorten(description, 31)), 166, 116, 0xFFCCCCCC, false);
         if (description.length() > 31) {
@@ -289,11 +289,11 @@ public final class BotManagementScreen extends AbstractContainerScreen<BotManage
         GroupSummary group = selectedGroup();
         if (group == null) {
             graphics.centeredText(font, Component.translatable(menu.groups().isEmpty()
-                ? "gui.fakeplayer.bot.no_groups" : "gui.fakeplayer.bot.select_group"), 260, 111, 0xFFAAAAAA);
+                ? "gui.fakeplayer.preset.no_groups" : "gui.fakeplayer.preset.select_group"), 260, 111, 0xFFAAAAAA);
             return;
         }
         graphics.text(font, Component.literal(group.id()), 166, 78, 0xFFFFFFFF, false);
-        graphics.text(font, Component.translatable("gui.fakeplayer.bot.members"), 166, 96, 0xFFC6C6C6, false);
+        graphics.text(font, Component.translatable("gui.fakeplayer.preset.members"), 166, 96, 0xFFC6C6C6, false);
         String members = group.presetIds().isEmpty()
             ? Component.translatable("commands.fakeplayer.none").getString()
             : String.join(", ", group.presetIds());

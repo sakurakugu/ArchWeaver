@@ -7,7 +7,7 @@ import net.minecraft.world.inventory.MenuType;
 /** 菜单类型的加载器无关引用，由平台模块完成注册。 */
 public final class ModMenus {
     public static final Handle<GlobalFakePlayerMenu> GLOBAL_FAKE_PLAYER = new Handle<>();
-    public static final Handle<BotManagementMenu> BOT_MANAGEMENT = new Handle<>();
+    public static final Handle<PresetManagementMenu> PRESET_MANAGEMENT = new Handle<>();
     public static final Handle<FakePlayerInventoryMenu> FAKE_PLAYER_INVENTORY = new Handle<>();
 
     private ModMenus() {

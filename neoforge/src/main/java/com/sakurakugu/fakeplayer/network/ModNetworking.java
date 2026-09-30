@@ -3,8 +3,8 @@ package com.sakurakugu.fakeplayer.network;
 import com.sakurakugu.fakeplayer.config.FakePlayerConfig;
 import com.sakurakugu.fakeplayer.command.FakePlayerCommand;
 import com.sakurakugu.fakeplayer.menu.FakePlayerMenuOpener;
-import com.sakurakugu.fakeplayer.menu.BotManagementActions;
-import com.sakurakugu.fakeplayer.menu.BotManagementMenu;
+import com.sakurakugu.fakeplayer.menu.PresetManagementActions;
+import com.sakurakugu.fakeplayer.menu.PresetManagementMenu;
 import com.sakurakugu.fakeplayer.menu.ChunkLoaderActions;
 import com.sakurakugu.fakeplayer.menu.GlobalFakePlayerMenu;
 import com.sakurakugu.fakeplayer.menu.FakePlayerInventoryMenu;
@@ -35,7 +35,7 @@ public final class ModNetworking {
                     switch (payload.page()) {
                         case SPAWN -> FakePlayerMenuOpener.openSpawn(player);
                         case LIST -> FakePlayerMenuOpener.openList(player);
-                        case PRESETS -> FakePlayerMenuOpener.openBotManagement(player);
+                        case PRESETS -> FakePlayerMenuOpener.openPresetManagement(player);
                     }
                 }
             }
@@ -53,14 +53,14 @@ public final class ModNetworking {
             }
         );
         registrar.playToServer(
-            BotActionPayload.TYPE,
-            BotActionPayload.STREAM_CODEC,
+            PresetActionPayload.TYPE,
+            PresetActionPayload.STREAM_CODEC,
             (payload, context) -> {
                 if (context.player() instanceof ServerPlayer player
-                    && player.containerMenu instanceof BotManagementMenu
+                    && player.containerMenu instanceof PresetManagementMenu
                     && player.containerMenu.containerId == payload.containerId()
                     && FakePlayerConfig.canUseCommands(player.createCommandSourceStack())) {
-                    BotManagementActions.handle(player, payload);
+                    PresetManagementActions.handle(player, payload);
                 }
             }
         );

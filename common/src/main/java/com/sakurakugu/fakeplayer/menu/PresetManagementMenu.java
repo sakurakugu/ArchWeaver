@@ -8,17 +8,17 @@ import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.item.ItemStack;
 
 /** 向客户端提供预设、分组和在线假人的只读快照。 */
-public final class BotManagementMenu extends AbstractContainerMenu {
+public final class PresetManagementMenu extends AbstractContainerMenu {
     private final boolean openGroupsInitially;
     private final List<PresetSummary> presets;
     private final List<GroupSummary> groups;
     private final List<String> onlinePlayers;
 
-    public BotManagementMenu(int containerId, Inventory inventory, RegistryFriendlyByteBuf data) {
+    public PresetManagementMenu(int containerId, Inventory inventory, RegistryFriendlyByteBuf data) {
         this(containerId, inventory, data.readBoolean(), readPresets(data), readGroups(data), readStrings(data));
     }
 
-    public BotManagementMenu(
+    public PresetManagementMenu(
         int containerId,
         Inventory inventory,
         boolean openGroupsInitially,
@@ -26,7 +26,7 @@ public final class BotManagementMenu extends AbstractContainerMenu {
         List<GroupSummary> groups,
         List<String> onlinePlayers
     ) {
-        super(ModMenus.BOT_MANAGEMENT.get(), containerId);
+        super(ModMenus.PRESET_MANAGEMENT.get(), containerId);
         this.openGroupsInitially = openGroupsInitially;
         this.presets = List.copyOf(presets);
         this.groups = List.copyOf(groups);

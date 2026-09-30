@@ -1,11 +1,9 @@
 package com.sakurakugu.fakeplayer.command;
 
-import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
-import com.sakurakugu.fakeplayer.config.FakePlayerConfig;
 import com.sakurakugu.fakeplayer.entity.FakePlayerManager;
 import com.sakurakugu.fakeplayer.entity.FakePlayerPossession;
 import com.sakurakugu.fakeplayer.entity.FakeServerPlayer;
@@ -27,58 +25,56 @@ import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.server.level.ServerPlayer;
 
 /** 管理可手动加载的假人预设和预设分组。 */
-public final class BotCommand {
+public final class PresetCommand {
     private static final int PAGE_SIZE = 8;
 
-    private BotCommand() {
+    private PresetCommand() {
     }
 
-    public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
-        LiteralArgumentBuilder<CommandSourceStack> root = Commands.literal("bot")
-            .requires(FakePlayerConfig::canUseCommands)
-            .executes(BotCommand::openGui)
+    public static LiteralArgumentBuilder<CommandSourceStack> presetCommand() {
+        return Commands.literal("preset")
+            .executes(context -> openGui(context, false))
             .then(Commands.literal("list")
                 .executes(context -> listPresets(context, 1))
                 .then(Commands.argument("page", IntegerArgumentType.integer(1))
                     .executes(context -> listPresets(context, IntegerArgumentType.getInteger(context, "page")))))
-            .then(Commands.literal("add")
+            .then(Commands.literal("save")
                 .then(Commands.argument("preset", StringArgumentType.word())
                     .then(fakeArgument()
-                        .executes(context -> addPreset(context, ""))
+                        .executes(context -> savePreset(context, ""))
                         .then(Commands.argument("description", StringArgumentType.greedyString())
-                            .executes(context -> addPreset(
+                            .executes(context -> savePreset(
                                 context, StringArgumentType.getString(context, "description")))))))
             .then(Commands.literal("load")
-                .then(presetArgument().executes(BotCommand::loadPreset)))
+                .then(presetArgument().executes(PresetCommand::loadPreset)))
             .then(Commands.literal("remove")
-                .then(presetArgument().executes(BotCommand::removePreset)))
-            .then(groupCommand());
-        dispatcher.register(root);
+                .then(presetArgument().executes(PresetCommand::removePreset)));
     }
 
-    private static int openGui(CommandContext<CommandSourceStack> context) {
+    private static int openGui(CommandContext<CommandSourceStack> context, boolean openGroupsInitially) {
         ServerPlayer viewer = context.getSource().getPlayer();
         if (viewer == null) {
             return failure(context, "commands.fakeplayer.player_only");
         }
-        FakePlayerMenuOpener.openBotManagement(viewer);
+        FakePlayerMenuOpener.openPresetManagement(viewer, openGroupsInitially);
         return 1;
     }
 
-    private static LiteralArgumentBuilder<CommandSourceStack> groupCommand() {
+    public static LiteralArgumentBuilder<CommandSourceStack> groupCommand() {
         return Commands.literal("group")
+            .executes(context -> openGui(context, true))
             .then(Commands.literal("create")
-                .then(Commands.argument("group", StringArgumentType.word()).executes(BotCommand::createGroup)))
+                .then(Commands.argument("group", StringArgumentType.word()).executes(PresetCommand::createGroup)))
             .then(Commands.literal("list")
                 .executes(context -> listGroups(context, 1))
                 .then(Commands.argument("page", IntegerArgumentType.integer(1))
                     .executes(context -> listGroups(context, IntegerArgumentType.getInteger(context, "page")))))
             .then(Commands.literal("remove")
                 .then(groupArgument()
-                    .executes(BotCommand::removeGroup)
-                    .then(presetArgument().executes(BotCommand::removeFromGroup))))
+                    .executes(PresetCommand::removeGroup)
+                    .then(presetArgument().executes(PresetCommand::removeFromGroup))))
             .then(Commands.literal("add")
-                .then(groupArgument().then(presetArgument().executes(BotCommand::addToGroup))))
+                .then(groupArgument().then(presetArgument().executes(PresetCommand::addToGroup))))
             .then(Commands.literal("load")
                 .then(groupArgument().executes(context -> loadGroup(context, false))))
             .then(Commands.literal("unload")
@@ -90,7 +86,7 @@ public final class BotCommand {
                         .executes(context -> groupInfo(context, IntegerArgumentType.getInteger(context, "page"))))));
     }
 
-    private static int addPreset(CommandContext<CommandSourceStack> context, String description) {
+    private static int savePreset(CommandContext<CommandSourceStack> context, String description) {
         String id = StringArgumentType.getString(context, "preset");
         String playerName = StringArgumentType.getString(context, "player");
         FakeServerPlayer fake = FakePlayerManager.find(context.getSource().getServer(), playerName);
@@ -103,7 +99,7 @@ public final class BotCommand {
         FakePlayerSavedData data = data(context);
         data.putPreset(new Preset(id, description, PlayerSnapshot.from(fake, true)));
         context.getSource().sendSuccess(
-            () -> Component.translatable("commands.fakeplayer.bot.preset_saved", id, playerName), true);
+            () -> Component.translatable("commands.fakeplayer.preset.preset_saved", id, playerName), true);
         return 1;
     }
 
@@ -116,7 +112,7 @@ public final class BotCommand {
             return 0;
         }
         context.getSource().sendSuccess(
-            () -> Component.translatable("commands.fakeplayer.bot.preset_page", page, pageCount, presets.size())
+            () -> Component.translatable("commands.fakeplayer.preset.preset_page", page, pageCount, presets.size())
                 .withStyle(ChatFormatting.GOLD), false);
         if (presets.isEmpty()) {
             context.getSource().sendSuccess(() -> Component.translatable("commands.fakeplayer.none"), false);
@@ -125,7 +121,7 @@ public final class BotCommand {
         for (Preset preset : presets.subList(start, Math.min(start + PAGE_SIZE, presets.size()))) {
             context.getSource().sendSuccess(() -> presetEntry(preset), false);
         }
-        sendNavigation(context, page, pageCount, "/bot list ");
+        sendNavigation(context, page, pageCount, "/fakeplayer preset list ");
         return 1;
     }
 
@@ -135,42 +131,42 @@ public final class BotCommand {
             entry.append(Component.literal(" — " + preset.description()).withStyle(ChatFormatting.GRAY));
         }
         return entry
-            .append(actionButton(" ↑", ChatFormatting.GREEN, new ClickEvent.RunCommand("/bot load " + preset.id())))
-            .append(actionButton(" ×", ChatFormatting.RED, new ClickEvent.SuggestCommand("/bot remove " + preset.id())));
+            .append(actionButton(" ↑", ChatFormatting.GREEN, new ClickEvent.RunCommand("/fakeplayer preset load " + preset.id())))
+            .append(actionButton(" ×", ChatFormatting.RED, new ClickEvent.SuggestCommand("/fakeplayer preset remove " + preset.id())));
     }
 
     private static int loadPreset(CommandContext<CommandSourceStack> context) {
         String id = StringArgumentType.getString(context, "preset");
         Preset preset = data(context).preset(id).orElse(null);
         if (preset == null) {
-            return failure(context, "commands.fakeplayer.bot.preset_not_found", id);
+            return failure(context, "commands.fakeplayer.preset.preset_not_found", id);
         }
         var result = FakePlayerPersistence.loadPreset(context.getSource().getServer(), preset);
         if (!result.successful()) {
-            return failure(context, "commands.fakeplayer.bot.load_failed", id, result.reason());
+            return failure(context, "commands.fakeplayer.preset.load_failed", id, result.reason());
         }
         context.getSource().sendSuccess(
-            () -> Component.translatable("commands.fakeplayer.bot.preset_loaded", id, preset.player().name()), true);
+            () -> Component.translatable("commands.fakeplayer.preset.preset_loaded", id, preset.player().name()), true);
         return 1;
     }
 
     private static int removePreset(CommandContext<CommandSourceStack> context) {
         String id = StringArgumentType.getString(context, "preset");
         if (!data(context).removePreset(id)) {
-            return failure(context, "commands.fakeplayer.bot.preset_not_found", id);
+            return failure(context, "commands.fakeplayer.preset.preset_not_found", id);
         }
         context.getSource().sendSuccess(
-            () -> Component.translatable("commands.fakeplayer.bot.preset_removed", id), true);
+            () -> Component.translatable("commands.fakeplayer.preset.preset_removed", id), true);
         return 1;
     }
 
     private static int createGroup(CommandContext<CommandSourceStack> context) {
         String id = StringArgumentType.getString(context, "group");
         if (!data(context).createGroup(id)) {
-            return failure(context, "commands.fakeplayer.bot.group_exists", id);
+            return failure(context, "commands.fakeplayer.preset.group_exists", id);
         }
         context.getSource().sendSuccess(
-            () -> Component.translatable("commands.fakeplayer.bot.group_created", id), true);
+            () -> Component.translatable("commands.fakeplayer.preset.group_created", id), true);
         return 1;
     }
 
@@ -183,7 +179,7 @@ public final class BotCommand {
             return 0;
         }
         context.getSource().sendSuccess(
-            () -> Component.translatable("commands.fakeplayer.bot.group_page", page, pageCount, groups.size())
+            () -> Component.translatable("commands.fakeplayer.preset.group_page", page, pageCount, groups.size())
                 .withStyle(ChatFormatting.GOLD), false);
         if (groups.isEmpty()) {
             context.getSource().sendSuccess(() -> Component.translatable("commands.fakeplayer.none"), false);
@@ -192,7 +188,7 @@ public final class BotCommand {
         for (Group group : groups.subList(start, Math.min(start + PAGE_SIZE, groups.size()))) {
             context.getSource().sendSuccess(() -> groupEntry(group), false);
         }
-        sendNavigation(context, page, pageCount, "/bot group list ");
+        sendNavigation(context, page, pageCount, "/fakeplayer group list ");
         return 1;
     }
 
@@ -200,22 +196,22 @@ public final class BotCommand {
         return Component.literal("▶ " + group.id() + " [" + group.presetIds().size() + "]")
             .withStyle(ChatFormatting.AQUA)
             .append(actionButton(" ↑", ChatFormatting.GREEN,
-                new ClickEvent.RunCommand("/bot group load " + group.id())))
+                new ClickEvent.RunCommand("/fakeplayer group load " + group.id())))
             .append(actionButton(" ↓", ChatFormatting.YELLOW,
-                new ClickEvent.RunCommand("/bot group unload " + group.id())))
+                new ClickEvent.RunCommand("/fakeplayer group unload " + group.id())))
             .append(actionButton(" i", ChatFormatting.WHITE,
-                new ClickEvent.RunCommand("/bot group info " + group.id())))
+                new ClickEvent.RunCommand("/fakeplayer group info " + group.id())))
             .append(actionButton(" ×", ChatFormatting.RED,
-                new ClickEvent.SuggestCommand("/bot group remove " + group.id())));
+                new ClickEvent.SuggestCommand("/fakeplayer group remove " + group.id())));
     }
 
     private static int removeGroup(CommandContext<CommandSourceStack> context) {
         String id = StringArgumentType.getString(context, "group");
         if (!data(context).removeGroup(id)) {
-            return failure(context, "commands.fakeplayer.bot.group_not_found", id);
+            return failure(context, "commands.fakeplayer.preset.group_not_found", id);
         }
         context.getSource().sendSuccess(
-            () -> Component.translatable("commands.fakeplayer.bot.group_removed", id), true);
+            () -> Component.translatable("commands.fakeplayer.preset.group_removed", id), true);
         return 1;
     }
 
@@ -224,16 +220,16 @@ public final class BotCommand {
         String preset = StringArgumentType.getString(context, "preset");
         FakePlayerSavedData data = data(context);
         if (data.group(group).isEmpty()) {
-            return failure(context, "commands.fakeplayer.bot.group_not_found", group);
+            return failure(context, "commands.fakeplayer.preset.group_not_found", group);
         }
         if (data.preset(preset).isEmpty()) {
-            return failure(context, "commands.fakeplayer.bot.preset_not_found", preset);
+            return failure(context, "commands.fakeplayer.preset.preset_not_found", preset);
         }
         if (!data.addToGroup(group, preset)) {
-            return failure(context, "commands.fakeplayer.bot.group_member_exists", preset, group);
+            return failure(context, "commands.fakeplayer.preset.group_member_exists", preset, group);
         }
         context.getSource().sendSuccess(
-            () -> Component.translatable("commands.fakeplayer.bot.group_member_added", preset, group), true);
+            () -> Component.translatable("commands.fakeplayer.preset.group_member_added", preset, group), true);
         return 1;
     }
 
@@ -242,13 +238,13 @@ public final class BotCommand {
         String preset = StringArgumentType.getString(context, "preset");
         FakePlayerSavedData data = data(context);
         if (data.group(group).isEmpty()) {
-            return failure(context, "commands.fakeplayer.bot.group_not_found", group);
+            return failure(context, "commands.fakeplayer.preset.group_not_found", group);
         }
         if (!data.removeFromGroup(group, preset)) {
-            return failure(context, "commands.fakeplayer.bot.group_member_not_found", preset, group);
+            return failure(context, "commands.fakeplayer.preset.group_member_not_found", preset, group);
         }
         context.getSource().sendSuccess(
-            () -> Component.translatable("commands.fakeplayer.bot.group_member_removed", preset, group), true);
+            () -> Component.translatable("commands.fakeplayer.preset.group_member_removed", preset, group), true);
         return 1;
     }
 
@@ -257,7 +253,7 @@ public final class BotCommand {
         FakePlayerSavedData data = data(context);
         Group group = data.group(id).orElse(null);
         if (group == null) {
-            return failure(context, "commands.fakeplayer.bot.group_not_found", id);
+            return failure(context, "commands.fakeplayer.preset.group_not_found", id);
         }
         int succeeded = 0;
         int failed = 0;
@@ -283,7 +279,7 @@ public final class BotCommand {
         }
         int successCount = succeeded;
         int failureCount = failed;
-        String key = unload ? "commands.fakeplayer.bot.group_unloaded" : "commands.fakeplayer.bot.group_loaded";
+        String key = unload ? "commands.fakeplayer.preset.group_unloaded" : "commands.fakeplayer.preset.group_loaded";
         context.getSource().sendSuccess(() -> Component.translatable(key, id, successCount, failureCount), true);
         return succeeded;
     }
@@ -292,14 +288,14 @@ public final class BotCommand {
         String id = StringArgumentType.getString(context, "group");
         Group group = data(context).group(id).orElse(null);
         if (group == null) {
-            return failure(context, "commands.fakeplayer.bot.group_not_found", id);
+            return failure(context, "commands.fakeplayer.preset.group_not_found", id);
         }
         int pageCount = pageCount(group.presetIds().size());
         if (!validPage(context, page, pageCount)) {
             return 0;
         }
         context.getSource().sendSuccess(
-            () -> Component.translatable("commands.fakeplayer.bot.group_info_page",
+            () -> Component.translatable("commands.fakeplayer.preset.group_info_page",
                 group.id(), page, pageCount, group.presetIds().size()).withStyle(ChatFormatting.GOLD), false);
         if (group.presetIds().isEmpty()) {
             context.getSource().sendSuccess(() -> Component.translatable("commands.fakeplayer.none"), false);
@@ -308,11 +304,11 @@ public final class BotCommand {
         for (String preset : group.presetIds().subList(start, Math.min(start + PAGE_SIZE, group.presetIds().size()))) {
             context.getSource().sendSuccess(() -> Component.literal("▶ " + preset).withStyle(ChatFormatting.AQUA)
                 .append(actionButton(" ↑", ChatFormatting.GREEN,
-                    new ClickEvent.RunCommand("/bot load " + preset)))
+                    new ClickEvent.RunCommand("/fakeplayer preset load " + preset)))
                 .append(actionButton(" −", ChatFormatting.RED,
-                    new ClickEvent.RunCommand("/bot group remove " + group.id() + " " + preset))), false);
+                    new ClickEvent.RunCommand("/fakeplayer group remove " + group.id() + " " + preset))), false);
         }
-        sendNavigation(context, page, pageCount, "/bot group info " + group.id() + " ");
+        sendNavigation(context, page, pageCount, "/fakeplayer group info " + group.id() + " ");
         return 1;
     }
 
@@ -334,7 +330,7 @@ public final class BotCommand {
             navigation.append(actionButton("« ", ChatFormatting.GRAY,
                 new ClickEvent.RunCommand(commandPrefix + (page - 1))));
         }
-        navigation.append(Component.translatable("commands.fakeplayer.bot.page_navigation", page, pageCount));
+        navigation.append(Component.translatable("commands.fakeplayer.preset.page_navigation", page, pageCount));
         if (page < pageCount) {
             navigation.append(actionButton(" »", ChatFormatting.GRAY,
                 new ClickEvent.RunCommand(commandPrefix + (page + 1))));
@@ -350,7 +346,7 @@ public final class BotCommand {
         if (page <= pageCount) {
             return true;
         }
-        failure(context, "commands.fakeplayer.bot.page_not_found", page, pageCount);
+        failure(context, "commands.fakeplayer.preset.page_not_found", page, pageCount);
         return false;
     }
 

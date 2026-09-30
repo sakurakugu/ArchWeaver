@@ -63,6 +63,8 @@ public final class FakePlayerCommand {
                 .then(Commands.literal("list").executes(FakePlayerCommand::list))
                 .then(guiCommand("gui"))
                 .then(guiCommand("setting"))
+                .then(PresetCommand.presetCommand())
+                .then(PresetCommand.groupCommand())
                 .then(Commands.literal("player").then(playerTargetCommand()))
                 .then(Commands.argument("name", StringArgumentType.word())
                     .executes(context -> spawn(context, name(context))))

@@ -7,15 +7,15 @@ import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.Identifier;
 
 /** 提交预设管理界面的字符串参数操作。 */
-public record BotActionPayload(int containerId, Action action, String first, String second, String third)
+public record PresetActionPayload(int containerId, Action action, String first, String second, String third)
     implements CustomPacketPayload {
-    public static final Type<BotActionPayload> TYPE = new Type<>(
-        Identifier.fromNamespaceAndPath(FakePlayerMod.MOD_ID, "bot_action")
+    public static final Type<PresetActionPayload> TYPE = new Type<>(
+        Identifier.fromNamespaceAndPath(FakePlayerMod.MOD_ID, "preset_action")
     );
-    public static final StreamCodec<RegistryFriendlyByteBuf, BotActionPayload> STREAM_CODEC =
-        CustomPacketPayload.codec(BotActionPayload::write, BotActionPayload::new);
+    public static final StreamCodec<RegistryFriendlyByteBuf, PresetActionPayload> STREAM_CODEC =
+        CustomPacketPayload.codec(PresetActionPayload::write, PresetActionPayload::new);
 
-    private BotActionPayload(RegistryFriendlyByteBuf buffer) {
+    private PresetActionPayload(RegistryFriendlyByteBuf buffer) {
         this(buffer.readVarInt(), buffer.readEnum(Action.class), buffer.readUtf(),
             buffer.readUtf(), buffer.readUtf());
     }

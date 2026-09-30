@@ -36,22 +36,22 @@ public final class FakePlayerMenuOpener {
         openGlobal(viewer, false, true);
     }
 
-    public static void openBotManagement(ServerPlayer viewer) {
-        openBotManagement(viewer, false);
+    public static void openPresetManagement(ServerPlayer viewer) {
+        openPresetManagement(viewer, false);
     }
 
-    public static void openBotManagement(ServerPlayer viewer, boolean openGroupsInitially) {
+    public static void openPresetManagement(ServerPlayer viewer, boolean openGroupsInitially) {
         FakePlayerSavedData savedData = FakePlayerPersistence.data(viewer.level().getServer());
-        List<BotManagementMenu.PresetSummary> presets = savedData.presets().stream()
-            .map(preset -> new BotManagementMenu.PresetSummary(
+        List<PresetManagementMenu.PresetSummary> presets = savedData.presets().stream()
+            .map(preset -> new PresetManagementMenu.PresetSummary(
                 preset.id(), preset.description(), preset.player().name()))
             .sorted(java.util.Comparator.comparing(
-                BotManagementMenu.PresetSummary::id, String.CASE_INSENSITIVE_ORDER))
+                PresetManagementMenu.PresetSummary::id, String.CASE_INSENSITIVE_ORDER))
             .toList();
-        List<BotManagementMenu.GroupSummary> groups = savedData.groups().stream()
-            .map(group -> new BotManagementMenu.GroupSummary(group.id(), group.presetIds()))
+        List<PresetManagementMenu.GroupSummary> groups = savedData.groups().stream()
+            .map(group -> new PresetManagementMenu.GroupSummary(group.id(), group.presetIds()))
             .sorted(java.util.Comparator.comparing(
-                BotManagementMenu.GroupSummary::id, String.CASE_INSENSITIVE_ORDER))
+                PresetManagementMenu.GroupSummary::id, String.CASE_INSENSITIVE_ORDER))
             .toList();
         List<String> onlinePlayers = FakePlayerManager.all(viewer.level().getServer()).stream()
             .map(fake -> fake.getGameProfile().name())
@@ -59,9 +59,9 @@ public final class FakePlayerMenuOpener {
             .toList();
         viewer.openMenu(
             new SimpleMenuProvider(
-                (containerId, inventory, player) -> new BotManagementMenu(
+                (containerId, inventory, player) -> new PresetManagementMenu(
                     containerId, inventory, openGroupsInitially, presets, groups, onlinePlayers),
-                Component.translatable("gui.fakeplayer.bot.title")
+                Component.translatable("gui.fakeplayer.preset.title")
             ),
             data -> {
                 data.writeBoolean(openGroupsInitially);
