@@ -1,0 +1,168 @@
+package com.sakurakugu.archweaver.network;
+
+import com.sakurakugu.archweaver.config.ArchWeaverConfig;
+import com.sakurakugu.archweaver.command.FakePlayerCommand;
+import com.sakurakugu.archweaver.menu.FakePlayerMenuOpener;
+import com.sakurakugu.archweaver.menu.PresetManagementActions;
+import com.sakurakugu.archweaver.menu.PresetManagementMenu;
+import com.sakurakugu.archweaver.menu.ChunkLoaderActions;
+import com.sakurakugu.archweaver.menu.GlobalFakePlayerMenu;
+import com.sakurakugu.archweaver.menu.FakePlayerInventoryMenu;
+import com.sakurakugu.archweaver.menu.FakePlayerManagementActions;
+import com.sakurakugu.archweaver.entity.FakePlayerPossession;
+import net.minecraft.server.level.ServerPlayer;
+import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
+import net.neoforged.neoforge.network.registration.PayloadRegistrar;
+import net.neoforged.neoforge.network.PacketDistributor;
+import com.sakurakugu.archweaver.chunkloading.ChunkLoaderManager;
+import com.sakurakugu.archweaver.chunkloading.ChunkLoadApplicationService;
+import com.sakurakugu.archweaver.chunkloading.FakePlayerSimulationService;
+import net.minecraft.network.chat.Component;
+
+/** 注册客户端与服务端之间的假人菜单请求。 */
+public final class ModNetworking {
+    private ModNetworking() {
+    }
+
+    public static void register(RegisterPayloadHandlersEvent event) {
+        PayloadRegistrar registrar = event.registrar("1");
+        registrar.playToServer(
+            OpenFakePlayerPagePayload.TYPE,
+            OpenFakePlayerPagePayload.STREAM_CODEC,
+            (payload, context) -> {
+                if (context.player() instanceof ServerPlayer player
+                    && ArchWeaverConfig.canUseCommands(player.createCommandSourceStack())) {
+                    switch (payload.page()) {
+                        case SPAWN -> FakePlayerMenuOpener.openSpawn(player);
+                        case LIST -> FakePlayerMenuOpener.openList(player);
+                        case PRESETS -> FakePlayerMenuOpener.openPresetManagement(player);
+                    }
+                }
+            }
+        );
+        registrar.playToServer(
+            ToggleGlobalSettingPayload.TYPE,
+            ToggleGlobalSettingPayload.STREAM_CODEC,
+            (payload, context) -> {
+                if (context.player() instanceof ServerPlayer player
+                    && ArchWeaverConfig.canUseCommands(player.createCommandSourceStack())
+                    && ArchWeaverConfig.toggleGlobalSetting(payload.settingIndex())) {
+                    PacketDistributor.sendToPlayer(player, ChunkMapSnapshotPayload.create(player,
+                        ChunkLoaderManager.data(player.level().getServer()), false, false));
+                }
+            }
+        );
+        registrar.playToServer(
+            PresetActionPayload.TYPE,
+            PresetActionPayload.STREAM_CODEC,
+            (payload, context) -> {
+                if (context.player() instanceof ServerPlayer player
+                    && player.containerMenu instanceof PresetManagementMenu
+                    && player.containerMenu.containerId == payload.containerId()
+                    && ArchWeaverConfig.canUseCommands(player.createCommandSourceStack())) {
+                    PresetManagementActions.handle(player, payload);
+                }
+            }
+        );
+        registrar.playToServer(
+            SpawnFakePlayerPayload.TYPE,
+            SpawnFakePlayerPayload.STREAM_CODEC,
+            (payload, context) -> {
+                if (context.player() instanceof ServerPlayer player
+                    && player.containerMenu instanceof GlobalFakePlayerMenu
+                    && player.containerMenu.containerId == payload.containerId()
+                    && ArchWeaverConfig.canUseCommands(player.createCommandSourceStack())) {
+                    FakePlayerCommand.spawnFromMenu(player, payload.name());
+                }
+            }
+        );
+        registrar.playToServer(
+            RenameFakePlayerPayload.TYPE,
+            RenameFakePlayerPayload.STREAM_CODEC,
+            (payload, context) -> {
+                if (context.player() instanceof ServerPlayer player
+                    && player.containerMenu instanceof FakePlayerInventoryMenu
+                    && player.containerMenu.containerId == payload.containerId()
+                    && ArchWeaverConfig.canUseCommands(player.createCommandSourceStack())) {
+                    FakePlayerManagementActions.rename(player, payload.name());
+                }
+            }
+        );
+        registrar.playToServer(
+            FakePlayerSimulationPayload.TYPE,
+            FakePlayerSimulationPayload.STREAM_CODEC,
+            (payload, context) -> {
+                if (context.player() instanceof ServerPlayer player
+                    && player.containerMenu instanceof FakePlayerInventoryMenu menu
+                    && player.containerMenu.containerId == payload.containerId()
+                    && ArchWeaverConfig.canUseCommands(player.createCommandSourceStack())
+                    && menu.target() != null) {
+                    var result = FakePlayerSimulationService.setPolicy(player.level().getServer(), menu.target().getUUID(),
+                        payload.mode(), payload.distance());
+                    if (result.successful()) menu.broadcastChanges();
+                    else player.sendSystemMessage(Component.literal(result.reason()));
+                }
+            }
+        );
+        registrar.playToServer(
+            FakePlayerViewRotationPayload.TYPE,
+            FakePlayerViewRotationPayload.STREAM_CODEC,
+            (payload, context) -> {
+                if (context.player() instanceof ServerPlayer player
+                    && player.containerMenu instanceof FakePlayerInventoryMenu menu
+                    && player.containerMenu.containerId == payload.containerId()) {
+                    menu.setViewRotation(player, payload.pitch(), payload.yaw());
+                }
+            }
+        );
+        registrar.playToServer(
+            ChunkLoaderActionPayload.TYPE,
+            ChunkLoaderActionPayload.STREAM_CODEC,
+            (payload, context) -> {
+                if (context.player() instanceof ServerPlayer player
+                    && ArchWeaverConfig.canUseCommands(player.createCommandSourceStack())) {
+                    ChunkLoaderActions.handle(player, payload);
+                }
+            }
+        );
+        registrar.playToServer(
+            ApplyChunkLoadEditsPayload.TYPE,
+            ApplyChunkLoadEditsPayload.STREAM_CODEC,
+            (payload, context) -> {
+                if (context.player() instanceof ServerPlayer player
+                    && ArchWeaverConfig.canUseCommands(player.createCommandSourceStack())) {
+                    var result = ChunkLoadApplicationService.apply(player, payload);
+                    if (!result.successful()) player.sendSystemMessage(net.minecraft.network.chat.Component.literal(result.reason()));
+                    PacketDistributor.sendToPlayer(player, ChunkMapSnapshotPayload.create(player,
+                        ChunkLoaderManager.data(player.level().getServer()), false, false));
+                }
+            }
+        );
+        registrar.playToServer(
+            RequestChunkMapPayload.TYPE,
+            RequestChunkMapPayload.STREAM_CODEC,
+            (payload, context) -> {
+                if (context.player() instanceof ServerPlayer player
+                    && ArchWeaverConfig.canUseCommands(player.createCommandSourceStack())) {
+                    var data = ChunkLoaderManager.data(player.level().getServer());
+                    PacketDistributor.sendToPlayer(player,
+                        ChunkMapSnapshotPayload.create(player, data,
+                            payload.openScreen(), payload.openManagement(), payload.openSettings(),
+                            payload.knownRevision(), payload.knownDimension()));
+                }
+            }
+        );
+        registrar.playToServer(
+            StopPossessionPayload.TYPE,
+            StopPossessionPayload.STREAM_CODEC,
+            (payload, context) -> {
+                if (context.player() instanceof ServerPlayer player) {
+                    FakePlayerPossession.stop(player);
+                }
+            }
+        );
+        registrar.playToClient(ChunkMapSnapshotPayload.TYPE, ChunkMapSnapshotPayload.STREAM_CODEC);
+        registrar.playToClient(PossessionStatePayload.TYPE, PossessionStatePayload.STREAM_CODEC);
+        registrar.playToClient(BodyRotationPayload.TYPE, BodyRotationPayload.STREAM_CODEC);
+    }
+}

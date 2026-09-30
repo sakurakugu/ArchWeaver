@@ -1,6 +1,6 @@
 {
   "pack": {
-    "description": "Fake Player resources",
+    "description": "ArchWeaver resources",
     "min_format": [101, 1],
     "max_format": 101
   }

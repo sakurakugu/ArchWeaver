@@ -172,12 +172,12 @@ const editor = $('editor'), ectx = editor.getContext('2d');
 
 function load() {
   try {
-    const saved = JSON.parse(localStorage.getItem('fakeplayer-pixel-editor'));
+    const saved = JSON.parse(localStorage.getItem('archweaver-pixel-editor'));
     if (saved && saved.px && saved.px.length === saved.w * saved.h) state = { ...state, ...saved };
   } catch (e) { /* 忽略损坏的存档 */ }
 }
 function persist() {
-  localStorage.setItem('fakeplayer-pixel-editor', JSON.stringify(state));
+  localStorage.setItem('archweaver-pixel-editor', JSON.stringify(state));
 }
 function toast(msg) {
   const t = $('toast'); t.textContent = msg; t.style.opacity = 1;

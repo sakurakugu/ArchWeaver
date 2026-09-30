@@ -10,7 +10,7 @@ Fake players with an in-game control screen.
 '''
 
 [[mixins]]
-config="fakeplayer.mixins.json"
+config="archweaver.mixins.json"
 
 [[dependencies.${mod_id}]]
 modId="neoforge"

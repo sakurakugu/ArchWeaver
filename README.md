@@ -1,15 +1,14 @@
-# Fake Player
+# ArchWeaver
 
 <!-- [English](./docs/all_readme/README_EN.md) | 简体中文 -->
 
-适用于 Minecraft 26.1.2 / NeoForge 的服务端假玩家模组，支持生成、背包管理、移动、交互、预设与区块加载。
-
+适用于 Minecraft 26.1.2 / NeoForge 的的辅助模组，目前提供假玩家管理与区块加载功能，支持假人生成、背包管理、移动、交互及预设。
 <!-- ![icon](./common/src/main/resources/xxx.png) -->
 
 ## 开发原因
 
 Neoforge 高版本没有类似 Carpet 的假人 mod，还有做生电机器时，始终区块加载很麻烦，因此就有了这个模组。之后打算顺下去扩展，比如让假人接入AI，添加类似建筑之杖等世界编辑功能，
-因此模组名从原来的 FakePlayer 改为 ArchWeaver（上层编织者）。主要是听起来很有逼格，而且可以联想到 Architect（建筑师）。
+因此模组名从原来的 FakePlayer 改为 ArchWeaver（上层编织者？/架构编织者？）。主要是听起来很有逼格，而且可以联想到 Architect（建筑师）。
 
 ## 简介
 
@@ -113,7 +112,7 @@ Neoforge 高版本没有类似 Carpet 的假人 mod，还有做生电机器时�
 - `/fakeplayer group info <组> [页码]`：分页查看分组成员，并可加载或移出成员。
 - `/fakeplayer group remove <组>`：删除分组，不删除其中的预设。
 
-驻留清单只在世界 `data/fakeplayer/fake_players.dat` 中保存假人的身份（UUID 和名称），不保存持续动作；预设在同一文件中保存创建时的完整原版玩家数据快照。
+驻留清单只在世界 `data/archweaver/fake_players.dat` 中保存假人的身份（UUID 和名称），不保存持续动作；预设在同一文件中保存创建时的完整原版玩家数据快照。
 在线驻留假人的背包、位置、能力、经验等实时状态由原版 `playerdata/<UUID>.dat` 负责保存和恢复。
 正常移除或死亡时，假人从驻留清单删除；服务器正常退出时会保留驻留记录，以便下次启动恢复。真玩家登录接管身份时同样保留驻留记录，服务器下次启动时仅在名称和 UUID 均未被占用时恢复该假人，持续动作每次启动后由操作者重新设置。每次启动读取前还会将现有存档复制为
 带时间戳的 `fake_players.*.dat.bak`，避免解析失败后的空存档覆盖唯一的排查副本。
@@ -262,8 +261,8 @@ Neoforge 高版本没有类似 Carpet 的假人 mod，还有做生电机器时�
 
 ### 服务端配置
 
-文件位置：`<世界目录>/serverconfig/fakeplayer-server.toml`
-单人游戏位置：`config/fakeplayer-server.toml`
+文件位置：`<世界目录>/serverconfig/archweaver-server.toml`
+单人游戏位置：`config/archweaver-server.toml`
 
 ```toml
 [commands]
@@ -310,7 +309,7 @@ enableContainerTransferButtons = true
 
 ### 客户端配置
 
-文件位置：`config/fakeplayer-client.toml`
+文件位置：`config/archweaver-client.toml`
 
 ```toml
 [chunkMap]
@@ -326,10 +325,10 @@ showWeakLoading = true
 
 | 数据                       | 保存位置                                                            | 说明                                                                                                 |
 | -------------------------- | ------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
-| 身份（UUID 与名称）        | `data/fakeplayer/fake_players.dat`                                  | 驻留清单，用于服务器重启后按身份恢复假人。                                                           |
-| 自动化设置（四项开关）     | `data/fakeplayer/fake_players.dat`                                  | 随驻留记录和预设一起保存，重启后恢复。                                                               |
+| 身份（UUID 与名称）        | `data/archweaver/fake_players.dat`                                  | 驻留清单，用于服务器重启后按身份恢复假人。                                                           |
+| 自动化设置（四项开关）     | `data/archweaver/fake_players.dat`                                  | 随驻留记录和预设一起保存，重启后恢复。                                                               |
 | 持续动作、移动输入、潜行等 | 预设内快照                                                          | 随预设保存；驻留恢复不携带，启动后由操作者重新设置。                                                 |
 | 背包、位置、能力、经验等   | `playerdata/<UUID>.dat`                                             | 由原版玩家数据负责保存和恢复。                                                                       |
-| 手动加载区域与假人加载策略 | `data/fakeplayer/chunk_loaders.dat`（备份在 `fakeplayer/backups/`） | 保存区域 UUID、名称、维度、非矩形区块集合，以及假人 UUID、启用状态和模拟距离；活动票据在启动后重建。 |
+| 手动加载区域与假人加载策略 | `data/archweaver/chunk_loaders.dat`（备份在 `archweaver/backups/`） | 保存区域 UUID、名称、维度、非矩形区块集合，以及假人 UUID、启用状态和模拟距离；活动票据在启动后重建。 |
 
 ## 其他
