@@ -1,3 +1,13 @@
+# 项目概览
+
+ArchWeaver 是一个面向 Minecraft 的辅助模组，当前适配 Minecraft 26.1.2 / NeoForge。主要功能包括假人、区块加载。
+
+项目采用 Gradle 多模块结构：
+
+- `common`：共享业务逻辑，以及主要单元测试。
+- `neoforge`：NeoForge 平台入口。
+- `tools`：开发辅助脚本。
+
 # 开发约定
 
 1. Java 找不到就在 C:\Software\Deps\Java\
