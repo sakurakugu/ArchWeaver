@@ -6,6 +6,7 @@ import com.sakurakugu.archweaver.menu.PresetManagementMenu.PresetSummary;
 import com.sakurakugu.archweaver.network.PresetActionPayload;
 import com.sakurakugu.archweaver.client.chunkloading.ClientChunkLoadingState;
 import com.sakurakugu.archweaver.client.ui.SolidButton;
+import com.sakurakugu.archweaver.client.ui.PixelGlyph;
 import com.sakurakugu.archweaver.platform.PlatformNetworking;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
@@ -45,9 +46,9 @@ public final class PresetManagementScreen extends AbstractContainerScreen<Preset
             Component.translatable("gui.fakeplayer.preset.presets"), button -> setTab(false)));
         addRenderableWidget(new SolidButton(leftPos + 120, topPos + 43, 100, 20,
             Component.translatable("gui.fakeplayer.preset.groups"), button -> setTab(true)));
-        addRenderableWidget(new SolidButton(leftPos + 298, topPos + 43, 66, 20,
+        addRenderableWidget(new SolidButton(leftPos + 16, topPos + 8, 18, 18, PixelGlyph.BACK,
             Component.translatable("gui.fakeplayer.preset.back"), button ->
-                PlatformNetworking.sendToServer(ClientChunkLoadingState.request(true, false, true))));
+                ClientChunkLoadingState.openMainScreen()));
 
         if (showingGroups) {
             addGroupWidgets();
@@ -244,11 +245,16 @@ public final class PresetManagementScreen extends AbstractContainerScreen<Preset
     }
 
     @Override
+    public void onClose() {
+        ClientChunkLoadingState.openMainScreen();
+    }
+
+    @Override
     public void extractBackground(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
         super.extractBackground(graphics, mouseX, mouseY, partialTick);
         graphics.fill(leftPos, topPos, leftPos + PANEL_WIDTH, topPos + PANEL_HEIGHT, 0xF0222528);
         graphics.fill(leftPos, topPos, leftPos + PANEL_WIDTH, topPos + 36, 0xFF373737);
-        graphics.fill(leftPos, topPos + 36, leftPos + PANEL_WIDTH, topPos + 38, 0xFFD5A94E);
+        graphics.fill(leftPos, topPos + 36, leftPos + PANEL_WIDTH, topPos + 38, 0xFF8B8B8B);
         graphics.outline(leftPos, topPos, PANEL_WIDTH, PANEL_HEIGHT, 0xFF8B8B8B);
         graphics.fill(leftPos + 156, topPos + 70, leftPos + 364, topPos + 181, 0x802C3033);
     }

@@ -10,7 +10,6 @@ import com.sakurakugu.archweaver.client.ui.ToggleSwitchButton;
 import com.sakurakugu.archweaver.network.ChunkLoaderActionPayload;
 import com.sakurakugu.archweaver.network.ChunkLoaderActionPayload.Action;
 import com.sakurakugu.archweaver.network.ChunkMapSnapshotPayload;
-import com.sakurakugu.archweaver.network.OpenFakePlayerPagePayload;
 import com.sakurakugu.archweaver.network.ToggleGlobalSettingPayload;
 import com.sakurakugu.archweaver.platform.PlatformNetworking;
 import java.util.Map;
@@ -40,8 +39,8 @@ public final class ChunkMapScreen extends Screen implements ChunkLoadMapFrontend
     private static final int SETTINGS_PANEL_WIDTH = 430;
     private static final int SETTINGS_PANEL_HEIGHT = 180;
     private static final int PAGE_SIZE = 6;
-    private static final int BOTTOM_BUTTON_WIDTH = 52;
-    private static final int BOTTOM_BUTTON_GAP = 4;
+    private static final int BOTTOM_BUTTON_WIDTH = 92;
+    private static final int BOTTOM_BUTTON_GAP = 6;
     private static final String[] GLOBAL_SETTING_KEYS = {
         "restore_players", "container_transfer_buttons"
     };
@@ -80,6 +79,8 @@ public final class ChunkMapScreen extends Screen implements ChunkLoadMapFrontend
     private int draggingButton = -1;
     private boolean settingsOpen;
     private boolean managementOpen;
+    private final ClientChunkLoadingState.MapReturnTarget returnTarget;
+    private boolean managementFromMap;
     private int snapshotRefreshTicks;
     private Button saveButton;
     private Button undoButton;
@@ -89,11 +90,18 @@ public final class ChunkMapScreen extends Screen implements ChunkLoadMapFrontend
     private Action confirmation;
 
     public ChunkMapScreen(ChunkMapSnapshotPayload snapshot, boolean managementOpen, boolean settingsOpen) {
+        this(snapshot, managementOpen, settingsOpen, ClientChunkLoadingState.MapReturnTarget.CLOSE);
+    }
+
+    public ChunkMapScreen(ChunkMapSnapshotPayload snapshot, boolean managementOpen, boolean settingsOpen,
+                          ClientChunkLoadingState.MapReturnTarget returnTarget) {
         super(Component.translatable("gui.fakeplayer.chunkloader.map_title"));
         controller = new ChunkLoadMapController(snapshot);
         controller.setShowWeakLoading(ChunkMapClientConfig.weakLoadingVisible());
         this.managementOpen = managementOpen;
         this.settingsOpen = settingsOpen;
+        this.returnTarget = returnTarget;
+        this.managementFromMap = false;
         centerBlockX = snapshot.playerChunkX() * 16.0D + 8.0D;
         centerBlockZ = snapshot.playerChunkZ() * 16.0D + 8.0D;
     }
@@ -122,6 +130,7 @@ public final class ChunkMapScreen extends Screen implements ChunkLoadMapFrontend
         if (settingsOpen) {
             int panelWidth = settingsPanelWidth();
             int left = (width - panelWidth) / 2;
+            int right = left + panelWidth;
             int top = settingsPanelTop();
             int halfWidth = panelWidth / 2;
             addRenderableWidget(new MarkerNameScaleSlider(
@@ -132,11 +141,11 @@ public final class ChunkMapScreen extends Screen implements ChunkLoadMapFrontend
                     left + 16, top + 104 + index * 26, panelWidth - 32, 20,
                     globalSettingLabel(index), button -> toggleGlobalSetting(settingIndex)));
             }
-            addRenderableWidget(new SolidButton(width / 2 - 50, top + SETTINGS_PANEL_HEIGHT - 26, 100, 20,
+            addRenderableWidget(new SolidButton(left + 16, top + 9, 18, 18, PixelGlyph.BACK,
                 Component.translatable("gui.back"), button -> showSettings(false)));
             return;
         }
-        int modeSwitchWidth = Mth.clamp(width - 118, 64, 80);
+        int modeSwitchWidth = Mth.clamp(width - 138, 64, 80);
         int x = 6;
         SegmentedSwitchButton modeSwitch = addRenderableWidget(new SegmentedSwitchButton(
             x, 6, modeSwitchWidth, 20,
@@ -149,12 +158,14 @@ public final class ChunkMapScreen extends Screen implements ChunkLoadMapFrontend
         x += modeSwitchWidth;
         addWeakLoadingSwitch(x + 6);
 
-        undoButton = addRenderableWidget(new SolidButton(width - 62, 7, 18, 18, PixelGlyph.UNDO,
+        undoButton = addRenderableWidget(new SolidButton(width - 82, 7, 18, 18, PixelGlyph.UNDO,
             Component.translatable("gui.fakeplayer.chunkloader.map_undo"), button -> controller.undo()));
         undoButton.active = controller.mode() == ChunkMapEditMode.EDIT && controller.canUndo();
-        saveButton = addRenderableWidget(new SolidButton(width - 42, 7, 18, 18, PixelGlyph.SAVE,
+        saveButton = addRenderableWidget(new SolidButton(width - 62, 7, 18, 18, PixelGlyph.SAVE,
             Component.translatable("gui.fakeplayer.chunkloader.map_save"), button -> controller.apply()));
         saveButton.active = controller.dirty();
+        addRenderableWidget(new SolidButton(width - 42, 7, 18, 18, PixelGlyph.SETTING,
+            Component.translatable("gui.fakeplayer.chunkloader.map_settings"), button -> showSettings(true)));
         addRenderableWidget(new SolidButton(width - 22, 7, 18, 18, PixelGlyph.CLOSE,
             Component.translatable("gui.close"), button -> closeMap()));
 
@@ -164,6 +175,7 @@ public final class ChunkMapScreen extends Screen implements ChunkLoadMapFrontend
     @Override
     public void extractBackground(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
         if (managementOpen) {
+            super.extractBackground(graphics, mouseX, mouseY, partialTick);
             drawManagement(graphics);
             return;
         }
@@ -416,17 +428,16 @@ public final class ChunkMapScreen extends Screen implements ChunkLoadMapFrontend
         int right = left + panelWidth;
         int halfWidth = panelWidth / 2;
         graphics.fill(0, 0, width, height, 0x55000000);
-        graphics.fill(left, top, right, top + SETTINGS_PANEL_HEIGHT, 0xC0111518);
-        graphics.outline(left, top, panelWidth, SETTINGS_PANEL_HEIGHT, 0xB08B8B8B);
+        graphics.fill(left, top, right, top + SETTINGS_PANEL_HEIGHT, 0xF0222528);
+        graphics.fill(left, top, right, top + 36, 0xFF373737);
+        graphics.fill(left, top + 36, right, top + 38, 0xFF8B8B8B);
+        graphics.outline(left, top, panelWidth, SETTINGS_PANEL_HEIGHT, 0xFF8B8B8B);
         graphics.centeredText(font, Component.translatable("gui.fakeplayer.chunkloader.map_settings_title"),
             width / 2, top + 10, 0xFFFFFFFF);
         graphics.centeredText(font, Component.translatable("gui.fakeplayer.chunkloader.marker_name_preview"),
             left + halfWidth / 2, top + 34, 0xFFB8C1BD);
         drawScaledPreview(graphics, Component.literal(minecraft.player == null
             ? "Player" : minecraft.player.getGameProfile().name()), left + halfWidth / 2, top + 52);
-        graphics.fill(left + 12, top + 78, right - 12, top + 79, 0x808B8B8B);
-        graphics.text(font, Component.translatable("gui.fakeplayer.chunkloader.fake_player_settings"),
-            left + 16, top + 88, 0xFFB8C1BD, false);
     }
 
     private int settingsPanelWidth() {
@@ -438,28 +449,13 @@ public final class ChunkMapScreen extends Screen implements ChunkLoadMapFrontend
     }
 
     private void addBottomBar() {
-        int count = 5;
+        int count = 1;
         int totalWidth = count * BOTTOM_BUTTON_WIDTH + (count - 1) * BOTTOM_BUTTON_GAP;
         int x = (width - totalWidth) / 2;
         int y = height - 26;
         addRenderableWidget(new SolidButton(x, y, BOTTOM_BUTTON_WIDTH, 20,
-            Component.translatable("gui.fakeplayer.chunkloader.map_settings"), button -> showSettings(true)));
-        x += BOTTOM_BUTTON_WIDTH + BOTTOM_BUTTON_GAP;
-        addPageButton(x, y, "gui.fakeplayer.chunkloader.bottom_spawn", OpenFakePlayerPagePayload.Page.SPAWN);
-        x += BOTTOM_BUTTON_WIDTH + BOTTOM_BUTTON_GAP;
-        addPageButton(x, y, "gui.fakeplayer.chunkloader.bottom_list", OpenFakePlayerPagePayload.Page.LIST);
-        x += BOTTOM_BUTTON_WIDTH + BOTTOM_BUTTON_GAP;
-        addPageButton(x, y, "gui.fakeplayer.chunkloader.bottom_presets", OpenFakePlayerPagePayload.Page.PRESETS);
-        x += BOTTOM_BUTTON_WIDTH + BOTTOM_BUTTON_GAP;
-        addRenderableWidget(new SolidButton(x, y, BOTTOM_BUTTON_WIDTH, 20,
             Component.translatable("gui.fakeplayer.chunkloader.bottom_management"),
             button -> showManagement(true)));
-    }
-
-    private void addPageButton(int x, int y, String translationKey, OpenFakePlayerPagePayload.Page page) {
-        addRenderableWidget(new SolidButton(x, y, BOTTOM_BUTTON_WIDTH, 20,
-            Component.translatable(translationKey),
-            button -> PlatformNetworking.sendToServer(new OpenFakePlayerPagePayload(page))));
     }
 
     private void toggleGlobalSetting(int index) {
@@ -490,8 +486,8 @@ public final class ChunkMapScreen extends Screen implements ChunkLoadMapFrontend
     private void addWeakLoadingSwitch(int x) {
         Component label = Component.translatable("gui.fakeplayer.chunkloader.map_weak_range");
         int preferredWidth = ToggleSwitchButton.preferredBoxedWidth(font, label);
-        // 右边留出撤回、保存、关闭三个按钮的位置（最左边的撤回按钮从 width-62 开始）
-        int switchWidth = Math.max(31, Math.min(preferredWidth, Math.min(96, width - 68 - x)));
+        // 右边留出撤回、保存、设置、关闭四个按钮的位置（最左边的撤回按钮从 width-82 开始）
+        int switchWidth = Math.max(31, Math.min(preferredWidth, Math.min(96, width - 88 - x)));
         addRenderableWidget(new ToggleSwitchButton(x, 6, switchWidth, 20,
             label, 0xFFFFFFFF,
             ChunkMapClientConfig::weakLoadingVisible, button -> toggleWeakLoading(), true));
@@ -511,7 +507,12 @@ public final class ChunkMapScreen extends Screen implements ChunkLoadMapFrontend
     }
 
     private void showManagement(boolean value) {
+        if (!value && managementOpen && !managementFromMap) {
+            ClientChunkLoadingState.returnFromMap(returnTarget);
+            return;
+        }
         managementOpen = value;
+        managementFromMap = value;
         page = 0;
         selectedIndex = -1;
         confirmation = null;
@@ -521,7 +522,7 @@ public final class ChunkMapScreen extends Screen implements ChunkLoadMapFrontend
     private void addManagementControls() {
         int left = (width - PANEL_WIDTH) / 2;
         int top = (height - PANEL_HEIGHT) / 2;
-        addRenderableWidget(new SolidButton(left + 16, top + 9, 54, 20,
+        addRenderableWidget(new SolidButton(left + 16, top + 9, 18, 18, PixelGlyph.BACK,
             Component.translatable("gui.back"), button -> showManagement(false)));
         addRenderableWidget(new SolidButton(left + 280, top + 9, 64, 20,
             Component.translatable("gui.fakeplayer.chunkloader.backup"),
@@ -530,9 +531,6 @@ public final class ChunkMapScreen extends Screen implements ChunkLoadMapFrontend
             Component.translatable(confirmation == Action.RESTORE
                 ? "gui.fakeplayer.chunkloader.confirm_restore" : "gui.fakeplayer.chunkloader.restore"),
             button -> confirmOrSend(Action.RESTORE, "")));
-        addRenderableWidget(new SolidButton(width - 22, 7, 18, 18, PixelGlyph.CLOSE,
-            Component.translatable("gui.close"), button -> closeMap()));
-
         int first = page * PAGE_SIZE;
         int end = Math.min(first + PAGE_SIZE, regions().size());
         for (int index = first; index < end; index++) {
@@ -598,10 +596,10 @@ public final class ChunkMapScreen extends Screen implements ChunkLoadMapFrontend
     private void drawManagement(GuiGraphicsExtractor graphics) {
         int left = (width - PANEL_WIDTH) / 2;
         int top = (height - PANEL_HEIGHT) / 2;
-        graphics.fill(0, 0, width, height, 0xFF111518);
+        // 加载点管理是独立的表单页面，只有地图页才绘制地形背景。
         graphics.fill(left, top, left + PANEL_WIDTH, top + PANEL_HEIGHT, 0xF0222528);
-        graphics.fill(left, top, left + PANEL_WIDTH, top + 36, 0xFF373737);
-        graphics.fill(left, top + 36, left + PANEL_WIDTH, top + 38, 0xFFD5A94E);
+        graphics.fill(left, top, left + PANEL_WIDTH, top + 40, 0xFF373737);
+        graphics.fill(left, top + 40, left + PANEL_WIDTH, top + 42, 0xFF8B8B8B);
         graphics.outline(left, top, PANEL_WIDTH, PANEL_HEIGHT, 0xFF8B8B8B);
         graphics.fill(left + 174, top + 48, left + 414, top + 192, 0x802C3033);
         graphics.fill(left, top + 240, left + PANEL_WIDTH, top + 242, 0xFF565656);
@@ -676,7 +674,7 @@ public final class ChunkMapScreen extends Screen implements ChunkLoadMapFrontend
     public void onClose() {
         if (settingsOpen) showSettings(false);
         else if (managementOpen) showManagement(false);
-        else super.onClose();
+        else ClientChunkLoadingState.returnFromMap(returnTarget);
     }
 
     private void closeMap() {

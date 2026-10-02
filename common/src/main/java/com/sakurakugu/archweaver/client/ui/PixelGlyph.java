@@ -41,6 +41,64 @@ public enum PixelGlyph {
             graphics.fill(x + 10, y + 11, x + 11, y + 12, color);
         }
     },
+    /** 由像素点组成的设置图标。 */
+    SETTING(12, 12) {
+        @Override
+        protected void draw(GuiGraphicsExtractor graphics, int x, int y, int color) {
+            graphics.fill(x + 5, y + 1, x + 7, y + 4, color);
+            graphics.fill(x + 2, y + 2, x + 4, y + 4, color);
+            graphics.fill(x + 8, y + 2, x + 10, y + 4, color);
+            graphics.fill(x + 4, y + 3, x + 5, y + 5, color);
+            graphics.fill(x + 7, y + 3, x + 8, y + 5, color);
+            graphics.fill(x + 3, y + 4, x + 4, y + 10, color);
+            graphics.fill(x + 8, y + 4, x + 9, y + 10, color);
+            graphics.fill(x + 1, y + 5, x + 3, y + 7, color);
+            graphics.fill(x + 9, y + 5, x + 11, y + 7, color);
+            graphics.fill(x + 4, y + 7, x + 5, y + 9, color);
+            graphics.fill(x + 7, y + 7, x + 8, y + 9, color);
+            graphics.fill(x + 2, y + 8, x + 3, y + 10, color);
+            graphics.fill(x + 5, y + 8, x + 7, y + 11, color);
+            graphics.fill(x + 9, y + 8, x + 10, y + 10, color);
+        }
+    },
+    /** 返回上一级页面的像素图标。 */
+    BACK(12, 12) {
+        @Override
+        protected void draw(GuiGraphicsExtractor graphics, int x, int y, int color) {
+            graphics.fill(x + 6, y + 1, x + 8, y + 3, color);
+            graphics.fill(x + 5, y + 2, x + 6, y + 5, color);
+            graphics.fill(x + 4, y + 3, x + 5, y + 9, color);
+            graphics.fill(x + 6, y + 3, x + 7, y + 4, color);
+            graphics.fill(x + 3, y + 4, x + 4, y + 8, color);
+            graphics.fill(x + 2, y + 5, x + 3, y + 7, color);
+            graphics.fill(x + 5, y + 7, x + 6, y + 10, color);
+            graphics.fill(x + 6, y + 8, x + 7, y + 11, color);
+            graphics.fill(x + 7, y + 9, x + 8, y + 11, color);
+        }
+    },
+    /** 刷新内容的像素图标。 */
+    REFRESH(12, 12) {
+        @Override
+        protected void draw(GuiGraphicsExtractor graphics, int x, int y, int color) {
+            graphics.fill(x + 3, y + 1, x + 9, y + 3, color);
+            graphics.fill(x + 2, y + 2, x + 3, y + 7, color);
+            graphics.fill(x + 9, y + 2, x + 10, y + 4, color);
+            graphics.fill(x + 1, y + 3, x + 2, y + 7, color);
+            graphics.fill(x + 3, y + 3, x + 4, y + 4, color);
+            graphics.fill(x + 8, y + 3, x + 9, y + 4, color);
+            graphics.fill(x + 10, y + 3, x + 11, y + 4, color);
+            graphics.fill(x, y + 5, x + 1, y + 6, color);
+            graphics.fill(x + 3, y + 5, x + 4, y + 6, color);
+            graphics.fill(x + 9, y + 5, x + 11, y + 9, color);
+            graphics.fill(x + 8, y + 6, x + 9, y + 7, color);
+            graphics.fill(x + 11, y + 6, x + 12, y + 7, color);
+            graphics.fill(x + 1, y + 8, x + 4, y + 9, color);
+            graphics.fill(x + 8, y + 8, x + 9, y + 11, color);
+            graphics.fill(x + 2, y + 9, x + 8, y + 10, color);
+            graphics.fill(x + 9, y + 9, x + 10, y + 10, color);
+            graphics.fill(x + 3, y + 10, x + 8, y + 11, color);
+        }
+    },
     CLOSE(10, 12) {
         @Override
         protected void draw(GuiGraphicsExtractor graphics, int x, int y, int color) {

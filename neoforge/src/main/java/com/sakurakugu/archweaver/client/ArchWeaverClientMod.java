@@ -44,7 +44,10 @@ public final class ArchWeaverClientMod {
         Identifier.fromNamespaceAndPath(ArchWeaverMod.MOD_ID, "main")
     );
     private static final KeyMapping OPEN_CHUNK_MAP = new KeyMapping(
-        "key.archweaver.open_chunk_map", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_C, CATEGORY
+        "key.archweaver.open_chunk_map", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_M, CATEGORY
+    );
+    private static final KeyMapping OPEN_MAIN_PAGE = new KeyMapping(
+        "key.archweaver.open_main_page", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_G, CATEGORY
     );
     private static final KeyMapping STOP_POSSESSION = new KeyMapping(
         "key.fakeplayer.stop_possession", InputConstants.Type.KEYSYM, InputConstants.UNKNOWN.getValue(), CATEGORY
@@ -67,6 +70,7 @@ public final class ArchWeaverClientMod {
     private static void registerKeys(RegisterKeyMappingsEvent event) {
         event.registerCategory(CATEGORY);
         event.register(OPEN_CHUNK_MAP);
+        event.register(OPEN_MAIN_PAGE);
         event.register(STOP_POSSESSION);
     }
 
@@ -99,7 +103,12 @@ public final class ArchWeaverClientMod {
         }
         while (OPEN_CHUNK_MAP.consumeClick()) {
             if (minecraft.player != null && minecraft.screen == null) {
-                PlatformNetworking.sendToServer(ClientChunkLoadingState.request(true, false, false));
+                ClientChunkLoadingState.openMap(ClientChunkLoadingState.MapReturnTarget.CLOSE, false, false);
+            }
+        }
+        while (OPEN_MAIN_PAGE.consumeClick()) {
+            if (minecraft.player != null && minecraft.screen == null) {
+                ClientChunkLoadingState.openMainScreen();
             }
         }
         if (minecraft.player == null) {

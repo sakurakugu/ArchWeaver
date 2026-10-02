@@ -1,8 +1,10 @@
 package com.sakurakugu.archweaver.client.chunkloading;
 
 import com.sakurakugu.archweaver.client.ClientGlobalSettings;
+import com.sakurakugu.archweaver.client.MainPageScreen;
 import com.sakurakugu.archweaver.config.ArchWeaverConfig;
 import com.sakurakugu.archweaver.network.ChunkMapSnapshotPayload;
+import com.sakurakugu.archweaver.network.OpenFakePlayerPagePayload;
 import com.sakurakugu.archweaver.network.RequestChunkMapPayload;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
@@ -10,6 +12,8 @@ import net.minecraft.client.multiplayer.ClientLevel;
 /** 保存服务端最近一次同步的加载点快照。 */
 public final class ClientChunkLoadingState {
     private static ChunkMapSnapshotPayload snapshot;
+    private static boolean mainScreenPending;
+    private static MapReturnTarget mapReturnTarget = MapReturnTarget.CLOSE;
     private static ClientLevel terrainLevel;
     private static ChunkTerrainAtlas terrainAtlas;
 
@@ -30,9 +34,17 @@ public final class ClientChunkLoadingState {
         ClientGlobalSettings.setContainerTransferButtons(
             (value.globalSettingsMask() & (1 << transferSetting)) != 0);
         if (value.openScreen()) {
+            mainScreenPending = false;
+            MapReturnTarget returnTarget = mapReturnTarget;
+            mapReturnTarget = MapReturnTarget.CLOSE;
             Minecraft.getInstance().setScreen(new ChunkMapScreen(
-                effective, value.openManagement(), value.openSettings()));
+                effective, value.openManagement(), value.openSettings(), returnTarget));
+        } else if (mainScreenPending) {
+            mainScreenPending = false;
+            Minecraft.getInstance().setScreen(new MainPageScreen(effective));
         } else if (Minecraft.getInstance().screen instanceof ChunkMapScreen screen) {
+            screen.update(effective);
+        } else if (Minecraft.getInstance().screen instanceof MainPageScreen screen) {
             screen.update(effective);
         }
     }
@@ -47,8 +59,36 @@ public final class ClientChunkLoadingState {
                 known.revision(), known.dimension());
     }
 
+    /** 从指定页面打开地图，返回键和 Esc 会回到该页面。 */
+    public static void openMap(MapReturnTarget returnTarget, boolean management, boolean settings) {
+        mapReturnTarget = returnTarget;
+        com.sakurakugu.archweaver.platform.PlatformNetworking.sendToServer(
+            request(true, management, settings));
+    }
+
+    /** 从地图页面返回进入地图前的页面。关闭按钮不调用此方法。 */
+    public static void returnFromMap(MapReturnTarget returnTarget) {
+        switch (returnTarget) {
+            case MAIN -> openMainScreen();
+            case FAKE_PLAYERS -> com.sakurakugu.archweaver.platform.PlatformNetworking.sendToServer(
+                new OpenFakePlayerPagePayload(OpenFakePlayerPagePayload.Page.LIST));
+            case CLOSE -> Minecraft.getInstance().setScreen(null);
+        }
+    }
+
     public static ChunkMapSnapshotPayload snapshot() {
         return snapshot;
+    }
+
+    /** 打开总览页；没有服务端快照时先请求一次，再由快照回调完成打开。 */
+    public static void openMainScreen() {
+        if (snapshot != null) {
+            mainScreenPending = false;
+            Minecraft.getInstance().setScreen(new MainPageScreen(snapshot));
+            return;
+        }
+        mainScreenPending = true;
+        com.sakurakugu.archweaver.platform.PlatformNetworking.sendToServer(request(false, false, false));
     }
 
     /** 图集跟随连接存在：换维度时释放重建，同一个世界内数据一直有效。 */
@@ -64,6 +104,8 @@ public final class ClientChunkLoadingState {
 
     public static void clear() {
         snapshot = null;
+        mainScreenPending = false;
+        mapReturnTarget = MapReturnTarget.CLOSE;
         ClientGlobalSettings.clear();
         closeTerrainAtlas();
     }
@@ -72,5 +114,11 @@ public final class ClientChunkLoadingState {
         if (terrainAtlas != null) terrainAtlas.close();
         terrainAtlas = null;
         terrainLevel = null;
+    }
+
+    public enum MapReturnTarget {
+        CLOSE,
+        MAIN,
+        FAKE_PLAYERS
     }
 }

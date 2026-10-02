@@ -5,6 +5,7 @@ import com.sakurakugu.archweaver.network.SpawnFakePlayerPayload;
 import com.sakurakugu.archweaver.platform.PlatformNetworking;
 import com.sakurakugu.archweaver.client.chunkloading.ClientChunkLoadingState;
 import com.sakurakugu.archweaver.client.ui.SolidButton;
+import com.sakurakugu.archweaver.client.ui.PixelGlyph;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.EditBox;
@@ -52,16 +53,16 @@ public final class GlobalFakePlayerScreen extends AbstractContainerScreen<Global
                     Component.translatable("gui.fakeplayer.global.spawn"), button -> submitSpawn())
             );
             updateSpawnButton();
-            addRenderableWidget(
-                new SolidButton(leftPos + 50, topPos + 180, PANEL_WIDTH - 100, BUTTON_HEIGHT,
-                    Component.translatable("gui.fakeplayer.global.settings"), button -> returnToMap())
-            );
+            addRenderableWidget(new SolidButton(leftPos + 16, topPos + 8, 18, 18,
+                PixelGlyph.BACK, Component.translatable("gui.back"), button -> returnToMap()));
             setInitialFocus(nameInput);
             return;
         }
 
         int firstIndex = page * PAGE_SIZE;
         int endIndex = Math.min(firstIndex + PAGE_SIZE, menu.playerNames().size());
+        addRenderableWidget(new SolidButton(leftPos + 16, topPos + 8, 18, 18,
+            PixelGlyph.BACK, Component.translatable("gui.back"), button -> returnToMap()));
         for (int index = firstIndex; index < endIndex; index++) {
             int row = index - firstIndex;
             int actionId = index;
@@ -78,16 +79,9 @@ public final class GlobalFakePlayerScreen extends AbstractContainerScreen<Global
         previous.active = page > 0;
         addRenderableWidget(previous);
 
-        addRenderableWidget(
-            new SolidButton(leftPos + 58, footerY, 76, 20,
-                Component.translatable("gui.fakeplayer.global.settings"), button -> returnToMap())
-        );
-
-        addRenderableWidget(
-            new SolidButton(leftPos + 142, footerY, 76, 20,
-                Component.translatable("gui.fakeplayer.global.refresh"),
-                button -> sendAction(GlobalFakePlayerMenu.ACTION_REFRESH))
-        );
+        addRenderableWidget(new SolidButton(leftPos + PANEL_WIDTH - 40, topPos + 8, 18, 18,
+            PixelGlyph.REFRESH, Component.translatable("gui.fakeplayer.global.refresh"),
+            button -> sendAction(GlobalFakePlayerMenu.ACTION_REFRESH)));
 
         Button next = new SolidButton(leftPos + PANEL_WIDTH - 48, footerY, 32, 20,
             Component.literal(">"), button -> changePage(1));
@@ -96,7 +90,12 @@ public final class GlobalFakePlayerScreen extends AbstractContainerScreen<Global
     }
 
     private void returnToMap() {
-        PlatformNetworking.sendToServer(ClientChunkLoadingState.request(true, false, false));
+        ClientChunkLoadingState.openMainScreen();
+    }
+
+    @Override
+    public void onClose() {
+        ClientChunkLoadingState.openMainScreen();
     }
 
     private void updateSpawnButton() {
@@ -132,7 +131,7 @@ public final class GlobalFakePlayerScreen extends AbstractContainerScreen<Global
         super.extractBackground(graphics, mouseX, mouseY, partialTick);
         graphics.fill(leftPos, topPos, leftPos + PANEL_WIDTH, topPos + PANEL_HEIGHT, 0xF0222528);
         graphics.fill(leftPos, topPos, leftPos + PANEL_WIDTH, topPos + 40, 0xFF373737);
-        graphics.fill(leftPos, topPos + 40, leftPos + PANEL_WIDTH, topPos + 42, 0xFFD5A94E);
+        graphics.fill(leftPos, topPos + 40, leftPos + PANEL_WIDTH, topPos + 42, 0xFF8B8B8B);
         graphics.outline(leftPos, topPos, PANEL_WIDTH, PANEL_HEIGHT, 0xFF8B8B8B);
     }
 
