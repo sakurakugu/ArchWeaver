@@ -90,10 +90,10 @@ public final class FakePlayerInventoryScreen extends AbstractContainerScreen<Fak
     private static final int CRAFTING_AREA_TOP = 17;
     private static final int CRAFTING_AREA_WIDTH = 76;
     private static final int CRAFTING_AREA_HEIGHT = 55;
-    private static final int CONTROL_LEFT = 97;
+    private static final int CONTROL_LEFT = 96;
     private static final int CONTROL_TOP = 18;
     private static final int CONTROL_SIZE = 18;
-    private static final int SNEAK_BUTTON_LEFT = 155;
+    private static final int SNEAK_BUTTON_LEFT = 153;
 
     // 三个按钮纵向排列，附身按钮正好位于末影箱下方和副手槽上方。
     private static final int ACTION_BUTTON_LEFT = 76;
@@ -202,6 +202,12 @@ public final class FakePlayerInventoryScreen extends AbstractContainerScreen<Fak
         super(menu, inventory, title, menu.screenWidth(), menu.screenHeight());
         lastSentPitch = menu.pitch();
         lastSentYaw = menu.yaw();
+    }
+
+    /** Esc 返回上一级。 */
+    @Override
+    public void onClose() {
+        ClientScreenNavigation.back(this);
     }
 
     @Override
@@ -869,7 +875,10 @@ public final class FakePlayerInventoryScreen extends AbstractContainerScreen<Fak
 
     @Override
     public void extractBackground(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
-        super.extractBackground(graphics, mouseX, mouseY, partialTick);
+        if (menu.view() == FakePlayerInventoryMenu.View.ENDER_CHEST
+            || !ClientScreenNavigation.extractBackground(this, graphics, partialTick)) {
+            super.extractBackground(graphics, mouseX, mouseY, partialTick);
+        }
         if (menu.view() == FakePlayerInventoryMenu.View.ENDER_CHEST) {
             // 与原版 ContainerScreen 的三行容器背景保持一致。
             graphics.blit(

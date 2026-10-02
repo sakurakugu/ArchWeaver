@@ -65,6 +65,8 @@ public final class ArchWeaverClientMod {
         modBus.addListener(ArchWeaverClientMod::registerClientPayloads);
         NeoForge.EVENT_BUS.addListener(ArchWeaverClientMod::clientTick);
         NeoForge.EVENT_BUS.addListener(ArchWeaverClientMod::addInventoryButtons);
+        NeoForge.EVENT_BUS.addListener(ArchWeaverClientMod::trackScreenOpening);
+        NeoForge.EVENT_BUS.addListener(ArchWeaverClientMod::trackScreenClosing);
     }
 
     private static void registerKeys(RegisterKeyMappingsEvent event) {
@@ -91,8 +93,17 @@ public final class ArchWeaverClientMod {
             (payload, context) -> ClientBodyRotation.accept(payload));
     }
 
+    private static void trackScreenOpening(ScreenEvent.Opening event) {
+        ClientScreenNavigation.onOpening(event.getCurrentScreen(), event.getNewScreen());
+    }
+
+    private static void trackScreenClosing(ScreenEvent.Closing event) {
+        ClientScreenNavigation.onClosing(event.getScreen());
+    }
+
     private static void clientTick(ClientTickEvent.Post event) {
         Minecraft minecraft = Minecraft.getInstance();
+        ClientScreenNavigation.tick();
         ClientPossession.tick(minecraft);
         ClientBodyRotation.tick(minecraft);
         updateCreativePossessionButton(minecraft);

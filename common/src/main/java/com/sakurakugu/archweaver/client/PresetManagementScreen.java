@@ -4,9 +4,9 @@ import com.sakurakugu.archweaver.menu.PresetManagementMenu;
 import com.sakurakugu.archweaver.menu.PresetManagementMenu.GroupSummary;
 import com.sakurakugu.archweaver.menu.PresetManagementMenu.PresetSummary;
 import com.sakurakugu.archweaver.network.PresetActionPayload;
-import com.sakurakugu.archweaver.client.chunkloading.ClientChunkLoadingState;
 import com.sakurakugu.archweaver.client.ui.SolidButton;
 import com.sakurakugu.archweaver.client.ui.PixelGlyph;
+import com.sakurakugu.archweaver.client.ui.TitlePanel;
 import com.sakurakugu.archweaver.platform.PlatformNetworking;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
@@ -46,10 +46,10 @@ public final class PresetManagementScreen extends AbstractContainerScreen<Preset
             Component.translatable("gui.fakeplayer.preset.presets"), button -> setTab(false)));
         addRenderableWidget(new SolidButton(leftPos + 120, topPos + 43, 100, 20,
             Component.translatable("gui.fakeplayer.preset.groups"), button -> setTab(true)));
-        addRenderableWidget(new SolidButton(leftPos + 16, topPos + 8, 18, 18, PixelGlyph.BACK,
+        TitlePanel titlePanel = titlePanel();
+        addRenderableWidget(new SolidButton(titlePanel.leftButtonX(), titlePanel.buttonY(18), 18, 18, PixelGlyph.BACK,
             Component.translatable("gui.fakeplayer.preset.back"), button ->
-                ClientChunkLoadingState.openMainScreen()));
-
+                ClientScreenNavigation.back(this)));
         if (showingGroups) {
             addGroupWidgets();
         } else {
@@ -246,22 +246,24 @@ public final class PresetManagementScreen extends AbstractContainerScreen<Preset
 
     @Override
     public void onClose() {
-        ClientChunkLoadingState.openMainScreen();
+        ClientScreenNavigation.back(this);
     }
 
     @Override
     public void extractBackground(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
-        super.extractBackground(graphics, mouseX, mouseY, partialTick);
-        graphics.fill(leftPos, topPos, leftPos + PANEL_WIDTH, topPos + PANEL_HEIGHT, 0xF0222528);
-        graphics.fill(leftPos, topPos, leftPos + PANEL_WIDTH, topPos + 36, 0xFF373737);
-        graphics.fill(leftPos, topPos + 36, leftPos + PANEL_WIDTH, topPos + 38, 0xFF8B8B8B);
-        graphics.outline(leftPos, topPos, PANEL_WIDTH, PANEL_HEIGHT, 0xFF8B8B8B);
+        if (!ClientScreenNavigation.extractBackground(this, graphics, partialTick)) {
+            super.extractBackground(graphics, mouseX, mouseY, partialTick);
+        }
+        new TitlePanel(leftPos, topPos, PANEL_WIDTH, PANEL_HEIGHT, title).draw(graphics, font);
         graphics.fill(leftPos + 156, topPos + 70, leftPos + 364, topPos + 181, 0x802C3033);
+    }
+
+    private TitlePanel titlePanel() {
+        return new TitlePanel(leftPos, topPos, PANEL_WIDTH, PANEL_HEIGHT, title);
     }
 
     @Override
     protected void extractLabels(GuiGraphicsExtractor graphics, int mouseX, int mouseY) {
-        graphics.centeredText(font, title, PANEL_WIDTH / 2, 12, 0xFFFFFFFF);
         graphics.centeredText(font, Component.translatable("gui.fakeplayer.preset.page", page + 1, pageCount()),
             82, 192, 0xFFC6C6C6);
         if (showingGroups) {

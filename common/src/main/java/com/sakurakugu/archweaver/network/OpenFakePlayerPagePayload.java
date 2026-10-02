@@ -29,7 +29,6 @@ public record OpenFakePlayerPagePayload(Page page) implements CustomPacketPayloa
 
     public enum Page {
         SPAWN,
-        LIST,
         PRESETS
     }
 }

@@ -34,9 +34,20 @@ public final class ModNetworking {
                     && ArchWeaverConfig.canUseCommands(player.createCommandSourceStack())) {
                     switch (payload.page()) {
                         case SPAWN -> FakePlayerMenuOpener.openSpawn(player);
-                        case LIST -> FakePlayerMenuOpener.openList(player);
                         case PRESETS -> FakePlayerMenuOpener.openPresetManagement(player);
                     }
+                }
+            }
+        );
+        registrar.playToServer(
+            OpenFakePlayerInventoryPayload.TYPE,
+            OpenFakePlayerInventoryPayload.STREAM_CODEC,
+            (payload, context) -> {
+                if (context.player() instanceof ServerPlayer player
+                    && ArchWeaverConfig.canUseCommands(player.createCommandSourceStack())) {
+                    var fake = com.sakurakugu.archweaver.entity.FakePlayerManager.find(
+                        player.level().getServer(), payload.targetName());
+                    if (fake != null) FakePlayerMenuOpener.openInventory(player, fake);
                 }
             }
         );

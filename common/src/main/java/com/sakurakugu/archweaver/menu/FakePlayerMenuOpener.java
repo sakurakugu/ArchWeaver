@@ -11,11 +11,14 @@ import com.sakurakugu.archweaver.entity.FakePlayerPossession;
 import com.sakurakugu.archweaver.entity.FakeServerPlayer;
 import com.sakurakugu.archweaver.persistence.FakePlayerPersistence;
 import com.sakurakugu.archweaver.persistence.FakePlayerSavedData;
-import com.sakurakugu.archweaver.network.ChunkMapSnapshotPayload;
 import java.util.List;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.SimpleMenuProvider;
+import net.minecraft.world.MenuProvider;
+import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.inventory.AbstractContainerMenu;
+import net.minecraft.world.inventory.MenuConstructor;
 import com.sakurakugu.archweaver.platform.PlatformNetworking;
 
 /** 统一创建假人全局菜单和物品栏管理页面。 */
@@ -24,16 +27,11 @@ public final class FakePlayerMenuOpener {
     }
 
     public static void openGlobal(ServerPlayer viewer) {
-        PlatformNetworking.sendToPlayer(viewer, ChunkMapSnapshotPayload.create(
-            viewer, ChunkLoaderManager.data(viewer.level().getServer()), true, false, true));
-    }
-
-    public static void openList(ServerPlayer viewer) {
-        openGlobal(viewer, true, false);
+        openSpawnMenu(viewer);
     }
 
     public static void openSpawn(ServerPlayer viewer) {
-        openGlobal(viewer, false, true);
+        openSpawnMenu(viewer);
     }
 
     public static void openPresetManagement(ServerPlayer viewer) {
@@ -58,7 +56,7 @@ public final class FakePlayerMenuOpener {
             .sorted(String.CASE_INSENSITIVE_ORDER)
             .toList();
         viewer.openMenu(
-            new SimpleMenuProvider(
+            new ManagementMenuProvider(
                 (containerId, inventory, player) -> new PresetManagementMenu(
                     containerId, inventory, openGroupsInitially, presets, groups, onlinePlayers),
                 Component.translatable("gui.fakeplayer.preset.title")
@@ -86,28 +84,13 @@ public final class FakePlayerMenuOpener {
         values.forEach(data::writeUtf);
     }
 
-    private static void openGlobal(ServerPlayer viewer, boolean openListInitially, boolean openSpawnInitially) {
-        List<String> names = FakePlayerManager.all(viewer.level().getServer()).stream()
-            .map(fake -> fake.getGameProfile().name())
-            .sorted(String.CASE_INSENSITIVE_ORDER)
-            .toList();
+    private static void openSpawnMenu(ServerPlayer viewer) {
         viewer.openMenu(
-            new SimpleMenuProvider(
-                (containerId, inventory, player) -> new GlobalFakePlayerMenu(
-                    containerId,
-                    inventory,
-                    openListInitially,
-                    openSpawnInitially,
-                    names
-                ),
+            new ManagementMenuProvider(
+                (containerId, inventory, player) -> new GlobalFakePlayerMenu(containerId, inventory),
                 Component.translatable("gui.fakeplayer.global.title")
             ),
-            data -> {
-                data.writeBoolean(openListInitially);
-                data.writeBoolean(openSpawnInitially);
-                data.writeVarInt(names.size());
-                names.forEach(name -> data.writeUtf(name, 64));
-            }
+            data -> { }
         );
     }
 
@@ -138,7 +121,7 @@ public final class FakePlayerMenuOpener {
             fake.getGameProfile().name()
         );
         viewer.openMenu(
-            new SimpleMenuProvider(
+            new ManagementMenuProvider(
                 (containerId, inventory, player) -> new FakePlayerInventoryMenu(
                     containerId, inventory, fake, view, possessedByViewer, targetOccupied),
                 title
@@ -174,5 +157,23 @@ public final class FakePlayerMenuOpener {
         }
         viewer.sendSystemMessage(Component.translatable("gui.fakeplayer.possess_locked"));
         return false;
+    }
+
+    /** 切换管理容器时由服务端清理旧菜单，客户端直接打开新页面，保持光标位置。 */
+    private record ManagementMenuProvider(MenuConstructor constructor, Component title) implements MenuProvider {
+        @Override
+        public Component getDisplayName() {
+            return title;
+        }
+
+        @Override
+        public AbstractContainerMenu createMenu(int containerId, Inventory inventory, Player player) {
+            return constructor.createMenu(containerId, inventory, player);
+        }
+
+        @Override
+        public boolean shouldTriggerClientSideContainerClosingOnOpen() {
+            return false;
+        }
     }
 }

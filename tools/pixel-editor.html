@@ -28,6 +28,7 @@
   .pal input[type=color] { width: 28px; height: 22px; padding: 0; border: none; background: none; }
   .pal .ch { font-family: Consolas, monospace; color: #999; width: 12px; }
   .pal .nm { flex: 1; }
+  .pal input.name { min-width: 0; padding: 1px 3px; }
   textarea { width: 100%; height: 170px; background: #151515; color: #cfe; border: 1px solid #444; font: 12px/1.4 Consolas, monospace; resize: vertical; white-space: pre; overflow-wrap: normal; overflow-x: auto; }
   #editor { image-rendering: pixelated; cursor: crosshair; box-shadow: 0 0 0 1px #000; }
   canvas.pv { image-rendering: pixelated; display: block; }
@@ -88,7 +89,11 @@
     <button id="clear">清空</button>
   </div>
   <div class="line">
-    预设 <select id="preset"><option value="">选择…</option></select>
+    预设 <select id="preset" style="flex:1;min-width:0"><option value="">选择…</option></select>
+    <button id="loadPresetFile">打开</button>
+    <button id="savePreset">保存</button>
+    <button id="deletePreset">删除</button>
+    <input type="file" id="presetFile" accept=".json,application/json" hidden>
   </div>
 </aside>
 
@@ -150,14 +155,9 @@ const TOOLS = [
   ['pen', '画笔', 'B'], ['eraser', '橡皮', 'E'], ['fill', '填充', 'G'], ['picker', '吸管', 'I'],
   ['line', '直线', 'L'], ['rect', '矩形框', 'R'], ['rectFill', '实心矩形', 'F'],
 ];
-const PRESETS = {
-  'SAVE（S1 实心软盘）': ['.#########..', '##.....#.##.', '##.....#.###', '##.......###', '############', '############',
-    '##........##', '##.######.##', '##........##', '##.######.##', '##........##', '.##########.'],
-  'UNDO（U1 粗弯钩箭头）': ['...#........', '..##........', '.###........', '##########..', '###########.', '.###......##',
-    '..##......##', '...#......##', '.........###', '.....######.', '.....#####..'],
-  'CLOSE（关闭）': ['..........', '..........', '.##....##.', '.###..###.', '..######..', '...####...', '...####...',
-    '..######..', '.###..###.', '.##....##.', '..........', '..........'],
-};
+const PRESET_FILE = 'data/pixel-editor-presets.json';
+let presetStore = {};
+let presetFileHandle = null;
 
 let state = {
   w: 12, h: 12, px: new Array(144).fill(0),
@@ -182,6 +182,160 @@ function persist() {
 function toast(msg) {
   const t = $('toast'); t.textContent = msg; t.style.opacity = 1;
   clearTimeout(toast.timer); toast.timer = setTimeout(() => t.style.opacity = 0, 1200);
+}
+
+function clone(value) {
+  return JSON.parse(JSON.stringify(value));
+}
+
+// 将文件中的预设整理成当前编辑器可以直接使用的状态。
+function normalizePreset(value, name) {
+  if (Array.isArray(value)) {
+    const rows = value.map(row => String(row));
+    const w = Math.max(...rows.map(row => row.length), 1), h = rows.length;
+    const px = new Array(w * h).fill(0);
+    rows.forEach((row, y) => [...row].forEach((ch, x) => {
+      const index = CHARS.indexOf(ch);
+      if (index >= 0) px[y * w + x] = index + 1;
+    }));
+    return { ...clone(state), w, h, px, name: name.split('（')[0] || name };
+  }
+  if (!value || typeof value !== 'object') return null;
+  const w = Math.max(1, Math.min(64, Number(value.w) || 0));
+  const h = Math.max(1, Math.min(64, Number(value.h) || 0));
+  if (!w || !h || !Array.isArray(value.px) || value.px.length !== w * h) return null;
+  const palette = Array.isArray(value.palette) && value.palette.length
+    ? value.palette.filter(p => p && typeof p.color === 'string').map(p => ({ name: String(p.name || '颜色'), color: p.color }))
+    : clone(state.palette);
+  if (!palette.length) return null;
+  const px = value.px.map(v => Math.max(0, Math.min(palette.length, Number(v) || 0)));
+  return {
+    ...clone(state), ...clone(value), w, h, px, palette,
+    cur: Math.max(1, Math.min(palette.length, Number(value.cur) || 1)),
+    name: String(value.name || name), doc: String(value.doc || ''),
+  };
+}
+
+function normalizePresetStore(file) {
+  const source = file && file.presets !== undefined ? file.presets : file;
+  const result = {};
+  if (Array.isArray(source)) {
+    source.forEach(item => {
+      if (item && item.name) {
+        const preset = normalizePreset(item.state || item, String(item.name));
+        if (preset) result[String(item.name)] = preset;
+      }
+    });
+  } else if (source && typeof source === 'object') {
+    Object.entries(source).forEach(([name, value]) => {
+      const preset = normalizePreset(value, name);
+      if (preset) result[name] = preset;
+    });
+  }
+  return result;
+}
+
+function presetFileContents(store) {
+  return JSON.stringify({ version: 1, presets: store }, null, 2) + '\n';
+}
+
+function renderPresetOptions(selected = $('preset').value) {
+  const select = $('preset');
+  select.innerHTML = '<option value="">选择…</option>';
+  Object.keys(presetStore).forEach(name => {
+    const option = document.createElement('option');
+    option.value = name; option.textContent = name; select.appendChild(option);
+  });
+  if (presetStore[selected]) select.value = selected;
+}
+
+async function loadPresetData() {
+  try {
+    const response = await fetch(PRESET_FILE, { cache: 'no-store' });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    await readPresetFile(await response.text());
+  } catch (error) {
+    // 直接双击 HTML 时浏览器可能禁止读取相邻文件，可使用“打开”选择 data 文件。
+    console.warn('自动加载像素预设文件失败', error);
+    presetStore = {};
+    renderPresetOptions();
+  }
+}
+
+async function readPresetFile(text, handle) {
+  try {
+    const loaded = normalizePresetStore(JSON.parse(text));
+    if (!Object.keys(loaded).length) throw new Error('没有有效预设');
+    presetStore = loaded;
+    if (handle) presetFileHandle = handle;
+    renderPresetOptions();
+    toast(`已加载 ${Object.keys(loaded).length} 个预设`);
+    return true;
+  } catch (error) {
+    console.warn('读取像素预设文件失败', error);
+    toast('预设文件格式无效');
+    return false;
+  }
+}
+
+async function openPresetFile() {
+  if (window.showOpenFilePicker) {
+    try {
+      const [handle] = await window.showOpenFilePicker({
+        types: [{ description: '像素编辑器预设', accept: { 'application/json': ['.json'] } }],
+        multiple: false,
+      });
+      const file = await handle.getFile();
+      await readPresetFile(await file.text(), handle);
+    } catch (error) {
+      if (error.name !== 'AbortError') toast('打开预设文件失败');
+    }
+    return;
+  }
+  $('presetFile').click();
+}
+
+async function writePresetFile(store) {
+  const contents = presetFileContents(store);
+  try {
+    if (!presetFileHandle && window.showSaveFilePicker) {
+      presetFileHandle = await window.showSaveFilePicker({
+        suggestedName: 'pixel-editor-presets.json',
+        types: [{ description: '像素编辑器预设', accept: { 'application/json': ['.json'] } }],
+      });
+    }
+    if (presetFileHandle) {
+      const writable = await presetFileHandle.createWritable();
+      await writable.write(contents);
+      await writable.close();
+      return true;
+    }
+  } catch (error) {
+    if (error.name === 'AbortError') return false;
+    console.warn('写入像素预设文件失败', error);
+    presetFileHandle = null;
+  }
+  // 不支持文件写入 API 时下载同名文件，用户可以用它替换 data 文件。
+  const blob = new Blob([contents], { type: 'application/json;charset=utf-8' });
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(blob); link.download = 'pixel-editor-presets.json';
+  link.click();
+  setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+  return true;
+}
+
+function currentPreset() {
+  return clone(state);
+}
+
+function applyPreset(name, recordHistory = true) {
+  const preset = normalizePreset(presetStore[name], name);
+  if (!preset) return toast('预设数据无效');
+  if (recordHistory) pushHistory();
+  state = preset;
+  $('preset').value = name;
+  refreshAll();
+  toast(`已载入预设：${name}`);
 }
 
 // ===== 历史 =====
@@ -382,10 +536,15 @@ function renderPalette() {
   state.palette.forEach((p, i) => {
     const row = document.createElement('div');
     row.className = 'pal' + (state.cur === i + 1 ? ' sel' : '');
-    row.innerHTML = `<span class="ch">${CHARS[i]}</span><input type="color" value="${p.color}"><span class="nm">${p.name}</span>` +
+    const nameControl = i > 1
+      ? `<input class="name nm" type="text" value="${String(p.name).replace(/&/g, '&amp;').replace(/"/g, '&quot;')}">`
+      : `<span class="nm">${p.name}</span>`;
+    row.innerHTML = `<span class="ch">${CHARS[i]}</span><input type="color" value="${p.color}">${nameControl}` +
       `<span class="hint">${i === 0 ? 'color' : toArgb(p.color)}</span>` + (i > 1 ? '<button title="删除">×</button>' : '');
     row.onclick = e => { if (e.target.tagName === 'INPUT' || e.target.tagName === 'BUTTON') return; state.cur = i + 1; renderPalette(); persist(); };
-    row.querySelector('input').oninput = e => { p.color = e.target.value; refreshAll(); };
+    row.querySelector('input[type=color]').oninput = e => { p.color = e.target.value; commit(); };
+    const nameInput = row.querySelector('input.name');
+    if (nameInput) nameInput.oninput = e => { p.name = e.target.value; $('java').value = javaCode(); persist(); };
     const del = row.querySelector('button');
     if (del) del.onclick = () => {
       pushHistory();
@@ -594,6 +753,7 @@ function refreshAll() {
   $('w').value = state.w; $('h').value = state.h; $('zoom').value = state.zoom;
   $('btnW').value = state.btnW; $('btnH').value = state.btnH;
   $('bg').value = state.bg; $('gridLines').checked = state.grid; $('mirror').checked = state.mirror;
+  $('enumName').value = state.name; $('enumDoc').value = state.doc;
   renderTools(); renderPalette(); drawEditor(); renderPreviews();
   $('java').value = javaCode();
   $('text').value = textMap();
@@ -625,14 +785,38 @@ $('trim').onclick = () => {
   pushHistory(); resize(b.x1 - b.x0 + 1, b.y1 - b.y0 + 1, b.x0, b.y0); refreshAll();
 };
 $('clear').onclick = () => { pushHistory(); state.px.fill(0); refreshAll(); };
-for (const name of Object.keys(PRESETS)) {
-  const o = document.createElement('option'); o.value = name; o.textContent = name; $('preset').appendChild(o);
-}
 $('preset').onchange = e => {
-  if (!e.target.value) return;
-  importText(PRESETS[e.target.value].join('\n'));
-  state.name = e.target.value.split('（')[0]; $('enumName').value = state.name; commit();
+  if (e.target.value) applyPreset(e.target.value);
+};
+$('loadPresetFile').onclick = openPresetFile;
+$('presetFile').onchange = async e => {
+  const file = e.target.files[0];
+  if (file) await readPresetFile(await file.text());
   e.target.value = '';
+};
+$('savePreset').onclick = async () => {
+  let name = state.name.trim();
+  if (!name) name = prompt('请输入预设名称', 'ICON')?.trim() || '';
+  if (!name) return toast('预设名称不能为空');
+  const saved = currentPreset(); saved.name = name;
+  const next = { ...presetStore, [name]: saved };
+  if (await writePresetFile(next)) {
+    presetStore = next;
+    renderPresetOptions(name);
+    toast(`已保存预设：${name}`);
+  } else toast('保存已取消');
+};
+$('deletePreset').onclick = async () => {
+  const name = $('preset').value;
+  if (!name) return toast('请先选择要删除的预设');
+  if (!confirm(`确定删除预设“${name}”吗？`)) return;
+  if (!confirm(`再次确认删除“${name}”。删除后无法撤销。`)) return;
+  const next = { ...presetStore }; delete next[name];
+  if (await writePresetFile(next)) {
+    presetStore = next;
+    renderPresetOptions();
+    toast(`已删除预设：${name}`);
+  } else toast('删除已取消');
 };
 $('btnW').onchange = e => { state.btnW = +e.target.value; renderPreviews(); persist(); };
 $('btnH').onchange = e => { state.btnH = +e.target.value; renderPreviews(); persist(); };
@@ -668,10 +852,16 @@ window.addEventListener('keydown', e => {
   if (n >= 1 && n <= state.palette.length) { state.cur = n; renderPalette(); }
 });
 
-load();
-$('enumName').value = state.name; $('enumDoc').value = state.doc;
-if (!state.px.some(v => v)) importText(PRESETS['SAVE（S1 实心软盘）'].join('\n'));
-refreshAll();
+async function initialize() {
+  load();
+  await loadPresetData();
+  if (!state.px.some(v => v)) {
+    const first = Object.keys(presetStore)[0];
+    if (first) applyPreset(first, false);
+  }
+  refreshAll();
+}
+initialize();
 </script>
 </body>
 </html>

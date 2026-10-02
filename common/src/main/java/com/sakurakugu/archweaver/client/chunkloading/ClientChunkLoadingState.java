@@ -1,10 +1,10 @@
 package com.sakurakugu.archweaver.client.chunkloading;
 
 import com.sakurakugu.archweaver.client.ClientGlobalSettings;
+import com.sakurakugu.archweaver.client.ClientScreenNavigation;
 import com.sakurakugu.archweaver.client.MainPageScreen;
 import com.sakurakugu.archweaver.config.ArchWeaverConfig;
 import com.sakurakugu.archweaver.network.ChunkMapSnapshotPayload;
-import com.sakurakugu.archweaver.network.OpenFakePlayerPagePayload;
 import com.sakurakugu.archweaver.network.RequestChunkMapPayload;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
@@ -37,8 +37,11 @@ public final class ClientChunkLoadingState {
             mainScreenPending = false;
             MapReturnTarget returnTarget = mapReturnTarget;
             mapReturnTarget = MapReturnTarget.CLOSE;
-            Minecraft.getInstance().setScreen(new ChunkMapScreen(
-                effective, value.openManagement(), value.openSettings(), returnTarget));
+            if (value.openManagement() || value.openSettings()) {
+                ChunkMapScreen.openPanel(effective, value.openManagement(), value.openSettings());
+            } else {
+                Minecraft.getInstance().setScreen(new ChunkMapScreen(effective, returnTarget));
+            }
         } else if (mainScreenPending) {
             mainScreenPending = false;
             Minecraft.getInstance().setScreen(new MainPageScreen(effective));
@@ -46,6 +49,8 @@ public final class ClientChunkLoadingState {
             screen.update(effective);
         } else if (Minecraft.getInstance().screen instanceof MainPageScreen screen) {
             screen.update(effective);
+        } else {
+            ClientScreenNavigation.updateBackground(effective);
         }
     }
 
@@ -70,8 +75,6 @@ public final class ClientChunkLoadingState {
     public static void returnFromMap(MapReturnTarget returnTarget) {
         switch (returnTarget) {
             case MAIN -> openMainScreen();
-            case FAKE_PLAYERS -> com.sakurakugu.archweaver.platform.PlatformNetworking.sendToServer(
-                new OpenFakePlayerPagePayload(OpenFakePlayerPagePayload.Page.LIST));
             case CLOSE -> Minecraft.getInstance().setScreen(null);
         }
     }
@@ -106,6 +109,8 @@ public final class ClientChunkLoadingState {
         snapshot = null;
         mainScreenPending = false;
         mapReturnTarget = MapReturnTarget.CLOSE;
+        MainPageScreen.clearPendingView();
+        ClientScreenNavigation.clear();
         ClientGlobalSettings.clear();
         closeTerrainAtlas();
     }
@@ -118,7 +123,6 @@ public final class ClientChunkLoadingState {
 
     public enum MapReturnTarget {
         CLOSE,
-        MAIN,
-        FAKE_PLAYERS
+        MAIN
     }
 }
