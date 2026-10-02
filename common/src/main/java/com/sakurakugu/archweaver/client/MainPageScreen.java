@@ -5,6 +5,7 @@ import com.sakurakugu.archweaver.client.ui.PixelGlyph;
 import com.sakurakugu.archweaver.client.ui.SolidButton;
 import com.sakurakugu.archweaver.client.ui.TitlePanel;
 import com.sakurakugu.archweaver.network.ChunkMapSnapshotPayload;
+import com.sakurakugu.archweaver.network.OpenFakePlayerInventoryPayload;
 import com.sakurakugu.archweaver.network.OpenFakePlayerPagePayload;
 import com.sakurakugu.archweaver.network.ToggleGlobalSettingPayload;
 import com.sakurakugu.archweaver.platform.PlatformNetworking;
@@ -20,9 +21,11 @@ public final class MainPageScreen extends Screen {
     private static final int SIDE_WIDTH = 130; // 左侧导航栏宽度，受窗口宽度限制
     private static final int MAX_WIDTH = 900; // 控制中心整体最大宽度，超出时左右居中。
     private static final int GAP = 8; // 面板之间、按钮之间的水平间距。
-    private static final int PANEL_PADDING = 12; // 面板内容距离面板边缘的内边距。
+    private static final int PANEL_PADDING = 8; // 面板内容距离面板边缘的内边距。
     private static final int ROW_HEIGHT = 34; // 列表里每行按钮的高度。
-    private static final int PANEL_TOP = 24; // 面板距离窗口顶部的距离。
+    private static final int ROW_GAP = 4; // 列表里相邻两行按钮的间距。
+    private static final int FOOTER_HEIGHT = 22; // 面板底部操作按钮的高度。
+    private static final int PANEL_TOP = 12; // 面板距离窗口顶部、底部的距离。
 
     private ChunkMapSnapshotPayload snapshot; // 最近一次从服务端同步来的状态快照。
     private UUID selectedFake; // 选中的假人 ID，没有选中时为 null。
@@ -56,95 +59,128 @@ public final class MainPageScreen extends Screen {
         int sideWidth = sideWidth();
         int centerLeft = left + sideWidth + GAP;
         int centerWidth = centerWidth();
-        TitlePanel navigationPanel = new TitlePanel(left, top, sideWidth, height - 48,
+        int contentTop = contentTop();
+        TitlePanel navigationPanel = new TitlePanel(left, top, sideWidth, panelHeight(),
             Component.translatable("gui.archweaver.main.title"));
 
         addRenderableWidget(new SolidButton(navigationPanel.leftButtonX(), navigationPanel.buttonY(18), 18, 18,
             PixelGlyph.BACK, Component.translatable("gui.back"), button -> ClientScreenNavigation.back(this)));
-        addNavigationButton(left, top, sideWidth, 0, Component.translatable("gui.archweaver.main.fake_players"), View.FAKE_PLAYERS);
-        addNavigationButton(left, top, sideWidth, 1, Component.translatable("gui.archweaver.main.map"), View.MAP);
-        addNavigationButton(left, top, sideWidth, 2, Component.translatable("gui.archweaver.main.settings"), View.SETTINGS);
+        addNavigationButton(0, Component.translatable("gui.archweaver.main.fake_players"), View.FAKE_PLAYERS);
+        addNavigationButton(1, Component.translatable("gui.archweaver.main.map"), View.MAP);
+        addNavigationButton(2, Component.translatable("gui.archweaver.main.settings"), View.SETTINGS);
 
         if (view == View.FAKE_PLAYERS) {
-            int listWidth = centerWidth - PANEL_PADDING * 2;
-            int listTop = top + 58;
-            int count = Math.min(snapshot.fakePlayers().size(), Math.max(0, (height - 198) / (ROW_HEIGHT + 4)));
+            int listWidth = Math.max(1, centerWidth - PANEL_PADDING * 2);
+            int listTop = listTop(contentTop);
+            int count = Math.min(snapshot.fakePlayers().size(), rowCapacity(listTop));
             for (int index = 0; index < count; index++) {
                 int fakeIndex = index;
                 SolidButton row = addRenderableWidget(new SolidButton(centerLeft + PANEL_PADDING,
-                    listTop + index * (ROW_HEIGHT + 4), listWidth, ROW_HEIGHT,
+                    listTop + index * (ROW_HEIGHT + ROW_GAP), listWidth, ROW_HEIGHT,
                     Component.literal(snapshot.fakePlayers().get(index).name()), button -> selectFake(fakeIndex)));
                 if (snapshot.fakePlayers().get(index).id().equals(selectedFake)) row.setTextColor(0xFF55FF55);
             }
-            int footerY = top + height - 82;
-            int presetButtonWidth = (listWidth - GAP) / 2;
-            addRenderableWidget(new SolidButton(centerLeft + PANEL_PADDING, footerY, presetButtonWidth, 22,
+            int footerY = footerY();
+            int presetButtonWidth = Math.max(1, (listWidth - GAP) / 2);
+            int spawnButtonWidth = Math.max(1, listWidth - presetButtonWidth - GAP);
+            addRenderableWidget(new SolidButton(centerLeft + PANEL_PADDING, footerY, presetButtonWidth, FOOTER_HEIGHT,
                 Component.translatable("gui.archweaver.main.presets"), button -> openPresets()));
             addRenderableWidget(new SolidButton(centerLeft + PANEL_PADDING + presetButtonWidth + GAP, footerY,
-                listWidth - presetButtonWidth - GAP, 22, Component.translatable("gui.archweaver.main.spawn"), button -> openSpawn()));
-            addRenderableWidget(new SolidButton(centerLeft + centerWidth - PANEL_PADDING - 10, top + 4, 18, 18,
+                spawnButtonWidth, FOOTER_HEIGHT, Component.translatable("gui.archweaver.main.spawn"), button -> openSpawn()));
+            addRenderableWidget(new SolidButton(centerLeft + centerWidth - PANEL_PADDING - 18, top + 4, 18, 18,
                 PixelGlyph.REFRESH, Component.translatable("gui.archweaver.main.refresh"), button -> refresh()));
+            int rightLeft = centerLeft + centerWidth + GAP;
+            int rightWidth = Math.max(1, left + panelWidth() - rightLeft);
+            addFakeDetailWidgets(rightLeft, rightWidth);
         } else if (view == View.MAP) {
             addMapWidgets(centerLeft, centerWidth, top);
         } else {
-            addSettingsWidgets(centerLeft, centerWidth, top);
+            addSettingsWidgets(centerLeft, centerWidth);
         }
     }
 
-    private void addNavigationButton(int left, int top, int sideWidth, int index, Component label, View target) {
-        SolidButton button = addRenderableWidget(new SolidButton(left + PANEL_PADDING, top + 54 + index * 30,
-            sideWidth - PANEL_PADDING * 2, 24, label, ignored -> switchView(target)));
+    private void addNavigationButton(int index, Component label, View target) {
+        SolidButton button = addRenderableWidget(new SolidButton(panelLeft() + PANEL_PADDING,
+            contentTop() + PANEL_PADDING + index * 30, Math.max(1, sideWidth() - PANEL_PADDING * 2), 24, label,
+            ignored -> switchView(target)));
         if (view == target) button.setTextColor(0xFF55FF55);
     }
 
     private void addMapWidgets(int centerLeft, int centerWidth, int top) {
-        int listWidth = centerWidth - PANEL_PADDING * 2;
-        int listTop = top + 76;
-        int count = Math.min(snapshot.managementRegions().size(), Math.max(0, (height - 216) / (ROW_HEIGHT + 4)));
+        int listWidth = Math.max(1, centerWidth - PANEL_PADDING * 2);
+        int listTop = listTop(contentTop());
+        int count = Math.min(snapshot.managementRegions().size(), rowCapacity(listTop));
         for (int index = 0; index < count; index++) {
             int regionIndex = index;
             ChunkMapSnapshotPayload.RegionSummary region = snapshot.managementRegions().get(index);
             SolidButton row = addRenderableWidget(new SolidButton(centerLeft + PANEL_PADDING,
-                listTop + index * (ROW_HEIGHT + 4), listWidth, ROW_HEIGHT, Component.literal(region.name()),
+                listTop + index * (ROW_HEIGHT + ROW_GAP), listWidth, ROW_HEIGHT, Component.literal(region.name()),
                 button -> selectRegion(regionIndex)));
             if (selectedRegion == index) row.setTextColor(0xFF55FF55);
         }
-        int footerY = top + height - 82;
-        int half = (listWidth - GAP) / 2;
-        addRenderableWidget(new SolidButton(centerLeft + PANEL_PADDING, footerY, half, 22,
+        int footerY = footerY();
+        int half = Math.max(1, (listWidth - GAP) / 2);
+        addRenderableWidget(new SolidButton(centerLeft + PANEL_PADDING, footerY, half, FOOTER_HEIGHT,
             Component.translatable("gui.archweaver.main.open_map"), button -> openMap()));
         addRenderableWidget(new SolidButton(centerLeft + PANEL_PADDING + half + GAP, footerY,
-            listWidth - half - GAP, 22, Component.translatable("gui.archweaver.main.manage_regions"), button -> openManagement()));
-        addRenderableWidget(new SolidButton(centerLeft + centerWidth - PANEL_PADDING - 10, top + 4, 18, 18,
+            Math.max(1, listWidth - half - GAP), FOOTER_HEIGHT,
+            Component.translatable("gui.archweaver.main.manage_regions"), button -> openManagement()));
+        addRenderableWidget(new SolidButton(centerLeft + centerWidth - PANEL_PADDING - 18, top + 4, 18, 18,
             PixelGlyph.REFRESH, Component.translatable("gui.archweaver.main.refresh"), button -> refresh()));
     }
 
-    private void addSettingsWidgets(int centerLeft, int centerWidth, int top) {
-        int buttonWidth = centerWidth - PANEL_PADDING * 2;
+    private void addSettingsWidgets(int centerLeft, int centerWidth) {
+        int buttonWidth = Math.max(1, centerWidth - PANEL_PADDING * 2);
         for (int index = 0; index < settingButtons.length; index++) {
             int settingIndex = index;
             settingButtons[index] = addRenderableWidget(new SolidButton(centerLeft + PANEL_PADDING,
-                top + 62 + index * 32, buttonWidth, 24, settingLabel(index), button -> toggleSetting(settingIndex)));
+                contentTop() + PANEL_PADDING + index * 32, buttonWidth, 24, settingLabel(index), button -> toggleSetting(settingIndex)));
         }
+    }
+
+    /** 面板高度，上下各留出 {@link #PANEL_TOP} 的边距。 */
+    private int panelHeight() {
+        return height - PANEL_TOP * 2;
+    }
+
+    /** 面板内容区的起始纵坐标，跳过标题栏与其下方的分隔线。 */
+    private int contentTop() {
+        return PANEL_TOP + TitlePanel.HEADER_HEIGHT + 1;
+    }
+
+    /** 列表首行的纵坐标，位于内容区顶部的状态文字下方。 */
+    private int listTop(int contentTop) {
+        return contentTop + PANEL_PADDING + font.lineHeight + 6;
+    }
+
+    /** 面板底部操作按钮的纵坐标。 */
+    private int footerY() {
+        return PANEL_TOP + panelHeight() - PANEL_PADDING - FOOTER_HEIGHT;
+    }
+
+    /** 列表在底部操作按钮之前能完整容纳的行数。 */
+    private int rowCapacity(int listTop) {
+        return Math.max(0, (footerY() - GAP - listTop + ROW_GAP) / (ROW_HEIGHT + ROW_GAP));
     }
 
     /** 控制中心占用的总宽度，受窗口宽度和 {@link #MAX_WIDTH} 限制。 */
     private int panelWidth() {
-        return Math.min(MAX_WIDTH, width - 12);
+        return Math.max(1, Math.min(MAX_WIDTH, width - 12));
     }
 
     private int panelLeft() {
-        return Math.max(6, (width - panelWidth()) / 2);
+        return Math.max(0, (width - panelWidth()) / 2);
     }
 
     private int sideWidth() {
-        return Math.min(SIDE_WIDTH, Math.max(148, (width - 24) / 5));
+        int available = Math.max(1, panelWidth() - GAP * 2);
+        return Math.min(SIDE_WIDTH, Math.max(1, available / 4));
     }
 
     /** 中间内容区与右侧详情区等宽的剩余空间。 */
     private int centerWidth() {
         int remaining = panelWidth() - sideWidth() - GAP * 2;
-        return Math.max(250, remaining / 2);
+        return Math.max(1, remaining / 2);
     }
 
     private void switchView(View target) {
@@ -181,6 +217,22 @@ public final class MainPageScreen extends Screen {
         PlatformNetworking.sendToServer(new OpenFakePlayerPagePayload(OpenFakePlayerPagePayload.Page.PRESETS));
     }
 
+    private void openInventory(String targetName) {
+        PlatformNetworking.sendToServer(new OpenFakePlayerInventoryPayload(targetName));
+    }
+
+    /** 在选中的假人详情底部提供直接打开背包的入口。 */
+    private void addFakeDetailWidgets(int x, int w) {
+        ChunkMapSnapshotPayload.FakePlayerView fake = snapshot.fakePlayers().stream()
+            .filter(value -> value.id().equals(selectedFake)).findFirst().orElse(null);
+        if (fake == null) return;
+        SolidButton openInventoryButton = addRenderableWidget(new SolidButton(x + PANEL_PADDING, footerY(),
+            Math.max(1, w - PANEL_PADDING * 2), FOOTER_HEIGHT,
+            Component.translatable("gui.archweaver.main.open_inventory"),
+            button -> openInventory(fake.name())));
+        openInventoryButton.active = !fake.possessed();
+    }
+
     private void refresh() {
         PlatformNetworking.sendToServer(ClientChunkLoadingState.request(false, false, false));
     }
@@ -207,22 +259,23 @@ public final class MainPageScreen extends Screen {
         int centerLeft = left + sideWidth + GAP;
         int centerWidth = centerWidth();
         int rightLeft = centerLeft + centerWidth + GAP;
-        int rightWidth = Math.max(150, width - rightLeft - left);
-        int panelHeight = height - 48;
+        int rightWidth = Math.max(1, left + panelWidth() - rightLeft);
+        int panelHeight = panelHeight();
         new TitlePanel(left, top, sideWidth, panelHeight, Component.translatable("gui.archweaver.main.title")).draw(graphics, font);
         new TitlePanel(centerLeft, top, centerWidth, panelHeight, centerTitle()).draw(graphics, font);
         new TitlePanel(rightLeft, top, rightWidth, panelHeight, Component.translatable("gui.archweaver.main.details")).draw(graphics, font);
 
+        int labelY = contentTop() + PANEL_PADDING;
         if (view == View.FAKE_PLAYERS) {
             graphics.text(font, Component.translatable("gui.archweaver.main.online", snapshot.fakePlayers().size()),
-                centerLeft + PANEL_PADDING, top + 44, 0xFFFFFFFF, false);
-            drawFakeDetail(graphics, rightLeft, top + 48, rightWidth);
+                centerLeft + PANEL_PADDING, labelY, 0xFFFFFFFF, false);
+            drawFakeDetail(graphics, rightLeft, rightWidth);
         } else if (view == View.MAP) {
             graphics.text(font, Component.translatable("gui.archweaver.main.regions", snapshot.managementRegions().size()),
-                centerLeft + PANEL_PADDING, top + 44, 0xFFFFFFFF, false);
-            drawRegionDetail(graphics, rightLeft, top + 48, rightWidth);
+                centerLeft + PANEL_PADDING, labelY, 0xFFFFFFFF, false);
+            drawRegionDetail(graphics, rightLeft, rightWidth);
         } else {
-            drawSettingsDetail(graphics, rightLeft, top + 48, rightWidth);
+            drawSettingsDetail(graphics, rightLeft, rightWidth);
         }
     }
 
@@ -234,37 +287,40 @@ public final class MainPageScreen extends Screen {
         };
     }
 
-    private void drawFakeDetail(GuiGraphicsExtractor graphics, int x, int y, int w) {
+    private void drawFakeDetail(GuiGraphicsExtractor graphics, int x, int w) {
+        int y = contentTop() + PANEL_PADDING;
         ChunkMapSnapshotPayload.FakePlayerView fake = snapshot.fakePlayers().stream()
             .filter(value -> value.id().equals(selectedFake)).findFirst().orElse(null);
         if (fake == null) {
             graphics.centeredText(font, Component.translatable(snapshot.fakePlayers().isEmpty()
-                ? "gui.archweaver.main.no_fake_players" : "gui.archweaver.main.select_fake"), x + w / 2, y + 32, 0xFFFFFFFF);
+                ? "gui.archweaver.main.no_fake_players" : "gui.archweaver.main.select_fake"), x + w / 2, y + 18, 0xFFFFFFFF);
             return;
         }
-        graphics.text(font, Component.literal(fake.name()), x + PANEL_PADDING, y + 12, 0xFFFFFFFF, false);
-        graphics.text(font, Component.translatable("gui.archweaver.main.world", fake.dimension()), x + PANEL_PADDING, y + 32, 0xFFFFFFFF, false);
-        graphics.text(font, Component.translatable("gui.archweaver.main.position", fake.x(), fake.y(), fake.z()), x + PANEL_PADDING, y + 50, 0xFFFFFFFF, false);
-        graphics.text(font, Component.translatable("gui.archweaver.main.loading", fake.loadingActive() ? fake.loadingDistance() : 0), x + PANEL_PADDING, y + 68, 0xFFFFFFFF, false);
-        graphics.text(font, Component.translatable("gui.archweaver.main.simulation", fake.simulationDistance()), x + PANEL_PADDING, y + 86, 0xFFFFFFFF, false);
+        graphics.text(font, Component.literal(fake.name()), x + PANEL_PADDING, y, 0xFFFFFFFF, false);
+        graphics.text(font, Component.translatable("gui.archweaver.main.world", fake.dimension()), x + PANEL_PADDING, y + 18, 0xFFFFFFFF, false);
+        graphics.text(font, Component.translatable("gui.archweaver.main.position", fake.x(), fake.y(), fake.z()), x + PANEL_PADDING, y + 36, 0xFFFFFFFF, false);
+        graphics.text(font, Component.translatable("gui.archweaver.main.loading", fake.loadingActive() ? fake.loadingDistance() : 0), x + PANEL_PADDING, y + 54, 0xFFFFFFFF, false);
+        graphics.text(font, Component.translatable("gui.archweaver.main.simulation", fake.simulationDistance()), x + PANEL_PADDING, y + 72, 0xFFFFFFFF, false);
     }
 
-    private void drawRegionDetail(GuiGraphicsExtractor graphics, int x, int y, int w) {
+    private void drawRegionDetail(GuiGraphicsExtractor graphics, int x, int w) {
+        int y = contentTop() + PANEL_PADDING;
         if (selectedRegion < 0 || selectedRegion >= snapshot.managementRegions().size()) {
-            graphics.centeredText(font, Component.translatable("gui.archweaver.main.select_region"), x + w / 2, y + 32, 0xFFFFFFFF);
+            graphics.centeredText(font, Component.translatable("gui.archweaver.main.select_region"), x + w / 2, y + 18, 0xFFFFFFFF);
             return;
         }
         ChunkMapSnapshotPayload.RegionSummary region = snapshot.managementRegions().get(selectedRegion);
-        graphics.text(font, Component.literal(region.name()), x + PANEL_PADDING, y + 12, 0xFFFFFFFF, false);
-        graphics.text(font, Component.translatable("gui.archweaver.main.world", region.dimension()), x + PANEL_PADDING, y + 32, 0xFFFFFFFF, false);
-        graphics.text(font, Component.translatable("gui.archweaver.main.region_position", region.chunkX(), region.chunkZ()), x + PANEL_PADDING, y + 50, 0xFFFFFFFF, false);
-        graphics.text(font, Component.translatable("gui.archweaver.main.region_size", region.chunkCount(), region.radius()), x + PANEL_PADDING, y + 68, 0xFFFFFFFF, false);
-        graphics.text(font, Component.translatable("gui.archweaver.main.region_status", Component.translatable(region.enabled() ? "gui.fakeplayer.global.enabled" : "gui.fakeplayer.global.disabled")), x + PANEL_PADDING, y + 86, 0xFFFFFFFF, false);
+        graphics.text(font, Component.literal(region.name()), x + PANEL_PADDING, y, 0xFFFFFFFF, false);
+        graphics.text(font, Component.translatable("gui.archweaver.main.world", region.dimension()), x + PANEL_PADDING, y + 18, 0xFFFFFFFF, false);
+        graphics.text(font, Component.translatable("gui.archweaver.main.region_position", region.chunkX(), region.chunkZ()), x + PANEL_PADDING, y + 36, 0xFFFFFFFF, false);
+        graphics.text(font, Component.translatable("gui.archweaver.main.region_size", region.chunkCount(), region.radius()), x + PANEL_PADDING, y + 54, 0xFFFFFFFF, false);
+        graphics.text(font, Component.translatable("gui.archweaver.main.region_status", Component.translatable(region.enabled() ? "gui.fakeplayer.global.enabled" : "gui.fakeplayer.global.disabled")), x + PANEL_PADDING, y + 72, 0xFFFFFFFF, false);
     }
 
-    private void drawSettingsDetail(GuiGraphicsExtractor graphics, int x, int y, int w) {
-        graphics.centeredText(font, Component.translatable("gui.archweaver.main.settings_hint"), x + w / 2, y + 32, 0xFFFFFFFF);
-        graphics.text(font, Component.translatable("gui.archweaver.main.settings_count", settingButtons.length), x + PANEL_PADDING, y + 66, 0xFFC6C6C6, false);
+    private void drawSettingsDetail(GuiGraphicsExtractor graphics, int x, int w) {
+        int y = contentTop() + PANEL_PADDING;
+        graphics.centeredText(font, Component.translatable("gui.archweaver.main.settings_hint"), x + w / 2, y, 0xFFFFFFFF);
+        graphics.text(font, Component.translatable("gui.archweaver.main.settings_count", settingButtons.length), x + PANEL_PADDING, y + 20, 0xFFC6C6C6, false);
     }
 
     private enum View {

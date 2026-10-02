@@ -7,6 +7,7 @@ import com.sakurakugu.archweaver.chunkloading.FakePlayerLoadMode;
 import com.sakurakugu.archweaver.chunkloading.FakePlayerSimulationService;
 import com.sakurakugu.archweaver.chunkloading.ManualLoadRegion;
 import com.sakurakugu.archweaver.entity.FakePlayerManager;
+import com.sakurakugu.archweaver.entity.FakePlayerPossession;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
@@ -123,7 +124,8 @@ public record ChunkMapSnapshotPayload(
                     : policy.simulationDistance();
                 return new FakePlayerView(fake.getUUID(), fake.getGameProfile().name(),
                     fake.level().dimension().identifier().toString(), fake.getBlockX(), fake.getBlockY(),
-                    fake.getBlockZ(), fake.getYRot(), true, policy.mode(), simulationDistance,
+                    fake.getBlockZ(), fake.getYRot(), true, FakePlayerPossession.isPossessed(fake),
+                    policy.mode(), simulationDistance,
                     activeRange != null, activeRange == null ? "" : activeRange.dimension(),
                     activeRange == null ? 0 : activeRange.chunkX(), activeRange == null ? 0 : activeRange.chunkZ(),
                     activeRange == null ? 0 : activeRange.distance());
@@ -258,12 +260,13 @@ public record ChunkMapSnapshotPayload(
     }
 
     public record FakePlayerView(UUID id, String name, String dimension, int x, int y, int z, float yaw,
-                                 boolean online, FakePlayerLoadMode mode, int simulationDistance,
+                                 boolean online, boolean possessed, FakePlayerLoadMode mode, int simulationDistance,
                                  boolean loadingActive, String loadingDimension, int loadingChunkX,
                                  int loadingChunkZ, int loadingDistance) {
         private FakePlayerView(RegistryFriendlyByteBuf buffer) {
             this(buffer.readUUID(), buffer.readUtf(32), buffer.readUtf(256), buffer.readInt(), buffer.readInt(),
-                buffer.readInt(), buffer.readFloat(), buffer.readBoolean(), buffer.readEnum(FakePlayerLoadMode.class), buffer.readVarInt(),
+                buffer.readInt(), buffer.readFloat(), buffer.readBoolean(), buffer.readBoolean(),
+                buffer.readEnum(FakePlayerLoadMode.class), buffer.readVarInt(),
                 buffer.readBoolean(), buffer.readUtf(256), buffer.readInt(), buffer.readInt(), buffer.readVarInt());
             if (!Float.isFinite(yaw)) throw new IllegalArgumentException("假玩家朝向非法");
             if (simulationDistance < 0 || simulationDistance > ChunkLoaderSavedData.MAX_SIMULATION_DISTANCE) {
@@ -280,7 +283,8 @@ public record ChunkMapSnapshotPayload(
             buffer.writeUUID(id); buffer.writeUtf(name, 32); buffer.writeUtf(dimension, 256);
             buffer.writeInt(x); buffer.writeInt(y); buffer.writeInt(z);
             buffer.writeFloat(yaw);
-            buffer.writeBoolean(online); buffer.writeEnum(mode); buffer.writeVarInt(simulationDistance);
+            buffer.writeBoolean(online); buffer.writeBoolean(possessed);
+            buffer.writeEnum(mode); buffer.writeVarInt(simulationDistance);
             buffer.writeBoolean(loadingActive); buffer.writeUtf(loadingDimension, 256);
             buffer.writeInt(loadingChunkX); buffer.writeInt(loadingChunkZ); buffer.writeVarInt(loadingDistance);
         }

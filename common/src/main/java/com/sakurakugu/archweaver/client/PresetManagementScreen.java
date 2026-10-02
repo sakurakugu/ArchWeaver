@@ -11,12 +11,11 @@ import com.sakurakugu.archweaver.platform.PlatformNetworking;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.EditBox;
-import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.player.Inventory;
 
 /** 管理假人预设及分组。 */
-public final class PresetManagementScreen extends AbstractContainerScreen<PresetManagementMenu> {
+public final class PresetManagementScreen extends ResponsiveContainerScreen<PresetManagementMenu> {
     private static final int PANEL_WIDTH = 380; // 页面主面板宽度，单位为像素。
     private static final int PANEL_HEIGHT = 270; // 页面主面板高度，单位为像素。
     private static final int PAGE_SIZE = 5; // 每页显示的预设或分组条目数。
@@ -42,9 +41,9 @@ public final class PresetManagementScreen extends AbstractContainerScreen<Preset
 
     private void rebuildControls() {
         clearWidgets();
-        addRenderableWidget(new SolidButton(leftPos + 16, topPos + 43, 100, 20,
+        addRenderableWidget(new SolidButton(leftPos + s(16), topPos + s(43), size(100), size(20),
             Component.translatable("gui.fakeplayer.preset.presets"), button -> setTab(false)));
-        addRenderableWidget(new SolidButton(leftPos + 120, topPos + 43, 100, 20,
+        addRenderableWidget(new SolidButton(leftPos + s(120), topPos + s(43), size(100), size(20),
             Component.translatable("gui.fakeplayer.preset.groups"), button -> setTab(true)));
         TitlePanel titlePanel = titlePanel();
         addRenderableWidget(new SolidButton(titlePanel.leftButtonX(), titlePanel.buttonY(18), 18, 18, PixelGlyph.BACK,
@@ -64,33 +63,33 @@ public final class PresetManagementScreen extends AbstractContainerScreen<Preset
         for (int index = first; index < end; index++) {
             int selected = index;
             PresetSummary preset = menu.presets().get(index);
-            addRenderableWidget(new SolidButton(leftPos + 16, topPos + 72 + (index - first) * 25,
-                132, ROW_HEIGHT, Component.literal(preset.id()), button -> select(selected)));
+            addRenderableWidget(new SolidButton(leftPos + s(16), topPos + s(72 + (index - first) * 25),
+                size(132), size(ROW_HEIGHT), Component.literal(preset.id()), button -> select(selected)));
         }
         PresetSummary selected = selectedPreset();
         if (selected != null) {
-            addRenderableWidget(new SolidButton(leftPos + 164, topPos + 153, 88, 22,
+            addRenderableWidget(new SolidButton(leftPos + s(164), topPos + s(153), size(88), size(22),
                 Component.translatable("gui.fakeplayer.preset.load"), button ->
                     send(PresetActionPayload.Action.LOAD_PRESET, selected.id(), "", "")));
-            addRenderableWidget(new SolidButton(leftPos + 258, topPos + 153, 88, 22,
+            addRenderableWidget(new SolidButton(leftPos + s(258), topPos + s(153), size(88), size(22),
                 Component.translatable("gui.fakeplayer.preset.delete"), button ->
                     send(PresetActionPayload.Action.REMOVE_PRESET, selected.id(), "", "")));
         }
 
-        EditBox id = addRenderableWidget(new EditBox(font, leftPos + 16, topPos + 231, 78, 20,
+        EditBox id = addRenderableWidget(new EditBox(font, leftPos + s(16), topPos + s(231), size(78), size(20),
             Component.translatable("gui.fakeplayer.preset.preset_id")));
         id.setMaxLength(64);
         id.setHint(Component.translatable("gui.fakeplayer.preset.preset_id"));
-        EditBox description = addRenderableWidget(new EditBox(font, leftPos + 202, topPos + 231, 105, 20,
+        EditBox description = addRenderableWidget(new EditBox(font, leftPos + s(202), topPos + s(231), size(105), size(20),
             Component.translatable("gui.fakeplayer.preset.description")));
         description.setMaxLength(256);
         description.setHint(Component.translatable("gui.fakeplayer.preset.description"));
-        Button player = addRenderableWidget(new SolidButton(leftPos + 98, topPos + 231, 100, 20,
+        Button player = addRenderableWidget(new SolidButton(leftPos + s(98), topPos + s(231), size(100), size(20),
             onlinePlayerLabel(), button -> {
             onlinePlayerIndex = cycle(onlinePlayerIndex, menu.onlinePlayers().size());
             button.setMessage(onlinePlayerLabel());
         }));
-        Button save = new SolidButton(leftPos + 311, topPos + 231, 53, 20,
+        Button save = new SolidButton(leftPos + s(311), topPos + s(231), size(53), size(20),
             Component.translatable("gui.fakeplayer.preset.save"), button -> {
             if (!menu.onlinePlayers().isEmpty()) {
                 send(PresetActionPayload.Action.SAVE_PRESET, id.getValue(),
@@ -110,27 +109,27 @@ public final class PresetManagementScreen extends AbstractContainerScreen<Preset
             GroupSummary group = menu.groups().get(index);
             Component label = Component.translatable("gui.fakeplayer.preset.group_entry",
                 group.id(), group.presetIds().size());
-            addRenderableWidget(new SolidButton(leftPos + 16, topPos + 72 + (index - first) * 25,
-                132, ROW_HEIGHT, label, button -> select(selected)));
+            addRenderableWidget(new SolidButton(leftPos + s(16), topPos + s(72 + (index - first) * 25),
+                size(132), size(ROW_HEIGHT), label, button -> select(selected)));
         }
         GroupSummary selected = selectedGroup();
         if (selected != null) {
-            addRenderableWidget(new SolidButton(leftPos + 158, topPos + 153, 61, 22,
+            addRenderableWidget(new SolidButton(leftPos + s(158), topPos + s(153), size(61), size(22),
                 Component.translatable("gui.fakeplayer.preset.load"), button ->
                     send(PresetActionPayload.Action.LOAD_GROUP, selected.id(), "", "")));
-            addRenderableWidget(new SolidButton(leftPos + 223, topPos + 153, 61, 22,
+            addRenderableWidget(new SolidButton(leftPos + s(223), topPos + s(153), size(61), size(22),
                 Component.translatable("gui.fakeplayer.preset.unload"), button ->
                     send(PresetActionPayload.Action.UNLOAD_GROUP, selected.id(), "", "")));
-            addRenderableWidget(new SolidButton(leftPos + 288, topPos + 153, 76, 22,
+            addRenderableWidget(new SolidButton(leftPos + s(288), topPos + s(153), size(76), size(22),
                 Component.translatable("gui.fakeplayer.preset.delete"), button ->
                     send(PresetActionPayload.Action.REMOVE_GROUP, selected.id(), "", "")));
 
-            Button member = addRenderableWidget(new SolidButton(leftPos + 158, topPos + 187, 140, 20,
+            Button member = addRenderableWidget(new SolidButton(leftPos + s(158), topPos + s(187), size(140), size(20),
                 removePresetLabel(selected), button -> {
                 removePresetIndex = cycle(removePresetIndex, selected.presetIds().size());
                 button.setMessage(removePresetLabel(selected));
             }));
-            Button remove = new SolidButton(leftPos + 302, topPos + 187, 62, 20,
+            Button remove = new SolidButton(leftPos + s(302), topPos + s(187), size(62), size(20),
                 Component.translatable("gui.fakeplayer.preset.remove_member"), button -> {
                 if (!selected.presetIds().isEmpty()) {
                     send(PresetActionPayload.Action.REMOVE_FROM_GROUP, selected.id(),
@@ -142,20 +141,20 @@ public final class PresetManagementScreen extends AbstractContainerScreen<Preset
             addRenderableWidget(remove);
         }
 
-        EditBox groupId = addRenderableWidget(new EditBox(font, leftPos + 16, topPos + 218, 132, 20,
+        EditBox groupId = addRenderableWidget(new EditBox(font, leftPos + s(16), topPos + s(218), size(132), size(20),
             Component.translatable("gui.fakeplayer.preset.group_id")));
         groupId.setMaxLength(64);
         groupId.setHint(Component.translatable("gui.fakeplayer.preset.group_id"));
-        addRenderableWidget(new SolidButton(leftPos + 152, topPos + 218, 72, 20,
+        addRenderableWidget(new SolidButton(leftPos + s(152), topPos + s(218), size(72), size(20),
             Component.translatable("gui.fakeplayer.preset.create"), button ->
                 send(PresetActionPayload.Action.CREATE_GROUP, groupId.getValue(), "", "")));
 
-        Button preset = addRenderableWidget(new SolidButton(leftPos + 228, topPos + 218, 85, 20,
+        Button preset = addRenderableWidget(new SolidButton(leftPos + s(228), topPos + s(218), size(85), size(20),
             addPresetLabel(), button -> {
             addPresetIndex = cycle(addPresetIndex, menu.presets().size());
             button.setMessage(addPresetLabel());
         }));
-        Button add = new SolidButton(leftPos + 317, topPos + 218, 47, 20,
+        Button add = new SolidButton(leftPos + s(317), topPos + s(218), size(47), size(20),
             Component.translatable("gui.fakeplayer.preset.add"), button -> {
             GroupSummary group = selectedGroup();
             if (group != null && !menu.presets().isEmpty()) {
@@ -168,12 +167,12 @@ public final class PresetManagementScreen extends AbstractContainerScreen<Preset
     }
 
     private void addPageButtons() {
-        int y = topPos + 187;
-        Button previous = new SolidButton(leftPos + 16, y, 30, 20,
+        int y = topPos + s(187);
+        Button previous = new SolidButton(leftPos + s(16), y, size(30), size(20),
             Component.literal("<"), button -> changePage(-1));
         previous.active = page > 0;
         addRenderableWidget(previous);
-        Button next = new SolidButton(leftPos + 118, y, 30, 20,
+        Button next = new SolidButton(leftPos + s(118), y, size(30), size(20),
             Component.literal(">"), button -> changePage(1));
         next.active = page + 1 < pageCount();
         addRenderableWidget(next);
@@ -252,20 +251,20 @@ public final class PresetManagementScreen extends AbstractContainerScreen<Preset
     @Override
     public void extractBackground(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
         if (!ClientScreenNavigation.extractBackground(this, graphics, partialTick)) {
-            super.extractBackground(graphics, mouseX, mouseY, partialTick);
+            graphics.fill(0, 0, width, height, 0xFF22282C);
         }
-        new TitlePanel(leftPos, topPos, PANEL_WIDTH, PANEL_HEIGHT, title).draw(graphics, font);
-        graphics.fill(leftPos + 156, topPos + 70, leftPos + 364, topPos + 181, 0x802C3033);
+        new TitlePanel(leftPos, topPos, responsiveWidth(), responsiveHeight(), title).draw(graphics, font);
+        graphics.fill(leftPos + s(156), topPos + s(70), leftPos + s(364), topPos + s(181), 0x802C3033);
     }
 
     private TitlePanel titlePanel() {
-        return new TitlePanel(leftPos, topPos, PANEL_WIDTH, PANEL_HEIGHT, title);
+        return new TitlePanel(leftPos, topPos, responsiveWidth(), responsiveHeight(), title);
     }
 
     @Override
     protected void extractLabels(GuiGraphicsExtractor graphics, int mouseX, int mouseY) {
         graphics.centeredText(font, Component.translatable("gui.fakeplayer.preset.page", page + 1, pageCount()),
-            82, 192, 0xFFC6C6C6);
+            leftPos + s(82), topPos + s(192), 0xFFC6C6C6);
         if (showingGroups) {
             drawGroupDetails(graphics);
         } else {
@@ -277,19 +276,20 @@ public final class PresetManagementScreen extends AbstractContainerScreen<Preset
         PresetSummary preset = selectedPreset();
         if (preset == null) {
             graphics.centeredText(font, Component.translatable(menu.presets().isEmpty()
-                ? "gui.fakeplayer.preset.no_presets" : "gui.fakeplayer.preset.select_preset"), 260, 111, 0xFFAAAAAA);
+                ? "gui.fakeplayer.preset.no_presets" : "gui.fakeplayer.preset.select_preset"),
+                leftPos + s(260), topPos + s(111), 0xFFAAAAAA);
             return;
         }
-        graphics.text(font, Component.literal(preset.id()), 166, 78, 0xFFFFFFFF, false);
+        graphics.text(font, Component.literal(preset.id()), leftPos + s(166), topPos + s(78), 0xFFFFFFFF, false);
         graphics.text(font, Component.translatable("gui.fakeplayer.preset.player", preset.playerName()),
-            166, 96, 0xFFC6C6C6, false);
+            leftPos + s(166), topPos + s(96), 0xFFC6C6C6, false);
         String description = preset.description().isBlank()
             ? Component.translatable("gui.fakeplayer.preset.no_description").getString()
             : preset.description();
-        graphics.text(font, Component.literal(shorten(description, 31)), 166, 116, 0xFFCCCCCC, false);
+        graphics.text(font, Component.literal(shorten(description, 31)), leftPos + s(166), topPos + s(116), 0xFFCCCCCC, false);
         if (description.length() > 31) {
             graphics.text(font, Component.literal(shorten(description.substring(31), 31)),
-                166, 128, 0xFFCCCCCC, false);
+                leftPos + s(166), topPos + s(128), 0xFFCCCCCC, false);
         }
     }
 
@@ -297,18 +297,20 @@ public final class PresetManagementScreen extends AbstractContainerScreen<Preset
         GroupSummary group = selectedGroup();
         if (group == null) {
             graphics.centeredText(font, Component.translatable(menu.groups().isEmpty()
-                ? "gui.fakeplayer.preset.no_groups" : "gui.fakeplayer.preset.select_group"), 260, 111, 0xFFAAAAAA);
+                ? "gui.fakeplayer.preset.no_groups" : "gui.fakeplayer.preset.select_group"),
+                leftPos + s(260), topPos + s(111), 0xFFAAAAAA);
             return;
         }
-        graphics.text(font, Component.literal(group.id()), 166, 78, 0xFFFFFFFF, false);
-        graphics.text(font, Component.translatable("gui.fakeplayer.preset.members"), 166, 96, 0xFFC6C6C6, false);
+        graphics.text(font, Component.literal(group.id()), leftPos + s(166), topPos + s(78), 0xFFFFFFFF, false);
+        graphics.text(font, Component.translatable("gui.fakeplayer.preset.members"),
+            leftPos + s(166), topPos + s(96), 0xFFC6C6C6, false);
         String members = group.presetIds().isEmpty()
             ? Component.translatable("commands.fakeplayer.none").getString()
             : String.join(", ", group.presetIds());
-        graphics.text(font, Component.literal(shorten(members, 31)), 166, 112, 0xFFCCCCCC, false);
+        graphics.text(font, Component.literal(shorten(members, 31)), leftPos + s(166), topPos + s(112), 0xFFCCCCCC, false);
         if (members.length() > 31) {
             graphics.text(font, Component.literal(shorten(members.substring(31), 31)),
-                166, 124, 0xFFCCCCCC, false);
+                leftPos + s(166), topPos + s(124), 0xFFCCCCCC, false);
         }
     }
 

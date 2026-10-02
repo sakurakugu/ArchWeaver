@@ -59,6 +59,7 @@ class ChunkMapSnapshotPayloadTest {
     private static ChunkMapSnapshotPayload.FakePlayerView view(boolean active, String dimension,
                                                                 int chunkX, int chunkZ, int distance) {
         return new ChunkMapSnapshotPayload.FakePlayerView(UUID.randomUUID(), "Loader", "minecraft:overworld",
-            0, 64, 0, 0.0F, true, FakePlayerLoadMode.DOLL, distance, active, dimension, chunkX, chunkZ, distance);
+            0, 64, 0, 0.0F, true, false, FakePlayerLoadMode.DOLL, distance,
+            active, dimension, chunkX, chunkZ, distance);
     }
 }

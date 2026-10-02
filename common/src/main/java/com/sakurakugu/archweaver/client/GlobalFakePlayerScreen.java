@@ -9,12 +9,11 @@ import com.sakurakugu.archweaver.client.ui.TitlePanel;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.EditBox;
-import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.player.Inventory;
 
 /** 显示假人生成页。 */
-public final class GlobalFakePlayerScreen extends AbstractContainerScreen<GlobalFakePlayerMenu> {
+public final class GlobalFakePlayerScreen extends ResponsiveContainerScreen<GlobalFakePlayerMenu> {
     private static final int PANEL_WIDTH = 300; // 页面主面板宽度，单位为像素。
     private static final int PANEL_HEIGHT = 240; // 页面主面板高度，单位为像素。
     private static final int BUTTON_HEIGHT = 24; // 生成按钮高度，单位为像素。
@@ -35,15 +34,17 @@ public final class GlobalFakePlayerScreen extends AbstractContainerScreen<Global
         clearWidgets();
         nameInput = null;
         spawnButton = null;
+        int margin = size(50);
+        int fieldWidth = Math.max(1, responsiveWidth() - margin * 2);
         nameInput = addRenderableWidget(new EditBox(
-            font, leftPos + 50, topPos + 86, PANEL_WIDTH - 100, 22,
+            font, leftPos + margin, topPos + s(86), fieldWidth, size(22),
             Component.translatable("gui.fakeplayer.global.spawn_name")
         ));
         nameInput.setMaxLength(16);
         nameInput.setHint(Component.translatable("gui.fakeplayer.global.spawn_name"));
         nameInput.setResponder(value -> updateSpawnButton());
         spawnButton = addRenderableWidget(
-            new SolidButton(leftPos + 50, topPos + 120, PANEL_WIDTH - 100, BUTTON_HEIGHT,
+            new SolidButton(leftPos + margin, topPos + s(120), fieldWidth, size(BUTTON_HEIGHT),
                 Component.translatable("gui.fakeplayer.global.spawn"), button -> submitSpawn())
         );
         updateSpawnButton();
@@ -74,10 +75,10 @@ public final class GlobalFakePlayerScreen extends AbstractContainerScreen<Global
     @Override
     public void extractBackground(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
         if (!ClientScreenNavigation.extractBackground(this, graphics, partialTick)) {
-            super.extractBackground(graphics, mouseX, mouseY, partialTick);
+            graphics.fill(0, 0, width, height, 0xFF22282C);
         }
         Component pageTitle = Component.translatable("gui.fakeplayer.global.spawn_title");
-        new TitlePanel(leftPos, topPos, PANEL_WIDTH, PANEL_HEIGHT, pageTitle).draw(graphics, font);
+        new TitlePanel(leftPos, topPos, responsiveWidth(), responsiveHeight(), pageTitle).draw(graphics, font);
     }
 
     /** 生成页使用自绘标题，隐藏容器页面默认的标题和玩家物品栏标签。 */
@@ -86,7 +87,7 @@ public final class GlobalFakePlayerScreen extends AbstractContainerScreen<Global
     }
 
     private TitlePanel titlePanel() {
-        return new TitlePanel(leftPos, topPos, PANEL_WIDTH, PANEL_HEIGHT,
+        return new TitlePanel(leftPos, topPos, responsiveWidth(), responsiveHeight(),
             Component.translatable("gui.fakeplayer.global.spawn_title"));
     }
 }

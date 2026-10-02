@@ -285,6 +285,7 @@
   "gui.archweaver.main.map": "Chunk map",
   "gui.archweaver.main.presets": "Preset management",
   "gui.archweaver.main.spawn": "Spawn fake player",
+  "gui.archweaver.main.open_inventory": "Open fake player inventory",
   "gui.archweaver.main.refresh": "Refresh",
   "gui.archweaver.main.open_map": "Open map",
   "gui.archweaver.main.manage_regions": "Manage loaders",

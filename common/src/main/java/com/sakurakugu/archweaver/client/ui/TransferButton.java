@@ -18,6 +18,9 @@ import net.minecraft.world.item.ItemStack;
 /** 根据 Shift 和 Ctrl 状态切换转移模式的 12 像素箭头按钮。 */
 public final class TransferButton extends Button {
     public static final int SIZE = 12; // 按钮的边长（像素），宽度与高度相同。
+    private static final int ARROW_COLOR = 0xFFE0E0E0; // 箭头主色，偏灰的浅白，两个方向不再靠红绿区分。
+    private static final int ARROW_SHADOW = 0xFFC0C0C0; // 箭头暗部，只比主色深一档，做很轻的立体感。
+    private static final int ARROW_GAP = 0xFF8B8B8B; // 箭头缺口，与按钮内层底色一致，看上去像被切断。
 
     private final Direction direction; // 转移方向，决定箭头朝向与提示文案。
     private final OnTransfer onTransfer; // 按下按钮时触发的转移回调。
@@ -133,35 +136,31 @@ public final class TransferButton extends Button {
     private void drawArrow(GuiGraphicsExtractor graphics, boolean showGap) {
         int centerX = getX() + 6;
         if (direction == Direction.TO_CONTAINER) {
-            drawUpArrow(graphics, centerX, getY() + 1, 0xFF78A849, 0xFF59843C, showGap);
+            drawUpArrow(graphics, centerX, getY() + 1, showGap);
         } else {
-            drawDownArrow(graphics, centerX - 1, getY() + 1, 0xFFC53212, 0xFF8D0B05, showGap);
+            drawDownArrow(graphics, centerX - 1, getY() + 1, showGap);
         }
     }
 
-    private static void drawUpArrow(
-        GuiGraphicsExtractor graphics, int x, int y, int color, int shadow, boolean showGap
-    ) {
-        graphics.fill(x - 1, y + 4, x, y + 9, color);
-        graphics.fill(x - 1, y + 1, x + 1, y + 2, color);
-        graphics.fill(x - 2, y + 2, x + 2, y + 3, color);
-        graphics.fill(x - 3, y + 3, x + 3, y + 4, color);
-        graphics.fill(x, y + 4, x + 1, y + 9, shadow);
+    private static void drawUpArrow(GuiGraphicsExtractor graphics, int x, int y, boolean showGap) {
+        graphics.fill(x - 1, y + 4, x, y + 9, ARROW_COLOR);
+        graphics.fill(x - 1, y + 1, x + 1, y + 2, ARROW_COLOR);
+        graphics.fill(x - 2, y + 2, x + 2, y + 3, ARROW_COLOR);
+        graphics.fill(x - 3, y + 3, x + 3, y + 4, ARROW_COLOR);
+        graphics.fill(x, y + 4, x + 1, y + 9, ARROW_SHADOW);
         if (showGap) {
-            graphics.fill(x - 1, y + 6, x + 1, y + 7, 0xFF8B8B8B);
+            graphics.fill(x - 1, y + 6, x + 1, y + 7, ARROW_GAP);
         }
     }
 
-    private static void drawDownArrow(
-        GuiGraphicsExtractor graphics, int x, int y, int color, int shadow, boolean showGap
-    ) {
-        graphics.fill(x, y + 1, x + 1, y + 6, color);
-        graphics.fill(x - 2, y + 6, x + 4, y + 7, color);
-        graphics.fill(x - 1, y + 7, x + 3, y + 8, color);
-        graphics.fill(x, y + 8, x + 2, y + 9, color);
-        graphics.fill(x + 1, y + 1, x + 2, y + 6, shadow);
+    private static void drawDownArrow(GuiGraphicsExtractor graphics, int x, int y, boolean showGap) {
+        graphics.fill(x, y + 1, x + 1, y + 6, ARROW_COLOR);
+        graphics.fill(x - 2, y + 6, x + 4, y + 7, ARROW_COLOR);
+        graphics.fill(x - 1, y + 7, x + 3, y + 8, ARROW_COLOR);
+        graphics.fill(x, y + 8, x + 2, y + 9, ARROW_COLOR);
+        graphics.fill(x + 1, y + 1, x + 2, y + 6, ARROW_SHADOW);
         if (showGap) {
-            graphics.fill(x, y + 3, x + 2, y + 4, 0xFF8B8B8B);
+            graphics.fill(x, y + 3, x + 2, y + 4, ARROW_GAP);
         }
     }
 

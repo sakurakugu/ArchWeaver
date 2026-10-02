@@ -285,6 +285,7 @@
   "gui.archweaver.main.map": "区块地图",
   "gui.archweaver.main.presets": "预设管理",
   "gui.archweaver.main.spawn": "生成假人",
+  "gui.archweaver.main.open_inventory": "打开假人背包",
   "gui.archweaver.main.refresh": "刷新",
   "gui.archweaver.main.open_map": "打开地图",
   "gui.archweaver.main.manage_regions": "管理加载点",

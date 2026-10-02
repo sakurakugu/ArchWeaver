@@ -46,8 +46,13 @@ public final class ClientScreenNavigation {
             return;
         }
 
+        // 当前屏幕为空时，只有显式指定了父页面的异步跳转才允许沿用旧来源。
+        // 世界内直接打开容器的事件也会以 null 作为当前屏幕，不能把上一次主页面
+        // 当成这次打开的父级，否则关闭容器会错误地再次打开主页面。
         Screen source = current != null ? current
-            : closingScreen != null ? closingScreen : lastOpenedScreen;
+            : pendingParentSpecified
+                ? closingScreen != null ? closingScreen : lastOpenedScreen
+                : null;
         NavigationEntry sourceEntry = source == closingScreen ? closingEntry : ENTRIES.get(source);
         Screen returning = pendingReturnScreen;
         NavigationEntry parent = pendingParent;
@@ -203,7 +208,7 @@ public final class ClientScreenNavigation {
                     openRoute(Route.inventory(inventory.getMenu().targetName()), null, background);
                     return;
                 }
-                openRoute(Route.main(), null, background);
+                returnToGame(current);
                 return;
             }
             if (current instanceof GlobalFakePlayerScreen || current instanceof PresetManagementScreen) {
@@ -226,7 +231,7 @@ public final class ClientScreenNavigation {
             if (inventory.getMenu().view() == FakePlayerInventoryMenu.View.ENDER_CHEST) {
                 openRoute(Route.inventory(inventory.getMenu().targetName()), null, BACKGROUNDS.get(current));
             } else {
-                ClientChunkLoadingState.openMainScreen();
+                returnToGame(current);
             }
             return true;
         }
@@ -261,6 +266,12 @@ public final class ClientScreenNavigation {
             minecraft.player.connection.send(new ServerboundContainerClosePacket(container.getMenu().containerId));
             minecraft.player.containerMenu = minecraft.player.inventoryMenu;
         }
+    }
+
+    /** 关闭从世界直接打开的容器并回到游戏，不重新打开 ArchWeaver 页面。 */
+    private static void returnToGame(Screen current) {
+        closeContainerForReturn(current);
+        Minecraft.getInstance().setScreen(null);
     }
 
     private static boolean canReuse(Screen screen) {
