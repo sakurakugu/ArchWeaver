@@ -9,11 +9,11 @@ import net.minecraft.network.chat.Component;
 
 /** 绘制并处理九格快捷栏选择区。 */
 public final class HotbarSelector extends Button {
-    public static final int SLOT_COUNT = 9;
-    public static final int SLOT_WIDTH = 18;
+    public static final int SLOT_COUNT = 9; // 快捷栏槽位数量。
+    public static final int SLOT_WIDTH = 18; // 单个槽位的宽度（像素）。
 
-    private final IntSupplier selectedSlot;
-    private final IntConsumer onSelected;
+    private final IntSupplier selectedSlot; // 当前选中槽位索引（0 到 SLOT_COUNT-1）的提供者。
+    private final IntConsumer onSelected; // 槽位被点击时的回调，参数为新槽位索引。
 
     public HotbarSelector(
         int x,

@@ -17,42 +17,22 @@ import java.util.UUID;
 
 /** G 键打开的控制中心：左侧导航，中间内容，右侧详情。 */
 public final class MainPageScreen extends Screen {
-    private static final int SIDE_WIDTH = 190;
-    private static final int GAP = 8;
-    private static final int PANEL_PADDING = 12;
-    private static final int ROW_HEIGHT = 34;
-    private static final int PANEL_TOP = 24;
-    private static View pendingView;
+    private static final int SIDE_WIDTH = 130; // 左侧导航栏宽度，受窗口宽度限制
+    private static final int MAX_WIDTH = 900; // 控制中心整体最大宽度，超出时左右居中。
+    private static final int GAP = 8; // 面板之间、按钮之间的水平间距。
+    private static final int PANEL_PADDING = 12; // 面板内容距离面板边缘的内边距。
+    private static final int ROW_HEIGHT = 34; // 列表里每行按钮的高度。
+    private static final int PANEL_TOP = 24; // 面板距离窗口顶部的距离。
 
-    private ChunkMapSnapshotPayload snapshot;
-    private UUID selectedFake;
-    private int selectedRegion = -1;
-    private View view = View.FAKE_PLAYERS;
-    private final Button[] settingButtons = new Button[2];
+    private ChunkMapSnapshotPayload snapshot; // 最近一次从服务端同步来的状态快照。
+    private UUID selectedFake; // 选中的假人 ID，没有选中时为 null。
+    private int selectedRegion = -1; // 选中的管理区域下标，没有选中时为 -1。
+    private View view = View.FAKE_PLAYERS; // 中间内容区当前显示的页面。
+    private final Button[] settingButtons = new Button[2]; // 全局设置开关按钮，点击后统一置灰。
 
     public MainPageScreen(ChunkMapSnapshotPayload snapshot) {
-        this(snapshot, consumePendingView());
-    }
-
-    private MainPageScreen(ChunkMapSnapshotPayload snapshot, View initialView) {
         super(Component.translatable("gui.archweaver.main.title"));
         this.snapshot = snapshot;
-        view = initialView;
-    }
-
-    /** 二级页面返回时保留进入二级页面前的中心视图。 */
-    private static View consumePendingView() {
-        View result = pendingView;
-        pendingView = null;
-        return result == null ? View.FAKE_PLAYERS : result;
-    }
-
-    private static void rememberView(View value) {
-        pendingView = value;
-    }
-
-    public static void clearPendingView() {
-        pendingView = null;
     }
 
     public void update(ChunkMapSnapshotPayload value) {
@@ -102,7 +82,7 @@ public final class MainPageScreen extends Screen {
                 Component.translatable("gui.archweaver.main.presets"), button -> openPresets()));
             addRenderableWidget(new SolidButton(centerLeft + PANEL_PADDING + presetButtonWidth + GAP, footerY,
                 listWidth - presetButtonWidth - GAP, 22, Component.translatable("gui.archweaver.main.spawn"), button -> openSpawn()));
-            addRenderableWidget(new SolidButton(centerLeft + centerWidth - PANEL_PADDING - 18, top + 9, 18, 18,
+            addRenderableWidget(new SolidButton(centerLeft + centerWidth - PANEL_PADDING - 10, top + 4, 18, 18,
                 PixelGlyph.REFRESH, Component.translatable("gui.archweaver.main.refresh"), button -> refresh()));
         } else if (view == View.MAP) {
             addMapWidgets(centerLeft, centerWidth, top);
@@ -135,7 +115,7 @@ public final class MainPageScreen extends Screen {
             Component.translatable("gui.archweaver.main.open_map"), button -> openMap()));
         addRenderableWidget(new SolidButton(centerLeft + PANEL_PADDING + half + GAP, footerY,
             listWidth - half - GAP, 22, Component.translatable("gui.archweaver.main.manage_regions"), button -> openManagement()));
-        addRenderableWidget(new SolidButton(centerLeft + centerWidth - PANEL_PADDING - 18, top + 9, 18, 18,
+        addRenderableWidget(new SolidButton(centerLeft + centerWidth - PANEL_PADDING - 10, top + 4, 18, 18,
             PixelGlyph.REFRESH, Component.translatable("gui.archweaver.main.refresh"), button -> refresh()));
     }
 
@@ -148,17 +128,22 @@ public final class MainPageScreen extends Screen {
         }
     }
 
+    /** 控制中心占用的总宽度，受窗口宽度和 {@link #MAX_WIDTH} 限制。 */
+    private int panelWidth() {
+        return Math.min(MAX_WIDTH, width - 12);
+    }
+
     private int panelLeft() {
-        return Math.max(6, (width - Math.min(980, width - 12)) / 2);
+        return Math.max(6, (width - panelWidth()) / 2);
     }
 
     private int sideWidth() {
         return Math.min(SIDE_WIDTH, Math.max(148, (width - 24) / 5));
     }
 
+    /** 中间内容区与右侧详情区等宽的剩余空间。 */
     private int centerWidth() {
-        int contentWidth = width - 24;
-        int remaining = contentWidth - sideWidth() - GAP * 2;
+        int remaining = panelWidth() - sideWidth() - GAP * 2;
         return Math.max(250, remaining / 2);
     }
 
@@ -181,7 +166,6 @@ public final class MainPageScreen extends Screen {
     }
 
     private void openMap() {
-        rememberView(view);
         ClientChunkLoadingState.openMap(ClientChunkLoadingState.MapReturnTarget.MAIN, false, false);
     }
 
@@ -284,8 +268,8 @@ public final class MainPageScreen extends Screen {
     }
 
     private enum View {
-        FAKE_PLAYERS,
-        MAP,
-        SETTINGS
+        FAKE_PLAYERS, // 假人列表页面。
+        MAP, // 区块地图页面。
+        SETTINGS // 全局设置页面。
     }
 }

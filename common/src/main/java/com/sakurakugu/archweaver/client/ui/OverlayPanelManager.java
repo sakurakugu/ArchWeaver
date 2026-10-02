@@ -14,8 +14,8 @@ import net.minecraft.world.item.ItemStack;
 
 /** 按注册顺序管理可展开的重叠面板；面板本身负责外框、标签和内容显隐。 */
 public final class OverlayPanelManager {
-    private final Font font;
-    private final List<Panel> panels = new ArrayList<>();
+    private final Font font; // 绘制面板标题所用的字体。
+    private final List<Panel> panels = new ArrayList<>(); // 按注册顺序保存的面板列表。
 
     public OverlayPanelManager(Font font) {
         this.font = font;
@@ -73,8 +73,8 @@ public final class OverlayPanelManager {
     }
 
     private enum Side {
-        LEFT,
-        RIGHT
+        LEFT, // 面板从锚点左侧展开。
+        RIGHT // 面板从锚点右侧展开。
     }
 
     @FunctionalInterface
@@ -84,14 +84,14 @@ public final class OverlayPanelManager {
 
     /** 可加入 Screen 的面板覆盖层；基础背景仍可通过 drawBackground 按所需层级绘制。 */
     public final class Panel extends Button {
-        private final List<AbstractWidget> contents = new ArrayList<>();
-        private final String id;
-        private final Layout layout;
-        private final Component title;
-        private final Side side;
-        private AbstractWidget tab;
-        private ContentRenderer contentRenderer = (graphics, x, y) -> { };
-        private boolean open;
+        private final List<AbstractWidget> contents = new ArrayList<>(); // 面板展开时显示并跟随状态启停的内部控件。
+        private final String id; // 面板的稳定标识，用于重新初始化后恢复展开状态。
+        private final Layout layout; // 面板外框布局，含相对锚点的偏移与尺寸。
+        private final Component title; // 面板展开时显示的标题文本。
+        private final Side side; // 面板相对锚点的展开方向，决定标签位置与背景画法。
+        private AbstractWidget tab; // 控制面板展开与收起的标签按钮。
+        private ContentRenderer contentRenderer = (graphics, x, y) -> { }; // 面板内容的自定义绘制回调，默认为空实现。
+        private boolean open; // 面板当前是否展开。
 
         private Panel(
             String id, int x, int y, Layout layout, Component title, Side side

@@ -8,8 +8,8 @@ import net.minecraft.network.chat.Component;
 
 /** 使用纯色像素风边框的按钮。 */
 public final class SolidButton extends Button {
-    private final PixelGlyph glyph;
-    private int textColor = 0xFFFFFFFF;
+    private final PixelGlyph glyph; // 按钮中央绘制的像素图标；为 null 时改为绘制文字。
+    private int textColor = 0xFFFFFFFF; // 文字或图标的颜色，默认不透明白色。
 
     public SolidButton(int x, int y, int width, int height, Component message, OnPress onPress) {
         super(x, y, width, height, message, onPress, DEFAULT_NARRATION);

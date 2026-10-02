@@ -74,7 +74,11 @@ public final class ClientChunkLoadingState {
     /** 从地图页面返回进入地图前的页面。关闭按钮不调用此方法。 */
     public static void returnFromMap(MapReturnTarget returnTarget) {
         switch (returnTarget) {
-            case MAIN -> openMainScreen();
+            case MAIN -> {
+                net.minecraft.client.gui.screens.Screen current = Minecraft.getInstance().screen;
+                if (current != null) ClientScreenNavigation.back(current);
+                else openMainScreen();
+            }
             case CLOSE -> Minecraft.getInstance().setScreen(null);
         }
     }
@@ -109,7 +113,6 @@ public final class ClientChunkLoadingState {
         snapshot = null;
         mainScreenPending = false;
         mapReturnTarget = MapReturnTarget.CLOSE;
-        MainPageScreen.clearPendingView();
         ClientScreenNavigation.clear();
         ClientGlobalSettings.clear();
         closeTerrainAtlas();

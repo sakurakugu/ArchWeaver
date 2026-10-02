@@ -17,17 +17,17 @@ import net.minecraft.world.entity.player.Inventory;
 
 /** 管理假人预设及分组。 */
 public final class PresetManagementScreen extends AbstractContainerScreen<PresetManagementMenu> {
-    private static final int PANEL_WIDTH = 380;
-    private static final int PANEL_HEIGHT = 270;
-    private static final int PAGE_SIZE = 5;
-    private static final int ROW_HEIGHT = 22;
+    private static final int PANEL_WIDTH = 380; // 页面主面板宽度，单位为像素。
+    private static final int PANEL_HEIGHT = 270; // 页面主面板高度，单位为像素。
+    private static final int PAGE_SIZE = 5; // 每页显示的预设或分组条目数。
+    private static final int ROW_HEIGHT = 22; // 列表中单行按钮的高度，单位为像素。
 
-    private boolean showingGroups;
-    private int page;
-    private int selectedIndex = -1;
-    private int onlinePlayerIndex;
-    private int addPresetIndex;
-    private int removePresetIndex;
+    private boolean showingGroups; // 当前是否位于分组标签页，false 表示预设标签页。
+    private int page; // 当前页码，从 0 开始。
+    private int selectedIndex = -1; // 选中条目在列表中的下标，-1 表示未选中。
+    private int onlinePlayerIndex; // 保存预设时选中的在线玩家下标，越界时取模回绕。
+    private int addPresetIndex; // 向分组添加成员时选中的预设下标，越界时取模回绕。
+    private int removePresetIndex; // 从分组移除成员时选中的成员下标，越界时取模回绕。
 
     public PresetManagementScreen(PresetManagementMenu menu, Inventory inventory, Component title) {
         super(menu, inventory, title, PANEL_WIDTH, PANEL_HEIGHT);

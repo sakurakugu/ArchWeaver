@@ -6,11 +6,11 @@ import net.minecraft.network.chat.Component;
 
 /** 将滑块位置映射到闭区间整数值的纯色滑动条。 */
 public final class IntegerSliderButton extends SolidSliderButton {
-    private int minimum;
-    private int maximum;
-    private int selectedValue;
-    private final IntFunction<Component> messageFactory;
-    private final IntConsumer onValueChanged;
+    private int minimum; // 取值范围的闭区间下界（含）。
+    private int maximum; // 取值范围的闭区间上界（含），必须大于 minimum。
+    private int selectedValue; // 当前选中的整数值，始终落在 [minimum, maximum] 内。
+    private final IntFunction<Component> messageFactory; // 把当前整数值格式化为滑条上显示的文字。
+    private final IntConsumer onValueChanged; // 用户拖动改变数值时的回调，程序化设值不触发。
 
     public IntegerSliderButton(
         int x,

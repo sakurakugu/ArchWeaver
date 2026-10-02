@@ -10,11 +10,11 @@ import net.minecraft.network.chat.Component;
 
 /** 左右两档均带文字的像素风滑动开关。 */
 public final class SegmentedSwitchButton extends Button {
-    private final Component leftLabel;
-    private final Component rightLabel;
-    private final BooleanSupplier selectedRight;
-    private final Consumer<Boolean> onSelect;
-    private boolean dragging;
+    private final Component leftLabel; // 左档（左侧半区）显示的文字。
+    private final Component rightLabel; // 右档（右侧半区）显示的文字。
+    private final BooleanSupplier selectedRight; // 当前是否选中右档，为 false 时选中左档。
+    private final Consumer<Boolean> onSelect; // 选档变化的回调，参数 true 表示右档。
+    private boolean dragging; // 是否正按住鼠标拖动选档。
 
     public SegmentedSwitchButton(
         int x, int y, int width, int height, Component leftLabel, Component rightLabel,

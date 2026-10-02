@@ -1,6 +1,8 @@
 package com.sakurakugu.archweaver.client;
 
 import com.sakurakugu.archweaver.client.chunkloading.ChunkMapScreen;
+import com.sakurakugu.archweaver.client.chunkloading.ChunkMapManagementScreen;
+import com.sakurakugu.archweaver.client.chunkloading.ChunkMapSettingsScreen;
 import com.sakurakugu.archweaver.client.chunkloading.ClientChunkLoadingState;
 import com.sakurakugu.archweaver.menu.FakePlayerInventoryMenu;
 import com.sakurakugu.archweaver.network.ChunkMapSnapshotPayload;
@@ -16,34 +18,47 @@ import java.util.IdentityHashMap;
 import java.util.Map;
 import java.util.WeakHashMap;
 
-/** 统一记录 ArchWeaver 界面的来源，并处理 Esc 返回。 */
+/** 统一管理 ArchWeaver 页面栈、容器页面返回和弹层背景。 */
 public final class ClientScreenNavigation {
-    private static final Map<Screen, BackTarget> BACK_TARGETS = new IdentityHashMap<>();
+    private static final Map<Screen, NavigationEntry> ENTRIES = new IdentityHashMap<>();
     private static final Map<Screen, Screen> BACKGROUNDS = new WeakHashMap<>();
-    private static BackTarget pendingTarget;
+    /** 服务端异步打开页面前指定的父级，页面打开后消费。 */
+    private static NavigationEntry pendingParent;
+    private static boolean pendingParentSpecified;
     private static Screen pendingReturnScreen;
     private static Screen lastOpenedScreen;
     private static Screen closingScreen;
-    private static BackTarget closingTarget;
+    private static NavigationEntry closingEntry;
     private static int backgroundRefreshTicks;
 
     private ClientScreenNavigation() {
     }
 
-    /** 由 NeoForge 屏幕打开事件调用，记录新页面的上一级。 */
+    /** 页面打开事件把新页面挂到当前页面上，形成可任意加深的导航栈。 */
     public static void onOpening(Screen current, Screen next) {
         if (next == null) return;
-        // 服务端重新打开容器时 Opening 事件有时不会带上旧屏幕，使用最近一次屏幕补全来源。
-        Screen source = current != null ? current : closingScreen != null ? closingScreen : lastOpenedScreen;
-        BackTarget target = pendingTarget;
+        // 返回到仍然存在的父页面时复用原节点，避免把返回动作再次压入栈。
+        NavigationEntry existing = ENTRIES.get(next);
+        if (existing != null) {
+            lastOpenedScreen = next;
+            closingScreen = null;
+            closingEntry = null;
+            return;
+        }
+
+        Screen source = current != null ? current
+            : closingScreen != null ? closingScreen : lastOpenedScreen;
+        NavigationEntry sourceEntry = source == closingScreen ? closingEntry : ENTRIES.get(source);
         Screen returning = pendingReturnScreen;
-        pendingTarget = null;
+        NavigationEntry parent = pendingParent;
+        boolean hasPendingParent = pendingParentSpecified;
+        pendingParent = null;
+        pendingParentSpecified = false;
         pendingReturnScreen = null;
-        BackTarget sourceTarget = source == closingScreen ? closingTarget : null;
-        closingScreen = null;
-        closingTarget = null;
-        if (target == null) target = targetFor(source, next, sourceTarget);
-        if (target != null) BACK_TARGETS.put(next, target);
+        if (!hasPendingParent) parent = inferParent(source, next, sourceEntry);
+
+        NavigationEntry entry = new NavigationEntry(next, routeFor(next), parent);
+        ENTRIES.put(next, entry);
         if (isOverlay(next)) {
             Screen background = returning != null ? BACKGROUNDS.get(returning)
                 : replacesPage(source, next) ? BACKGROUNDS.get(source) : source;
@@ -53,37 +68,52 @@ public final class ClientScreenNavigation {
             }
         }
         lastOpenedScreen = next;
+        closingScreen = null;
+        closingEntry = null;
     }
 
-    /** 屏幕被替换或关闭后释放来源记录。 */
+    /** 显式登记由异步或独立流程打开的子页面，保证首次绘制和关闭时已有父级与背景。 */
+    public static void registerLayer(Screen parent, Screen layer) {
+        if (layer == null) return;
+        if (parent != null && !ENTRIES.containsKey(parent)) {
+            ENTRIES.put(parent, new NavigationEntry(parent, routeFor(parent), null));
+        }
+        onOpening(parent, layer);
+    }
+
+    /** 页面关闭时保留节点，父页面返回时仍可复用其状态。 */
     public static void onClosing(Screen screen) {
-        BackTarget target = BACK_TARGETS.remove(screen);
+        if (screen == null) return;
         if (screen == lastOpenedScreen) {
             closingScreen = screen;
-            closingTarget = target;
+            closingEntry = ENTRIES.get(screen);
         }
     }
 
-    /** 玩家离开世界时清空跨世界导航状态。 */
+    /** 玩家离开世界时清空所有页面和异步跳转状态。 */
     public static void clear() {
-        BACK_TARGETS.clear();
+        ENTRIES.clear();
         BACKGROUNDS.clear();
-        pendingTarget = null;
+        pendingParent = null;
+        pendingParentSpecified = false;
         pendingReturnScreen = null;
         lastOpenedScreen = null;
         closingScreen = null;
-        closingTarget = null;
+        closingEntry = null;
         backgroundRefreshTicks = 0;
     }
 
-    /** 在关闭到游戏后清除等待替换的屏幕，避免下一次独立打开页面继承旧来源。 */
+    /** 在关闭到游戏后清除页面栈，服务端异步切页期间保留栈。 */
     public static void tick() {
         Minecraft minecraft = Minecraft.getInstance();
         if (minecraft.screen == null) {
+            if (!pendingParentSpecified) {
+                ENTRIES.clear();
+                BACKGROUNDS.clear();
+            }
             lastOpenedScreen = null;
             closingScreen = null;
-            closingTarget = null;
-            if (pendingTarget == null) BACKGROUNDS.clear();
+            closingEntry = null;
         } else if (snapshotBackground(minecraft.screen) != null && minecraft.player != null
             && minecraft.getConnection() != null && backgroundRefreshTicks-- <= 0) {
             PlatformNetworking.sendToServer(ClientChunkLoadingState.request(false, false, false));
@@ -118,6 +148,9 @@ public final class ClientScreenNavigation {
     }
 
     public static void updateBackground(Screen current, ChunkMapSnapshotPayload snapshot) {
+        if (current instanceof ChunkMapSettingsScreen settings) settings.update(snapshot);
+        else if (current instanceof ChunkMapManagementScreen management) management.update(snapshot);
+        else if (current instanceof ChunkMapScreen map) map.update(snapshot);
         Screen background = snapshotBackground(current);
         if (background instanceof ChunkMapScreen map) map.update(snapshot);
         else if (background instanceof MainPageScreen main) main.update(snapshot);
@@ -133,7 +166,8 @@ public final class ClientScreenNavigation {
 
     private static boolean isOverlay(Screen screen) {
         return screen instanceof GlobalFakePlayerScreen || screen instanceof PresetManagementScreen
-            || screen instanceof FakePlayerInventoryScreen;
+            || screen instanceof FakePlayerInventoryScreen || screen instanceof ChunkMapSettingsScreen
+            || screen instanceof ChunkMapManagementScreen;
     }
 
     private static boolean isArchWeaverScreen(Screen screen) {
@@ -149,41 +183,48 @@ public final class ClientScreenNavigation {
         return true;
     }
 
-    /** 当前页面按统一规则返回；没有来源时直接回到游戏。 */
+    /** 当前页面返回到父级；父级是同一实例时直接复用，否则按路由重新请求。 */
     public static void back(Screen current) {
-        BackTarget target = BACK_TARGETS.remove(current);
-        Screen background = BACKGROUNDS.get(current);
-        if (target == null || target.kind() == Kind.CLOSE) {
-            if (target == null && fallbackBack(current)) return;
+        NavigationEntry entry = ENTRIES.get(current);
+        if (entry == null) {
+            if (fallbackBack(current)) return;
             close();
             return;
         }
-        switch (target.kind()) {
-            case MAIN -> {
-                closeContainerForReturn(current);
-                if (background instanceof MainPageScreen) Minecraft.getInstance().setScreen(background);
-                else ClientChunkLoadingState.openMainScreen();
+
+        NavigationEntry parent = entry.parent();
+        Screen background = BACKGROUNDS.get(current);
+        ENTRIES.remove(current);
+        BACKGROUNDS.remove(current);
+        closeContainerForReturn(current);
+        if (parent == null) {
+            if (current instanceof FakePlayerInventoryScreen inventory) {
+                if (inventory.getMenu().view() == FakePlayerInventoryMenu.View.ENDER_CHEST) {
+                    openRoute(Route.inventory(inventory.getMenu().targetName()), null, background);
+                    return;
+                }
+                openRoute(Route.main(), null, background);
+                return;
             }
-            case INVENTORY -> {
-                pendingTarget = target.parent() == null ? BackTarget.close() : target.parent();
-                pendingReturnScreen = background;
-                PlatformNetworking.sendToServer(new OpenFakePlayerInventoryPayload(target.name()));
+            if (current instanceof GlobalFakePlayerScreen || current instanceof PresetManagementScreen) {
+                openRoute(Route.main(), null, background);
+                return;
             }
-            case MAP -> {
-                closeContainerForReturn(current);
-                if (background instanceof ChunkMapScreen) Minecraft.getInstance().setScreen(background);
-                else ClientChunkLoadingState.openMap(ClientChunkLoadingState.MapReturnTarget.CLOSE, false, false);
-            }
-            case CLOSE -> close();
+            close();
+            return;
+        }
+
+        if (canReuse(parent.screen())) {
+            Minecraft.getInstance().setScreen(parent.screen());
+        } else {
+            openRoute(parent.route(), parent.parent(), background);
         }
     }
 
     private static boolean fallbackBack(Screen current) {
         if (current instanceof FakePlayerInventoryScreen inventory) {
             if (inventory.getMenu().view() == FakePlayerInventoryMenu.View.ENDER_CHEST) {
-                pendingTarget = BackTarget.close();
-                PlatformNetworking.sendToServer(new OpenFakePlayerInventoryPayload(
-                    inventory.getMenu().targetName()));
+                openRoute(Route.inventory(inventory.getMenu().targetName()), null, BACKGROUNDS.get(current));
             } else {
                 ClientChunkLoadingState.openMainScreen();
             }
@@ -222,47 +263,64 @@ public final class ClientScreenNavigation {
         }
     }
 
-    private static BackTarget targetFor(Screen current, Screen next, BackTarget closingInherited) {
-        if (current == null) return BackTarget.close();
-
-        BackTarget inherited = closingInherited != null ? closingInherited : BACK_TARGETS.get(current);
-        if (next instanceof MainPageScreen) return BackTarget.close();
-        if (current instanceof MainPageScreen) return BackTarget.main();
-        if (current instanceof GlobalFakePlayerScreen
-            && next instanceof FakePlayerInventoryScreen) {
-            return inherited == null ? BackTarget.close() : inherited;
-        }
-        if (current instanceof FakePlayerInventoryScreen inventory
-            && next instanceof FakePlayerInventoryScreen nextInventory) {
-            if (replacesPage(current, next)) return inherited == null ? BackTarget.close() : inherited;
-            if (nextInventory.getMenu().view() == FakePlayerInventoryMenu.View.ENDER_CHEST) {
-                return BackTarget.inventory(inventory.getMenu().targetName(), inherited);
-            }
-            return inherited == null ? BackTarget.close() : inherited;
-        }
-        if (current instanceof ChunkMapScreen && isOverlay(next)) {
-            return BackTarget.map();
-        }
-        if ((current instanceof GlobalFakePlayerScreen || current instanceof PresetManagementScreen)
-            && next.getClass() == current.getClass()) {
-            return inherited == null ? BackTarget.close() : inherited;
-        }
-        return inherited;
+    private static boolean canReuse(Screen screen) {
+        return screen instanceof MainPageScreen || screen instanceof ChunkMapScreen
+            || screen instanceof ChunkMapSettingsScreen || screen instanceof ChunkMapManagementScreen;
     }
 
-    private record BackTarget(Kind kind, String name, BackTarget parent) {
-        private static BackTarget close() { return new BackTarget(Kind.CLOSE, "", null); }
-        private static BackTarget main() { return new BackTarget(Kind.MAIN, "", null); }
-        private static BackTarget inventory(String name, BackTarget parent) {
-            return new BackTarget(Kind.INVENTORY, name, parent);
+    private static NavigationEntry inferParent(Screen current, Screen next, NavigationEntry sourceEntry) {
+        if (current == null || sourceEntry == null) return null;
+        if (next instanceof MainPageScreen) return null;
+        if (replacesPage(current, next)) return sourceEntry.parent();
+        if (current instanceof GlobalFakePlayerScreen && next instanceof FakePlayerInventoryScreen) {
+            return sourceEntry.parent();
         }
-        private static BackTarget map() { return new BackTarget(Kind.MAP, "", null); }
+        if (current instanceof FakePlayerInventoryScreen
+            && next instanceof FakePlayerInventoryScreen nextInventory
+            && nextInventory.getMenu().view() == FakePlayerInventoryMenu.View.ENDER_CHEST) {
+            return sourceEntry;
+        }
+        return sourceEntry;
+    }
+
+    private static Route routeFor(Screen screen) {
+        if (screen instanceof MainPageScreen) return Route.main();
+        if (screen instanceof ChunkMapScreen) return Route.map();
+        if (screen instanceof ChunkMapSettingsScreen || screen instanceof ChunkMapManagementScreen) return Route.map();
+        if (screen instanceof FakePlayerInventoryScreen inventory) {
+            return Route.inventory(inventory.getMenu().targetName());
+        }
+        if (screen instanceof GlobalFakePlayerScreen) return Route.main();
+        if (screen instanceof PresetManagementScreen) return Route.main();
+        return Route.close();
+    }
+
+    private static void openRoute(Route route, NavigationEntry parent, Screen returning) {
+        pendingParent = parent;
+        pendingParentSpecified = true;
+        pendingReturnScreen = returning;
+        switch (route.kind()) {
+            case MAIN -> ClientChunkLoadingState.openMainScreen();
+            case MAP -> ClientChunkLoadingState.openMap(ClientChunkLoadingState.MapReturnTarget.CLOSE, false, false);
+            case INVENTORY -> PlatformNetworking.sendToServer(new OpenFakePlayerInventoryPayload(route.name()));
+            case CLOSE -> close();
+        }
+    }
+
+    private record NavigationEntry(Screen screen, Route route, NavigationEntry parent) {
+    }
+
+    private record Route(Kind kind, String name) {
+        private static Route main() { return new Route(Kind.MAIN, ""); }
+        private static Route map() { return new Route(Kind.MAP, ""); }
+        private static Route inventory(String name) { return new Route(Kind.INVENTORY, name); }
+        private static Route close() { return new Route(Kind.CLOSE, ""); }
     }
 
     private enum Kind {
-        CLOSE,
         MAIN,
+        MAP,
         INVENTORY,
-        MAP
+        CLOSE
     }
 }

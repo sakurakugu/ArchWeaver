@@ -11,11 +11,11 @@ import net.minecraft.world.item.ItemStack;
 /** 使用物品栏槽位样式，并用物品或纹理渲染图标的按钮。 */
 /** 仅限用到有物品栏的区域，用到其他区域会很丑 */
 public final class InventorySlotButton extends Button {
-    private static final int SIZE = 18;
+    private static final int SIZE = 18; // 槽位控件的边长，同时用作宽和高。
 
-    private final ItemStack icon;
-    private final Identifier textureIcon;
-    private final ItemStack overlay;
+    private final ItemStack icon; // 主物品图标；与 textureIcon 二选一，为 null 时改用纹理。
+    private final Identifier textureIcon; // 主纹理图标；与 icon 二选一，为 null 时改用物品。
+    private final ItemStack overlay; // 叠加在主图标上的角标物品，可为 null 表示不绘制。
 
     public InventorySlotButton(int x, int y, ItemStack icon, Component tooltip, OnPress onPress) {
         this(x, y, icon, null, null, tooltip, onPress);

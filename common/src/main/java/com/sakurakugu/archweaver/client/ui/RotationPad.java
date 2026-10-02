@@ -11,19 +11,19 @@ import net.minecraft.network.chat.Component;
 
 /** 视角或身体朝向的二维拖动控制器。 */
 public final class RotationPad extends Button {
-    private static final float MAX_HEAD_YAW_OFFSET = 50.0F;
+    private static final float MAX_HEAD_YAW_OFFSET = 50.0F; // 手柄横向偏移对应的最大头部偏航角（度）。
 
-    private final Mode mode;
-    private final IntSupplier pitch;
-    private final IntSupplier yaw;
-    private final IntSupplier bodyYaw;
-    private final BooleanSupplier bodyFollowsHead;
-    private final IntConsumer onBodyYawChanged;
-    private final ViewRotationConsumer onViewRotationChanged;
-    private boolean dragging;
-    private boolean draggingOutsideHorizontally;
-    private float dragStartBodyYaw;
-    private float dragYawOffset;
+    private final Mode mode; // 拖动模式：调整视角或身体朝向。
+    private final IntSupplier pitch; // 当前视角俯仰角（-90 到 90 度）的提供者。
+    private final IntSupplier yaw; // 当前视角偏航角（度）的提供者。
+    private final IntSupplier bodyYaw; // 当前身体偏航角（度）的提供者。
+    private final BooleanSupplier bodyFollowsHead; // 身体是否跟随头部转动的提供者。
+    private final IntConsumer onBodyYawChanged; // 身体偏航角变化时的回调，参数为角度值。
+    private final ViewRotationConsumer onViewRotationChanged; // 视角旋转变化时的回调，参数为俯仰角与偏航角。
+    private boolean dragging; // 当前是否正在拖动。
+    private boolean draggingOutsideHorizontally; // 拖动是否已越过水平边界，身体跟随头部时用于把偏移钳制到左右端点。
+    private float dragStartBodyYaw; // 本次拖动开始时的身体偏航角（度），作为偏移基准。
+    private float dragYawOffset; // 本次拖动产生的头部偏航偏移（度）。
 
     public RotationPad(
         int x,
@@ -201,8 +201,8 @@ public final class RotationPad extends Button {
     }
 
     public enum Mode {
-        VIEW,
-        BODY
+        VIEW, // 调整视角朝向：拖动映射俯仰角与偏航角。
+        BODY // 调整身体朝向：拖动映射身体偏航角。
     }
 
     @FunctionalInterface

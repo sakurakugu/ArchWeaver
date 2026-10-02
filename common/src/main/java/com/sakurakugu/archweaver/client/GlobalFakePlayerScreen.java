@@ -15,11 +15,11 @@ import net.minecraft.world.entity.player.Inventory;
 
 /** 显示假人生成页。 */
 public final class GlobalFakePlayerScreen extends AbstractContainerScreen<GlobalFakePlayerMenu> {
-    private static final int PANEL_WIDTH = 300;
-    private static final int PANEL_HEIGHT = 240;
-    private static final int BUTTON_HEIGHT = 24;
-    private EditBox nameInput;
-    private Button spawnButton;
+    private static final int PANEL_WIDTH = 300; // 页面主面板宽度，单位为像素。
+    private static final int PANEL_HEIGHT = 240; // 页面主面板高度，单位为像素。
+    private static final int BUTTON_HEIGHT = 24; // 生成按钮高度，单位为像素。
+    private EditBox nameInput; // 假人名称输入框，最长 16 个字符。
+    private Button spawnButton; // 生成假人按钮，名称合法时才可点击。
 
     public GlobalFakePlayerScreen(GlobalFakePlayerMenu menu, Inventory inventory, Component title) {
         super(menu, inventory, title, PANEL_WIDTH, PANEL_HEIGHT);
@@ -78,6 +78,11 @@ public final class GlobalFakePlayerScreen extends AbstractContainerScreen<Global
         }
         Component pageTitle = Component.translatable("gui.fakeplayer.global.spawn_title");
         new TitlePanel(leftPos, topPos, PANEL_WIDTH, PANEL_HEIGHT, pageTitle).draw(graphics, font);
+    }
+
+    /** 生成页使用自绘标题，隐藏容器页面默认的标题和玩家物品栏标签。 */
+    @Override
+    protected void extractLabels(GuiGraphicsExtractor graphics, int mouseX, int mouseY) {
     }
 
     private TitlePanel titlePanel() {

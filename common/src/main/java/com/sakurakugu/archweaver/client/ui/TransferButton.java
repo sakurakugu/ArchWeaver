@@ -17,12 +17,12 @@ import net.minecraft.world.item.ItemStack;
 
 /** 根据 Shift 和 Ctrl 状态切换转移模式的 12 像素箭头按钮。 */
 public final class TransferButton extends Button {
-    public static final int SIZE = 12;
+    public static final int SIZE = 12; // 按钮的边长（像素），宽度与高度相同。
 
-    private final Direction direction;
-    private final OnTransfer onTransfer;
-    private boolean showingAll;
-    private boolean showingHotbar;
+    private final Direction direction; // 转移方向，决定箭头朝向与提示文案。
+    private final OnTransfer onTransfer; // 按下按钮时触发的转移回调。
+    private boolean showingAll; // 当前提示是否处于「全部转移」模式，用于避免重复刷新提示。
+    private boolean showingHotbar; // 当前提示是否处于「包含快捷栏」模式，用于避免重复刷新提示。
 
     public TransferButton(int x, int y, Direction direction, OnTransfer onTransfer) {
         super(x, y, SIZE, SIZE, Component.empty(), button -> {}, DEFAULT_NARRATION);
@@ -166,10 +166,10 @@ public final class TransferButton extends Button {
     }
 
     public enum Direction {
-        TO_CONTAINER("to_container"),
-        TO_INVENTORY("to_inventory");
+        TO_CONTAINER("to_container"), // 向容器转移物品，箭头朝上。
+        TO_INVENTORY("to_inventory"); // 向玩家物品栏转移物品，箭头朝下。
 
-        private final String translationPart;
+        private final String translationPart; // 翻译键后缀，用于拼接当前方向的提示文本。
 
         Direction(String translationPart) {
             this.translationPart = translationPart;

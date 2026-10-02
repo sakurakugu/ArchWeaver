@@ -9,10 +9,10 @@ import net.minecraft.world.item.ItemStack;
 
 /** 使用物品或纹理图标的紧凑标签按钮。 */
 public final class IconTabButton extends Button {
-    private final ItemStack item;
-    private final Identifier texture;
-    private final int iconOffsetX;
-    private final int iconOffsetY;
+    private final ItemStack item; // 用作图标的物品；与 texture 二选一，为 null 时改用纹理。
+    private final Identifier texture; // 用作图标的纹理；与 item 二选一，为 null 时改用物品。
+    private final int iconOffsetX; // 图标相对默认位置（左内边距 2 像素）的横向偏移，单位为像素。
+    private final int iconOffsetY; // 图标相对垂直居中位置的纵向偏移，单位为像素。
 
     public IconTabButton(
         int x, int y, int width, int height, ItemStack item, Component message, OnPress onPress

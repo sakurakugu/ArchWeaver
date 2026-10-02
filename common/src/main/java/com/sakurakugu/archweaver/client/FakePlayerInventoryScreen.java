@@ -41,107 +41,107 @@ import java.util.Locale;
 /** 绘制假人完整物品栏；末影箱使用原版三行容器界面。 */
 public final class FakePlayerInventoryScreen extends AbstractContainerScreen<FakePlayerInventoryMenu> {
     private static final Identifier CONTAINER_BACKGROUND =
-        Identifier.withDefaultNamespace("textures/gui/container/generic_54.png");
+        Identifier.withDefaultNamespace("textures/gui/container/generic_54.png"); // 原版通用容器背景贴图，用于末影箱视图与操作者背包区域。
     private static final Identifier INVENTORY_BACKGROUND =
-        Identifier.withDefaultNamespace("textures/gui/container/inventory.png");
+        Identifier.withDefaultNamespace("textures/gui/container/inventory.png"); // 原版玩家物品栏背景贴图。
     private static final Identifier DROP_TAB_ICON =
-        Identifier.fromNamespaceAndPath(ArchWeaverMod.MOD_ID, "textures/gui/drop_tab.png");
+        Identifier.fromNamespaceAndPath(ArchWeaverMod.MOD_ID, "textures/gui/drop_tab.png"); // Q 键丢弃面板的标签图标。
     public static final Identifier POSSESSION_ENTER_ICON =
-        Identifier.fromNamespaceAndPath(ArchWeaverMod.MOD_ID, "textures/gui/possession_enter.png");
+        Identifier.fromNamespaceAndPath(ArchWeaverMod.MOD_ID, "textures/gui/possession_enter.png"); // 附身按钮图标，表示进入附身状态。
     public static final Identifier POSSESSION_EXIT_ICON =
-        Identifier.fromNamespaceAndPath(ArchWeaverMod.MOD_ID, "textures/gui/possession_exit.png");
+        Identifier.fromNamespaceAndPath(ArchWeaverMod.MOD_ID, "textures/gui/possession_exit.png"); // 附身按钮图标，表示退出附身状态。
     private static final Identifier HEART_CONTAINER_SPRITE =
-        Identifier.withDefaultNamespace("hud/heart/container");
+        Identifier.withDefaultNamespace("hud/heart/container"); // 生命值空槽图标。
     private static final Identifier HEART_FULL_SPRITE =
-        Identifier.withDefaultNamespace("hud/heart/full");
+        Identifier.withDefaultNamespace("hud/heart/full"); // 满颗心的生命值图标。
     private static final Identifier HEART_HALF_SPRITE =
-        Identifier.withDefaultNamespace("hud/heart/half");
+        Identifier.withDefaultNamespace("hud/heart/half"); // 半颗心的生命值图标。
     private static final Identifier ARMOR_EMPTY_SPRITE =
-        Identifier.withDefaultNamespace("hud/armor_empty");
+        Identifier.withDefaultNamespace("hud/armor_empty"); // 护甲空槽图标。
     private static final Identifier ARMOR_HALF_SPRITE =
-        Identifier.withDefaultNamespace("hud/armor_half");
+        Identifier.withDefaultNamespace("hud/armor_half"); // 半格护甲图标。
     private static final Identifier ARMOR_FULL_SPRITE =
-        Identifier.withDefaultNamespace("hud/armor_full");
+        Identifier.withDefaultNamespace("hud/armor_full"); // 满格护甲图标。
     private static final Identifier FOOD_EMPTY_SPRITE =
-        Identifier.withDefaultNamespace("hud/food_empty");
+        Identifier.withDefaultNamespace("hud/food_empty"); // 饥饿值空槽图标。
     private static final Identifier FOOD_HALF_SPRITE =
-        Identifier.withDefaultNamespace("hud/food_half");
+        Identifier.withDefaultNamespace("hud/food_half"); // 半格饥饿值图标。
     private static final Identifier FOOD_FULL_SPRITE =
-        Identifier.withDefaultNamespace("hud/food_full");
+        Identifier.withDefaultNamespace("hud/food_full"); // 满格饥饿值图标。
     private static final Identifier AIR_EMPTY_SPRITE =
-        Identifier.withDefaultNamespace("hud/air_empty");
+        Identifier.withDefaultNamespace("hud/air_empty"); // 氧气空泡图标。
     private static final Identifier AIR_FULL_SPRITE =
-        Identifier.withDefaultNamespace("hud/air");
+        Identifier.withDefaultNamespace("hud/air"); // 满格氧气泡图标。
     private static final Identifier APPLESKIN_ICONS =
-        Identifier.fromNamespaceAndPath(ArchWeaverMod.MOD_ID, "textures/gui/appleskin_icons.png");
+        Identifier.fromNamespaceAndPath(ArchWeaverMod.MOD_ID, "textures/gui/appleskin_icons.png"); // AppleSkin 饱和度图标贴图，四列分别对应不同饱和度级别。
     private static final Identifier EXPERIENCE_ORB_TEXTURE =
-        Identifier.withDefaultNamespace("textures/entity/experience/experience_orb.png");
-    private static final int STATUS_ICON_COUNT = 10;
-    private static final int STATUS_ICON_SIZE = 9;
-    private static final int STATUS_ICON_SPACING = 8;
-    private static final int TARGET_INVENTORY_HEIGHT = 159;
-    private static final int HOTBAR_SELECTOR_TOP = 159;
-    private static final int HOTBAR_SELECTOR_HEIGHT = 5;
+        Identifier.withDefaultNamespace("textures/entity/experience/experience_orb.png"); // 原版经验球贴图，用于绘制经验图标。
+    private static final int STATUS_ICON_COUNT = 10; // 每行状态条绘制的图标数量，对应原版 10 颗心与 10 格饥饿值。
+    private static final int STATUS_ICON_SIZE = 9; // 单个状态图标的边长，单位为像素。
+    private static final int STATUS_ICON_SPACING = 8; // 相邻状态图标之间的水平间距，单位为像素。
+    private static final int TARGET_INVENTORY_HEIGHT = 159; // 假人自身物品栏区域的高度，单位为像素。
+    private static final int HOTBAR_SELECTOR_TOP = 159; // 快捷栏选择区顶边相对物品栏顶边的偏移，单位为像素。
+    private static final int HOTBAR_SELECTOR_HEIGHT = 5; // 快捷栏选择区的高度，单位为像素。
     // 选择区整体比快捷栏第一格左移 1 像素，这样才对的齐。
-    private static final int HOTBAR_SELECTOR_LEFT = 7;
-    private static final int VIEWER_SECTION_TOP = 164;
+    private static final int HOTBAR_SELECTOR_LEFT = 7; // 快捷栏选择区左边相对物品栏左边缘的偏移，单位为像素。
+    private static final int VIEWER_SECTION_TOP = 164; // 操作者背包区域顶边相对物品栏顶边的偏移，单位为像素。
     // 普通管理页面不开放假人的 2x2 合成区。
-    private static final int CRAFTING_AREA_LEFT = 97;
-    private static final int CRAFTING_AREA_TOP = 17;
-    private static final int CRAFTING_AREA_WIDTH = 76;
-    private static final int CRAFTING_AREA_HEIGHT = 55;
-    private static final int CONTROL_LEFT = 96;
-    private static final int CONTROL_TOP = 18;
-    private static final int CONTROL_SIZE = 18;
-    private static final int SNEAK_BUTTON_LEFT = 153;
+    private static final int CRAFTING_AREA_LEFT = 97; // 合成区遮盖矩形的左边偏移，单位为像素。
+    private static final int CRAFTING_AREA_TOP = 17; // 合成区遮盖矩形的顶边偏移，单位为像素。
+    private static final int CRAFTING_AREA_WIDTH = 76; // 合成区遮盖矩形的宽度，单位为像素。
+    private static final int CRAFTING_AREA_HEIGHT = 55; // 合成区遮盖矩形的高度，单位为像素。
+    private static final int CONTROL_LEFT = 96; // 九宫格操控按钮第一列的左边偏移，单位为像素。
+    private static final int CONTROL_TOP = 18; // 九宫格操控按钮第一行的顶边偏移，单位为像素。
+    private static final int CONTROL_SIZE = 18; // 单个操控按钮的边长，单位为像素。
+    private static final int SNEAK_BUTTON_LEFT = 153; // 潜行、跳跃与升降按钮所在列的左边偏移，单位为像素。
 
     // 三个按钮纵向排列，附身按钮正好位于末影箱下方和副手槽上方。
-    private static final int ACTION_BUTTON_LEFT = 76;
-    private static final int ACTION_BUTTON_TOP = 7;
-    private static final int ACTION_BUTTON_WIDTH = 18;
-    private static final int ACTION_BUTTON_HEIGHT = 18;
-    private static final int ACTION_BUTTON_GAP = 0;
-    private static final int DROP_TAB_WIDTH = 21;
-    private static final int DROP_TAB_HEIGHT = 24;
-    private static final int PANEL_GAP = 2;
-    private static final OverlayPanelManager.Layout AIM_PANEL_LAYOUT = panelLayout(8, 94, 234);
+    private static final int ACTION_BUTTON_LEFT = 76; // 移除、末影箱与附身按钮所在列的左边偏移，单位为像素。
+    private static final int ACTION_BUTTON_TOP = 7; // 第一个动作按钮的顶边偏移，单位为像素。
+    private static final int ACTION_BUTTON_WIDTH = 18; // 单个动作按钮的宽度，单位为像素。
+    private static final int ACTION_BUTTON_HEIGHT = 18; // 单个动作按钮的高度，单位为像素。
+    private static final int ACTION_BUTTON_GAP = 0; // 相邻动作按钮之间的垂直间距，单位为像素。
+    private static final int DROP_TAB_WIDTH = 21; // 侧栏面板标签的宽度，单位为像素。
+    private static final int DROP_TAB_HEIGHT = 24; // 侧栏面板标签的高度，单位为像素。
+    private static final int PANEL_GAP = 2; // 相邻侧栏面板之间的垂直间距，单位为像素。
+    private static final OverlayPanelManager.Layout AIM_PANEL_LAYOUT = panelLayout(8, 94, 234); // 视觉朝向面板的布局。
     private static final OverlayPanelManager.Layout CONTINUOUS_PANEL_LAYOUT = nextPanelLayout(
-        AIM_PANEL_LAYOUT, 94, 219);
+        AIM_PANEL_LAYOUT, 94, 219); // 持续控制面板的布局，紧接 AIM_PANEL_LAYOUT 下方。
     private static final OverlayPanelManager.Layout INFO_PANEL_LAYOUT = nextPanelLayout(
-        CONTINUOUS_PANEL_LAYOUT, 132, 160);
+        CONTINUOUS_PANEL_LAYOUT, 132, 160); // 假人信息面板的布局，紧接 CONTINUOUS_PANEL_LAYOUT 下方。
     private static final OverlayPanelManager.Layout DROP_PANEL_LAYOUT = nextPanelLayout(
-        INFO_PANEL_LAYOUT, 94, 109);
-    private static final int TRANSFER_BUTTON_LEFT = 144;
-    private static final int TRANSFER_BUTTON_TOP = 165;
-    private static final int ENDER_CHEST_TRANSFER_BUTTON_TOP = 73;
+        INFO_PANEL_LAYOUT, 94, 109); // Q 键丢弃面板的布局，紧接 INFO_PANEL_LAYOUT 下方。
+    private static final int TRANSFER_BUTTON_LEFT = 144; // 物品转移按钮组的左边偏移，单位为像素。
+    private static final int TRANSFER_BUTTON_TOP = 165; // 普通视图下转移按钮的顶边偏移，单位为像素。
+    private static final int ENDER_CHEST_TRANSFER_BUTTON_TOP = 73; // 末影箱视图下转移按钮的顶边偏移，单位为像素。
     // 侧栏依次放置视觉朝向、持续控制、假人信息、Q 键丢弃、自动化和骑乘标签。
     private static final OverlayPanelManager.Layout AUTOMATION_PANEL_LAYOUT = nextPanelLayout(
-        DROP_PANEL_LAYOUT, 94, 97);
-    private static final int AUTOMATION_BUTTON_HEIGHT = 16;
+        DROP_PANEL_LAYOUT, 94, 97); // 自动化面板的布局，紧接 DROP_PANEL_LAYOUT 下方。
+    private static final int AUTOMATION_BUTTON_HEIGHT = 16; // 自动化开关按钮的高度，单位为像素。
     private static final OverlayPanelManager.Layout MOUNT_PANEL_LAYOUT = nextPanelLayout(
-        AUTOMATION_PANEL_LAYOUT, 94, 83);
-    private static final OverlayPanelManager.Layout SIMULATION_PANEL_LAYOUT = panelLayout(8, 100, 92);
+        AUTOMATION_PANEL_LAYOUT, 94, 83); // 骑乘面板的布局，紧接 AUTOMATION_PANEL_LAYOUT 下方。
+    private static final OverlayPanelManager.Layout SIMULATION_PANEL_LAYOUT = panelLayout(8, 100, 92); // 模拟面板的布局，绘制在物品栏左侧。
     // 应用按钮三态文字色：红=有未保存改动，绿=已保存，白=无需保存。
-    private static final int APPLY_DIRTY_COLOR = 0xFFFF5555;
-    private static final int APPLY_SAVED_COLOR = 0xFF55FF55;
-    private static final int APPLY_IDLE_COLOR = 0xFFFFFFFF;
-    private static final int MOUNT_BUTTON_HEIGHT = 16;
-    private static final int AIM_PAD_SIZE = 62;
-    private static final int CONTINUOUS_BUTTON_HEIGHT = 16;
-    private static final int CONTINUOUS_SLIDER_HEIGHT = 14;
-    private static final String AIM_PANEL_ID = "aim";
-    private static final String CONTINUOUS_PANEL_ID = "continuous";
-    private static final String INFO_PANEL_ID = "info";
-    private static final String DROP_PANEL_ID = "drop";
-    private static final String AUTOMATION_PANEL_ID = "automation";
-    private static final String MOUNT_PANEL_ID = "mount";
-    private static final String SIMULATION_PANEL_ID = "simulation";
+    private static final int APPLY_DIRTY_COLOR = 0xFFFF5555; // 应用按钮“有未保存改动”状态的文字色，ARGB 红色。
+    private static final int APPLY_SAVED_COLOR = 0xFF55FF55; // 应用按钮“刚保存成功”状态的文字色，ARGB 绿色。
+    private static final int APPLY_IDLE_COLOR = 0xFFFFFFFF; // 应用按钮“无需保存”状态的文字色，ARGB 白色。
+    private static final int MOUNT_BUTTON_HEIGHT = 16; // 骑乘面板按钮的高度，单位为像素。
+    private static final int AIM_PAD_SIZE = 62; // 视角摇杆与方向摇杆的边长，单位为像素。
+    private static final int CONTINUOUS_BUTTON_HEIGHT = 16; // 持续控制开关按钮的高度，单位为像素。
+    private static final int CONTINUOUS_SLIDER_HEIGHT = 14; // 持续控制间隔滑条的高度，单位为像素。
+    private static final String AIM_PANEL_ID = "aim"; // 视觉朝向面板的唯一标识。
+    private static final String CONTINUOUS_PANEL_ID = "continuous"; // 持续控制面板的唯一标识。
+    private static final String INFO_PANEL_ID = "info"; // 假人信息面板的唯一标识。
+    private static final String DROP_PANEL_ID = "drop"; // Q 键丢弃面板的唯一标识。
+    private static final String AUTOMATION_PANEL_ID = "automation"; // 自动化面板的唯一标识。
+    private static final String MOUNT_PANEL_ID = "mount"; // 骑乘面板的唯一标识。
+    private static final String SIMULATION_PANEL_ID = "simulation"; // 模拟面板的唯一标识。
     private static final String[] AUTOMATION_KEYS = {
         "auto_replenishment", "shulker_replenishment", "auto_replace_tools", "auto_fishing"
-    };
+    }; // 自动化开关的语言键后缀，顺序与 ACTION_AUTO_REPLENISHMENT 起的动作 ID 一一对应。
     private static final String[] CONTINUOUS_KEYS = {
         "move_forward", "move_backward", "move_left", "move_right", "attack", "use", "jump"
-    };
+    }; // 持续控制开关的语言键后缀，前 4 项为移动，后 3 项各附带一个间隔滑条。
     private static final int[] CONTINUOUS_ACTIONS = {
         FakePlayerInventoryMenu.ACTION_TOGGLE_MOVE_FORWARD,
         FakePlayerInventoryMenu.ACTION_TOGGLE_MOVE_BACKWARD,
@@ -150,43 +150,43 @@ public final class FakePlayerInventoryScreen extends AbstractContainerScreen<Fak
         FakePlayerInventoryMenu.ACTION_TOGGLE_ATTACK,
         FakePlayerInventoryMenu.ACTION_TOGGLE_USE,
         FakePlayerInventoryMenu.ACTION_TOGGLE_JUMP
-    };
+    }; // 与 CONTINUOUS_KEYS 一一对应的持续控制切换动作 ID。
 
-    private OverlayPanelManager panelManager;
+    private OverlayPanelManager panelManager; // 侧栏浮层面板管理器，负责面板的展开与遮挡顺序。
     // 按界面从上到下注册，展开的面板会遮挡并禁用其下方的标签。
-    private OverlayPanelManager.Panel aimPanel;
-    private OverlayPanelManager.Panel continuousPanel;
-    private OverlayPanelManager.Panel infoPanel;
-    private OverlayPanelManager.Panel dropPanel;
-    private OverlayPanelManager.Panel automationPanel;
-    private OverlayPanelManager.Panel mountPanel;
-    private OverlayPanelManager.Panel simulationPanel;
-    private boolean continuousDrop;
-    private boolean percentageDrop;
-    private int dropAmount = 1;
-    private int dropPercentage = 100;
-    private int heldAction = -1;
-    private int heldTicks;
-    private boolean heldStarted;
-    private IntegerSliderButton dropAmountSlider;
-    private Button dropModeButton;
-    private Button flyUpButton;
-    private Button flyDownButton;
-    private RotationPad aimPad;
-    private RotationPad directionPad;
-    private EditBox pitchInput;
-    private EditBox yawInput;
-    private ToggleSwitchButton bodyFollowsHeadButton;
-    private boolean syncingAimInputs;
-    private EditBox nameInput;
-    private SolidDropdownButton<GameType> gameModeButton;
-    private FakePlayerLoadMode simulationMode = FakePlayerLoadMode.PLAYER;
-    private int simulationDistance;
-    private boolean simulationStateInitialized;
-    private SolidButton simulationApplyButton;
-    private boolean simulationApplied;
-    private int lastSentPitch;
-    private int lastSentYaw;
+    private OverlayPanelManager.Panel aimPanel; // 视觉朝向面板，含视角摇杆、方向摇杆与角度输入框。
+    private OverlayPanelManager.Panel continuousPanel; // 持续控制面板，含移动、攻击、使用与跳跃开关及间隔滑条。
+    private OverlayPanelManager.Panel infoPanel; // 假人信息面板，含名称、游戏模式与状态条。
+    private OverlayPanelManager.Panel dropPanel; // Q 键丢弃面板。
+    private OverlayPanelManager.Panel automationPanel; // 自动化面板，含自动补货等开关。
+    private OverlayPanelManager.Panel mountPanel; // 骑乘面板，含骑乘、乘坐任意实体与下马按钮。
+    private OverlayPanelManager.Panel simulationPanel; // 模拟面板，控制假人的区块加载模式与距离。
+    private boolean continuousDrop; // 是否开启连续丢弃，为 true 时持续执行丢弃动作。
+    private boolean percentageDrop; // 丢弃模式是否为百分比，false 表示按数量。
+    private int dropAmount = 1; // 按数量丢弃时使用的数量，取值范围为 1 到 MAX_DROP_AMOUNT。
+    private int dropPercentage = 100; // 按百分比丢弃时使用的百分比，取值范围为 1 到 MAX_DROP_PERCENTAGE。
+    private int heldAction = -1; // 当前按下的操控按钮动作 ID，-1 表示没有按下的按钮。
+    private int heldTicks; // 操控按钮已按住的游戏刻数，达到阈值后触发长按连续动作。
+    private boolean heldStarted; // 长按是否已转为连续动作，避免重复发送。
+    private IntegerSliderButton dropAmountSlider; // 丢弃数量或百分比的滑条。
+    private Button dropModeButton; // 切换丢弃模式（数量/百分比）的按钮。
+    private Button flyUpButton; // 飞行上升按钮，仅假人处于飞行状态时可见。
+    private Button flyDownButton; // 飞行下降按钮，仅假人处于飞行状态时可见。
+    private RotationPad aimPad; // 视角摇杆，用于调整俯仰角与偏航角。
+    private RotationPad directionPad; // 机身方向摇杆，用于调整身体朝向。
+    private EditBox pitchInput; // 俯仰角输入框，取值范围 -90 到 90。
+    private EditBox yawInput; // 偏航角输入框，取值范围 -180 到 179。
+    private ToggleSwitchButton bodyFollowsHeadButton; // “身体跟随头部”开关按钮。
+    private boolean syncingAimInputs; // 是否正在同步角度输入框，用于避免回调递归。
+    private EditBox nameInput; // 假人名称输入框，最长 16 个字符。
+    private SolidDropdownButton<GameType> gameModeButton; // 游戏模式下拉框，选项为四种原版游戏模式。
+    private FakePlayerLoadMode simulationMode = FakePlayerLoadMode.PLAYER; // 面板中当前选择的区块加载模式，默认为玩家模式。
+    private int simulationDistance; // 面板中当前选择的模拟距离，单位为区块。
+    private boolean simulationStateInitialized; // 是否已用服务端数据初始化过模拟面板，避免重建界面时覆盖用户改动。
+    private SolidButton simulationApplyButton; // 模拟面板的应用按钮，用于刷新其文字颜色。
+    private boolean simulationApplied; // 模拟设置上一次应用后是否尚未改动，用于显示已保存颜色。
+    private int lastSentPitch; // 最近一次发送到服务端的俯仰角，用于去重。
+    private int lastSentYaw; // 最近一次发送到服务端的偏航角，用于去重。
 
     private static OverlayPanelManager.Layout panelLayout(int top, int width, int height) {
         return new OverlayPanelManager.Layout(top, width, height, DROP_TAB_WIDTH, DROP_TAB_HEIGHT);

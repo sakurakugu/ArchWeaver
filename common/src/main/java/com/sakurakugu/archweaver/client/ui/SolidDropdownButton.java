@@ -11,13 +11,13 @@ import net.minecraft.network.chat.Component;
 
 /** 使用纯色像素风边框的下拉选择器。 */
 public final class SolidDropdownButton<T> extends Button {
-    private static final int OPTION_HEIGHT = 16;
-    private static final int TEXT_PADDING = 4;
-    private final List<T> options;
-    private final Function<T, Component> labelFactory;
-    private final Consumer<T> onSelected;
-    private T selected;
-    private boolean open;
+    private static final int OPTION_HEIGHT = 16; // 展开后每个选项的行高。
+    private static final int TEXT_PADDING = 4; // 文字距控件左右边缘的内边距。
+    private final List<T> options; // 全部可选值，构造时复制为不可变列表。
+    private final Function<T, Component> labelFactory; // 把选项值转换成显示文本。
+    private final Consumer<T> onSelected; // 用户选中某个选项后的回调。
+    private T selected; // 当前选中的选项，必属于 options。
+    private boolean open; // 选项列表是否处于展开状态。
 
     public SolidDropdownButton(
         int x,
