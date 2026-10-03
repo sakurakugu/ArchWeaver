@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.input.MouseButtonEvent;
@@ -73,16 +74,22 @@ public final class SolidDropdownButton<T> extends Button {
     @Override
     protected void extractContents(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
         PixelGui.drawSolidControl(graphics, getX(), getY(), getWidth(), getHeight(), isMouseOver(mouseX, mouseY));
-        graphics.enableScissor(getX() + TEXT_PADDING, getY(), getX() + getWidth() - 10, getY() + getHeight());
-        graphics.text(Minecraft.getInstance().font, getMessage(),
-            getX() + TEXT_PADDING, getY() + (getHeight() - 8) / 2,
-            active ? 0xFFFFFFFF : 0xFF777777, false);
-        graphics.disableScissor();
+        Font font = Minecraft.getInstance().font;
+        int textLeft = getX() + TEXT_PADDING;
+        int textRight = getX() + getWidth() - 10;
+        int color = active ? 0xFFFFFFFF : 0xFF777777;
+        // 文字放得下时左对齐，放不下则在箭头左侧区域滚动，避免被收窄的边框裁断。
+        if (font.width(getMessage()) <= textRight - textLeft) {
+            graphics.text(font, getMessage(), textLeft, getY() + (getHeight() - 8) / 2, color, false);
+        } else {
+            PixelGui.drawScrollingText(graphics, font, getMessage(), textLeft, textRight,
+                getY(), getHeight(), color);
+        }
         // 箭头在展开时翻转，收起时指向选项列表实际展开的方向。
         String arrow = open == opensUpward ? "▼" : "▲";
-        graphics.text(Minecraft.getInstance().font, Component.literal(arrow),
+        graphics.text(font, Component.literal(arrow),
             getX() + getWidth() - 9, getY() + (getHeight() - 8) / 2 + 1,
-            active ? 0xFFFFFFFF : 0xFF777777, false);
+            color, false);
     }
 
     /** 在屏幕的最后绘制阶段调用，确保选项列表不会被其他面板遮住。 */
@@ -109,8 +116,11 @@ public final class SolidDropdownButton<T> extends Button {
                 && mouseY >= absoluteOptionTop && mouseY < absoluteOptionTop + OPTION_HEIGHT) {
                 graphics.fill(left + 1, optionTop + 1, right - 1, optionTop + OPTION_HEIGHT - 1, 0xFF5A5A5A);
             }
+            // 选项文字超出下拉框宽度时裁断，避免盖到后面的面板上。
+            graphics.enableScissor(left + 1, optionTop, right - 1, optionTop + OPTION_HEIGHT);
             graphics.text(Minecraft.getInstance().font, labelFactory.apply(options.get(index)),
                 left + TEXT_PADDING, optionTop + (OPTION_HEIGHT - 8) / 2, 0xFFFFFFFF, false);
+            graphics.disableScissor();
         }
     }
 

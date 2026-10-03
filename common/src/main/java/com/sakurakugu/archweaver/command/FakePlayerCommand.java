@@ -116,6 +116,8 @@ public final class FakePlayerCommand {
         target.then(lookCommand());
         target.then(moveCommand());
         target.then(repeatingCommand("jump", (fake, mode, interval) -> fake.actions().jump(mode, interval)));
+        target.then(flightAction("fly", true));
+        target.then(flightAction("unfly", false));
         target.then(simpleAction("sneak", fake -> fake.actions().setSneaking(true)));
         target.then(simpleAction("unsneak", fake -> fake.actions().setSneaking(false)));
         target.then(simpleAction("sprint", fake -> fake.actions().setSprinting(true)));
@@ -339,6 +341,35 @@ public final class FakePlayerCommand {
         java.util.function.Consumer<FakeServerPlayer> action
     ) {
         return Commands.literal(name).executes(context -> withFake(context, action));
+    }
+
+    /** {@code fly} 与 {@code unfly}：分别开启和关闭飞行，写法与 sneak/unsneak 保持一致。 */
+    private static LiteralArgumentBuilder<CommandSourceStack> flightAction(String literal, boolean flying) {
+        return Commands.literal(literal).executes(context -> setFlight(context, flying));
+    }
+
+    private static int setFlight(CommandContext<CommandSourceStack> context, boolean target) {
+        FakeServerPlayer fake = getFake(context);
+        if (fake == null) {
+            return 0;
+        }
+        if (FakePlayerPossession.isPossessed(fake)) {
+            context.getSource().sendFailure(Component.translatable("gui.fakeplayer.possess_locked"));
+            return 0;
+        }
+        // 旁观模式禁止关闭飞行，不具备飞行能力时禁止开启，由动作层统一守卫。
+        if (!fake.actions().setFlying(target)) {
+            context.getSource().sendFailure(Component.translatable(
+                "commands.fakeplayer.flight_locked", fake.getGameProfile().name()));
+            return 0;
+        }
+        FakePlayerPersistence.track(fake);
+        context.getSource().sendSuccess(() -> Component.translatable(
+            "commands.fakeplayer.flight_set", fake.getGameProfile().name(),
+            Component.translatable(target
+                ? "gui.fakeplayer.automation.enabled"
+                : "gui.fakeplayer.automation.disabled")), true);
+        return 1;
     }
 
     private static int repeat(

@@ -196,9 +196,19 @@ public final class OverlayPanelManager {
                 PixelGui.drawLeftTabBackground(graphics, x, getY(), width, height);
             }
             if (open) {
+                // 右侧面板的标签在左边，文字从标签右侧起；左侧面板的标签在右边，文字右侧要避开标签。
                 int titleX = side == Side.RIGHT ? getX() + 22 : getX() + 7;
-                int titleY = getY() + (side == Side.RIGHT ? 8 : 7);
-                graphics.text(font, title, titleX, titleY, 0xFF404040, false);
+                int titleTop = side == Side.RIGHT ? 8 : 7;
+                int titleRight = side == Side.RIGHT
+                    ? getX() + layout.width() - 4
+                    : getX() + layout.width() - layout.tabWidth() - 2;
+                // 标题放不下时在可用宽度内滚动，避免文字溢出面板边框或压到标签上。
+                if (font.width(title) <= titleRight - titleX) {
+                    graphics.text(font, title, titleX, getY() + titleTop, 0xFF404040, false);
+                } else {
+                    PixelGui.drawScrollingText(graphics, font, title, titleX, titleRight,
+                        getY() + titleTop - 4, 16, 0xFF404040);
+                }
                 contentRenderer.render(graphics, getX(), getY());
             }
         }

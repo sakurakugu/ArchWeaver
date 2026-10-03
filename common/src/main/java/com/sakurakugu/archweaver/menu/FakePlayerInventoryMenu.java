@@ -102,7 +102,10 @@ public final class FakePlayerInventoryMenu extends AbstractContainerMenu {
     public static final int ACTION_JUMP_HELD = ACTION_USE_HELD + 1;
     public static final int ACTION_FLY_UP = ACTION_JUMP_HELD + 1;
     public static final int ACTION_FLY_DOWN = ACTION_FLY_UP + 1;
-    public static final int ACTION_TOGGLE_MOVE_FORWARD = ACTION_FLY_DOWN + 1;
+    public static final int ACTION_FLY_UP_HELD = ACTION_FLY_DOWN + 1;
+    public static final int ACTION_FLY_DOWN_HELD = ACTION_FLY_UP_HELD + 1;
+    public static final int ACTION_TOGGLE_FLIGHT = ACTION_FLY_DOWN_HELD + 1;
+    public static final int ACTION_TOGGLE_MOVE_FORWARD = ACTION_TOGGLE_FLIGHT + 1;
     public static final int ACTION_TOGGLE_MOVE_BACKWARD = ACTION_TOGGLE_MOVE_FORWARD + 1;
     public static final int ACTION_TOGGLE_MOVE_LEFT = ACTION_TOGGLE_MOVE_BACKWARD + 1;
     public static final int ACTION_TOGGLE_MOVE_RIGHT = ACTION_TOGGLE_MOVE_LEFT + 1;
@@ -647,6 +650,9 @@ public final class FakePlayerInventoryMenu extends AbstractContainerMenu {
             }
             case ACTION_FLY_UP -> target.actions().flyVertical(true);
             case ACTION_FLY_DOWN -> target.actions().flyVertical(false);
+            case ACTION_FLY_UP_HELD -> startHeldFly(true);
+            case ACTION_FLY_DOWN_HELD -> startHeldFly(false);
+            case ACTION_TOGGLE_FLIGHT -> target.actions().toggleFlight();
             case ACTION_TOGGLE_MOVE_FORWARD, ACTION_TOGGLE_MOVE_BACKWARD,
                 ACTION_TOGGLE_MOVE_LEFT, ACTION_TOGGLE_MOVE_RIGHT -> {
                 FakePlayerActions.MoveDirection direction = switch (actionId) {
@@ -740,11 +746,17 @@ public final class FakePlayerInventoryMenu extends AbstractContainerMenu {
         heldControlAction = yawDelta < 0.0F ? ACTION_TURN_LEFT_HELD : ACTION_TURN_RIGHT_HELD;
     }
 
+    private void startHeldFly(boolean upward) {
+        target.actions().startFlyVertical(upward);
+        heldControlAction = upward ? ACTION_FLY_UP_HELD : ACTION_FLY_DOWN_HELD;
+    }
+
     private void stopHeldControl() {
         switch (heldControlAction) {
             case ACTION_MOVE_FORWARD_HELD, ACTION_MOVE_BACKWARD_HELD,
                 ACTION_MOVE_LEFT_HELD, ACTION_MOVE_RIGHT_HELD -> target.actions().stopMove();
             case ACTION_TURN_LEFT_HELD, ACTION_TURN_RIGHT_HELD -> target.actions().stopTurn();
+            case ACTION_FLY_UP_HELD, ACTION_FLY_DOWN_HELD -> target.actions().stopFlyVertical();
             case ACTION_ATTACK_HELD -> target.actions().stopAttack();
             case ACTION_USE_HELD -> target.actions().stopUse();
             case ACTION_JUMP_HELD -> target.actions().stopJump();

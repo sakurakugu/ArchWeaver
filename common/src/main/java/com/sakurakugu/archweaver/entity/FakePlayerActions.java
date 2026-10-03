@@ -69,6 +69,7 @@ public final class FakePlayerActions {
     private int useCooldown;
     private int movementInputTicks;
     private float heldTurn;
+    private int heldFlyVertical; // 长按持续升降的方向，1 为向上、-1 为向下、0 为未进行。
     private int lastJumpTick = -1000;
     private Float bodyYaw;
     private boolean bodyFollowsHead;
@@ -106,6 +107,9 @@ public final class FakePlayerActions {
         }
         if (heldTurn != 0.0F) {
             turn(heldTurn);
+        }
+        if (heldFlyVertical != 0) {
+            applyFlyVertical(heldFlyVertical > 0);
         }
         if (player.isSpectator()) {
             stopTransientActions();
@@ -410,9 +414,9 @@ public final class FakePlayerActions {
             && player.tickCount - lastJumpTick <= 10
             && (player.getAbilities().flying || !player.onGround())) {
             // 假人没有客户端按键包，因此在服务端按两次跳跃直接切换飞行状态。
-            player.getAbilities().flying = !player.getAbilities().flying;
-            player.onUpdateAbilities();
-            lastJumpTick = -1000;
+            if (toggleFlight()) {
+                lastJumpTick = -1000;
+            }
         } else if (player.onGround()) {
             player.jumpFromGround();
             lastJumpTick = player.tickCount;
@@ -437,8 +441,47 @@ public final class FakePlayerActions {
         movementInputTicks = 1;
     }
 
+    /**
+     * 设置飞行状态，返回是否已处于目标状态；被守卫拒绝时返回 false。
+     * 旁观模式必须保持飞行，因此该情况下禁止关闭飞行。
+     */
+    public boolean setFlying(boolean flying) {
+        if (flying == player.getAbilities().flying) {
+            return true;
+        }
+        if (flying) {
+            if (!player.getAbilities().mayfly) {
+                return false;
+            }
+        } else if (player.isSpectator()) {
+            return false;
+        }
+        player.getAbilities().flying = flying;
+        player.onUpdateAbilities();
+        return true;
+    }
+
+    /** 切换飞行状态；返回是否真的发生了切换，被守卫拒绝时为 false。 */
+    public boolean toggleFlight() {
+        return setFlying(!player.getAbilities().flying);
+    }
+
     /** 在飞行状态下给假人一个竖直方向的移动速度。 */
     public void flyVertical(boolean upward) {
+        applyFlyVertical(upward);
+    }
+
+    /** 开始长按持续升降，每个游戏刻都施加竖直速度，直到收到停止动作。 */
+    public void startFlyVertical(boolean upward) {
+        heldFlyVertical = upward ? 1 : -1;
+        applyFlyVertical(upward);
+    }
+
+    public void stopFlyVertical() {
+        heldFlyVertical = 0;
+    }
+
+    private void applyFlyVertical(boolean upward) {
         if (!player.getAbilities().flying) {
             return;
         }
@@ -693,6 +736,7 @@ public final class FakePlayerActions {
         strafeInput = 0.0F;
         movementInputTicks = 0;
         heldTurn = 0.0F;
+        heldFlyVertical = 0;
         player.zza = 0.0F;
         player.xxa = 0.0F;
         player.setShiftKeyDown(false);

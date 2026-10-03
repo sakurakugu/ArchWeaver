@@ -88,6 +88,18 @@ public final class PixelGui {
             color, false);
     }
 
+    /** 文字放得下时居中显示，超出区域时改用滚动显示，避免文字被控件边缘裁断。 */
+    public static void drawCenteredScrollingText(
+        GuiGraphicsExtractor graphics, Font font, Component text,
+        int x, int y, int width, int height, int color
+    ) {
+        if (font.width(text) <= width) {
+            drawCenteredText(graphics, font, text, x, y, width, height, color);
+        } else {
+            drawScrollingText(graphics, font, text, x, x + width, y, height, color);
+        }
+    }
+
     /** 使用原版按钮相同的滚动曲线，但关闭文字阴影。 */
     public static void drawScrollingText(
         GuiGraphicsExtractor graphics, Font font, Component text,

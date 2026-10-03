@@ -23,7 +23,7 @@ public abstract class SolidSliderButton extends AbstractSliderButton {
         // 保留原版 8 像素宽、占满控件高度的滑块手柄，只改用纯色绘制。
         int handleX = x + (int) (value * (width - 8));
         PixelGui.drawSolidControl(graphics, handleX, y, 8, height, isMouseOver(mouseX, mouseY));
-        PixelGui.drawCenteredText(graphics, Minecraft.getInstance().font, getMessage(),
+        PixelGui.drawCenteredScrollingText(graphics, Minecraft.getInstance().font, getMessage(),
             x, y, width, height, 0xFFFFFFFF);
     }
 }

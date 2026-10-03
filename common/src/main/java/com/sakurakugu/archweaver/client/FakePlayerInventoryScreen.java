@@ -172,6 +172,8 @@ public final class FakePlayerInventoryScreen extends AbstractContainerScreen<Fak
     private Button dropModeButton; // 切换丢弃模式（数量/百分比）的按钮。
     private Button flyUpButton; // 飞行上升按钮，仅假人处于飞行状态时可见。
     private Button flyDownButton; // 飞行下降按钮，仅假人处于飞行状态时可见。
+    private Button jumpButton; // 中间的操控按钮，飞行状态下由跳跃切换为关闭飞行。
+    private Boolean jumpButtonFlying; // 跳跃按钮上次应用的飞行状态，null 表示尚未初始化，避免每刻重建文字与提示。
     private RotationPad aimPad; // 视角摇杆，用于调整俯仰角与偏航角。
     private RotationPad directionPad; // 机身方向摇杆，用于调整身体朝向。
     private EditBox pitchInput; // 俯仰角输入框，取值范围 -90 到 90。
@@ -478,8 +480,9 @@ public final class FakePlayerInventoryScreen extends AbstractContainerScreen<Fak
             Component.translatable("gui.fakeplayer.info.rename"),
             button -> submitRename()
         ));
+        // 收窄下拉框，右边界与名称、复制、经验等控件对齐在 left + 124。
         gameModeButton = addRenderableWidget(new SolidDropdownButton<>(
-            left + 54, top + 47, 70, 16,
+            left + 68, top + 47, 56, 16,
             java.util.List.of(GameType.SURVIVAL, GameType.CREATIVE, GameType.ADVENTURE, GameType.SPECTATOR),
             gameType(), this::gameModeName,
             gameType -> sendAction(FakePlayerInventoryMenu.ACTION_SET_GAME_MODE_BASE + gameType.getId())
@@ -591,12 +594,14 @@ public final class FakePlayerInventoryScreen extends AbstractContainerScreen<Fak
         addControlButton(1, 2, "↓", FakePlayerInventoryMenu.ACTION_MOVE_BACKWARD);
         addControlButton(2, 2, "R", FakePlayerInventoryMenu.ACTION_USE_ONCE);
 
-        addControlButtonAt(
+        jumpButton = addRenderableWidget(new SolidButton(
             leftPos + SNEAK_BUTTON_LEFT,
             topPos + CONTROL_TOP + CONTROL_SIZE,
-            "J",
-            FakePlayerInventoryMenu.ACTION_JUMP
-        );
+            CONTROL_SIZE,
+            CONTROL_SIZE,
+            Component.literal("J"),
+            button -> pressJumpButton()
+        ));
 
         flyUpButton = addControlButtonAt(
             leftPos + SNEAK_BUTTON_LEFT,
@@ -702,13 +707,34 @@ public final class FakePlayerInventoryScreen extends AbstractContainerScreen<Fak
         ));
     }
 
-    private void updateFlyingButtons() {
-        if (flyUpButton == null || flyDownButton == null) {
+    /** 中间的操控按钮：平时跳跃，飞行状态下改为关闭飞行；长按跳跃沿用连续动作。 */
+    private void pressJumpButton() {
+        if (menu.isFlying()) {
+            sendAction(FakePlayerInventoryMenu.ACTION_TOGGLE_FLIGHT);
             return;
         }
-        boolean visible = menu.isFlying();
-        flyUpButton.visible = visible;
-        flyDownButton.visible = visible;
+        sendAction(FakePlayerInventoryMenu.ACTION_JUMP);
+        heldAction = FakePlayerInventoryMenu.ACTION_JUMP;
+        heldTicks = 0;
+        heldStarted = false;
+    }
+
+    private void updateFlyingButtons() {
+        if (flyUpButton == null || flyDownButton == null || jumpButton == null) {
+            return;
+        }
+        boolean flying = menu.isFlying();
+        flyUpButton.visible = flying;
+        flyDownButton.visible = flying;
+        // 旁观模式必须保持飞行，因此飞行状态下禁用关闭飞行的按钮。
+        jumpButton.active = !(flying && gameType() == GameType.SPECTATOR);
+        if (jumpButtonFlying != null && jumpButtonFlying == flying) {
+            return;
+        }
+        jumpButtonFlying = flying;
+        jumpButton.setMessage(Component.literal(flying ? "F" : "J"));
+        jumpButton.setTooltip(Tooltip.create(Component.translatable(
+            flying ? "gui.fakeplayer.stop_flying" : "gui.fakeplayer.jump")));
     }
 
     private void addTransferButtons(int buttonTop) {
@@ -869,6 +895,8 @@ public final class FakePlayerInventoryScreen extends AbstractContainerScreen<Fak
             case FakePlayerInventoryMenu.ACTION_ATTACK_ONCE -> FakePlayerInventoryMenu.ACTION_ATTACK_HELD;
             case FakePlayerInventoryMenu.ACTION_MOVE_BACKWARD -> FakePlayerInventoryMenu.ACTION_MOVE_BACKWARD_HELD;
             case FakePlayerInventoryMenu.ACTION_USE_ONCE -> FakePlayerInventoryMenu.ACTION_USE_HELD;
+            case FakePlayerInventoryMenu.ACTION_FLY_UP -> FakePlayerInventoryMenu.ACTION_FLY_UP_HELD;
+            case FakePlayerInventoryMenu.ACTION_FLY_DOWN -> FakePlayerInventoryMenu.ACTION_FLY_DOWN_HELD;
             default -> -1;
         };
     }

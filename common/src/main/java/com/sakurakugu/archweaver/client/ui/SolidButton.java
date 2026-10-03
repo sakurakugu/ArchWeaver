@@ -33,7 +33,7 @@ public final class SolidButton extends Button {
         PixelGui.drawSolidControl(graphics, getX(), getY(), getWidth(), getHeight(), isMouseOver(mouseX, mouseY));
         int color = active ? textColor : 0xFF777777;
         if (glyph == null) {
-            PixelGui.drawCenteredText(graphics, Minecraft.getInstance().font, getMessage(),
+            PixelGui.drawCenteredScrollingText(graphics, Minecraft.getInstance().font, getMessage(),
                 getX(), getY(), getWidth(), getHeight(), color);
         } else {
             glyph.drawCentered(graphics, getX(), getY(), getWidth(), getHeight(), color);
