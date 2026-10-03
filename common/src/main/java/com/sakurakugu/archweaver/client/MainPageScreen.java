@@ -1,5 +1,6 @@
 package com.sakurakugu.archweaver.client;
 
+import com.sakurakugu.archweaver.client.chunkloading.ChunkMapClientConfig;
 import com.sakurakugu.archweaver.client.chunkloading.ClientChunkLoadingState;
 import com.sakurakugu.archweaver.client.ui.PixelGlyph;
 import com.sakurakugu.archweaver.client.ui.SolidButton;
@@ -25,6 +26,7 @@ public final class MainPageScreen extends Screen {
     private static final int ROW_HEIGHT = 34; // 列表里每行按钮的高度。
     private static final int ROW_GAP = 4; // 列表里相邻两行按钮的间距。
     private static final int FOOTER_HEIGHT = 22; // 面板底部操作按钮的高度。
+    private static final int TOOLBAR_HEIGHT = 18; // 列表上方工具行的高度，与行内的图标按钮同高。
     private static final int PANEL_TOP = 12; // 面板距离窗口顶部、底部的距离。
 
     private ChunkMapSnapshotPayload snapshot; // 最近一次从服务端同步来的状态快照。
@@ -34,8 +36,31 @@ public final class MainPageScreen extends Screen {
     private final Button[] settingButtons = new Button[2]; // 全局设置开关按钮，点击后统一置灰。
 
     public MainPageScreen(ChunkMapSnapshotPayload snapshot) {
+        this(snapshot, View.FAKE_PLAYERS);
+    }
+
+    public MainPageScreen(ChunkMapSnapshotPayload snapshot, View initialView) {
         super(Component.translatable("gui.archweaver.main.title"));
         this.snapshot = snapshot;
+        this.view = initialView;
+        recordView();
+    }
+
+    /** 把页面编号还原成页面，越界时回落到假人列表。 */
+    public static View fromIndex(int index) {
+        View[] views = View.values();
+        return index >= 0 && index < views.length ? views[index] : View.FAKE_PLAYERS;
+    }
+
+    /** 记住当前页面，下次打开控制中心时直接回到这里。 */
+    private void recordView() {
+        ChunkMapClientConfig.setMainPageView(view.ordinal());
+    }
+
+    @Override
+    public void removed() {
+        ChunkMapClientConfig.save();
+        super.removed();
     }
 
     public void update(ChunkMapSnapshotPayload value) {
@@ -59,7 +84,6 @@ public final class MainPageScreen extends Screen {
         int sideWidth = sideWidth();
         int centerLeft = left + sideWidth + GAP;
         int centerWidth = centerWidth();
-        int contentTop = contentTop();
         TitlePanel navigationPanel = new TitlePanel(left, top, sideWidth, panelHeight(),
             Component.translatable("gui.archweaver.main.title"));
 
@@ -71,7 +95,7 @@ public final class MainPageScreen extends Screen {
 
         if (view == View.FAKE_PLAYERS) {
             int listWidth = Math.max(1, centerWidth - PANEL_PADDING * 2);
-            int listTop = listTop(contentTop);
+            int listTop = fakeListTop();
             int count = Math.min(snapshot.fakePlayers().size(), rowCapacity(listTop));
             for (int index = 0; index < count; index++) {
                 int fakeIndex = index;
@@ -80,13 +104,14 @@ public final class MainPageScreen extends Screen {
                     Component.literal(snapshot.fakePlayers().get(index).name()), button -> selectFake(fakeIndex)));
                 if (snapshot.fakePlayers().get(index).id().equals(selectedFake)) row.setTextColor(0xFF55FF55);
             }
-            int footerY = footerY();
-            int presetButtonWidth = Math.max(1, (listWidth - GAP) / 2);
-            int spawnButtonWidth = Math.max(1, listWidth - presetButtonWidth - GAP);
-            addRenderableWidget(new SolidButton(centerLeft + PANEL_PADDING, footerY, presetButtonWidth, FOOTER_HEIGHT,
+            // 生成假人收成加号，钉在列表左上角；预设管理紧随其后，占满工具行剩余宽度。
+            addRenderableWidget(new SolidButton(centerLeft + PANEL_PADDING, toolbarY(),
+                TOOLBAR_HEIGHT, TOOLBAR_HEIGHT, PixelGlyph.ADD,
+                Component.translatable("gui.archweaver.main.spawn"), button -> openSpawn()));
+            int presetLeft = centerLeft + PANEL_PADDING + TOOLBAR_HEIGHT + GAP;
+            addRenderableWidget(new SolidButton(presetLeft, toolbarY(),
+                Math.max(1, centerLeft + centerWidth - PANEL_PADDING - presetLeft), TOOLBAR_HEIGHT,
                 Component.translatable("gui.archweaver.main.presets"), button -> openPresets()));
-            addRenderableWidget(new SolidButton(centerLeft + PANEL_PADDING + presetButtonWidth + GAP, footerY,
-                spawnButtonWidth, FOOTER_HEIGHT, Component.translatable("gui.archweaver.main.spawn"), button -> openSpawn()));
             addRenderableWidget(new SolidButton(centerLeft + centerWidth - PANEL_PADDING - 18, top + 4, 18, 18,
                 PixelGlyph.REFRESH, Component.translatable("gui.archweaver.main.refresh"), button -> refresh()));
             int rightLeft = centerLeft + centerWidth + GAP;
@@ -108,7 +133,7 @@ public final class MainPageScreen extends Screen {
 
     private void addMapWidgets(int centerLeft, int centerWidth, int top) {
         int listWidth = Math.max(1, centerWidth - PANEL_PADDING * 2);
-        int listTop = listTop(contentTop());
+        int listTop = regionListTop();
         int count = Math.min(snapshot.managementRegions().size(), rowCapacity(listTop));
         for (int index = 0; index < count; index++) {
             int regionIndex = index;
@@ -148,9 +173,19 @@ public final class MainPageScreen extends Screen {
         return PANEL_TOP + TitlePanel.HEADER_HEIGHT + 1;
     }
 
-    /** 列表首行的纵坐标，位于内容区顶部的状态文字下方。 */
-    private int listTop(int contentTop) {
-        return contentTop + PANEL_PADDING + font.lineHeight + 6;
+    /** 列表上方工具行的纵坐标，紧贴内容区顶部。 */
+    private int toolbarY() {
+        return contentTop() + PANEL_PADDING;
+    }
+
+    /** 假人列表首行的纵坐标，位于工具行下方。 */
+    private int fakeListTop() {
+        return toolbarY() + TOOLBAR_HEIGHT + GAP;
+    }
+
+    /** 区块列表首行的纵坐标，位于内容区顶部的状态文字下方。 */
+    private int regionListTop() {
+        return contentTop() + PANEL_PADDING + font.lineHeight + 6;
     }
 
     /** 面板底部操作按钮的纵坐标。 */
@@ -158,7 +193,12 @@ public final class MainPageScreen extends Screen {
         return PANEL_TOP + panelHeight() - PANEL_PADDING - FOOTER_HEIGHT;
     }
 
-    /** 列表在底部操作按钮之前能完整容纳的行数。 */
+    /** 底部状态文字的纵坐标，沿用原来底部操作按钮所在的那一行。 */
+    private int statusY() {
+        return footerY() + (FOOTER_HEIGHT - font.lineHeight) / 2;
+    }
+
+    /** 列表在底部那一行（操作按钮或状态文字）之前能完整容纳的行数。 */
     private int rowCapacity(int listTop) {
         return Math.max(0, (footerY() - GAP - listTop + ROW_GAP) / (ROW_HEIGHT + ROW_GAP));
     }
@@ -186,6 +226,7 @@ public final class MainPageScreen extends Screen {
     private void switchView(View target) {
         if (view != target) {
             view = target;
+            recordView();
             rebuildMainWidgets();
         }
     }
@@ -267,8 +308,9 @@ public final class MainPageScreen extends Screen {
 
         int labelY = contentTop() + PANEL_PADDING;
         if (view == View.FAKE_PLAYERS) {
+            // 在线人数挪到面板最底部，顶部整行让给生成假人和预设管理。
             graphics.text(font, Component.translatable("gui.archweaver.main.online", snapshot.fakePlayers().size()),
-                centerLeft + PANEL_PADDING, labelY, 0xFFFFFFFF, false);
+                centerLeft + PANEL_PADDING, statusY(), 0xFFFFFFFF, false);
             drawFakeDetail(graphics, rightLeft, rightWidth);
         } else if (view == View.MAP) {
             graphics.text(font, Component.translatable("gui.archweaver.main.regions", snapshot.managementRegions().size()),
@@ -323,7 +365,8 @@ public final class MainPageScreen extends Screen {
         graphics.text(font, Component.translatable("gui.archweaver.main.settings_count", settingButtons.length), x + PANEL_PADDING, y + 20, 0xFFC6C6C6, false);
     }
 
-    private enum View {
+    /** 中间内容区可显示的页面，可由命令指定打开时的初始页面。 */
+    public enum View {
         FAKE_PLAYERS, // 假人列表页面。
         MAP, // 区块地图页面。
         SETTINGS // 全局设置页面。

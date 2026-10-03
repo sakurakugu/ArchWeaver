@@ -67,11 +67,14 @@ public final class NeoForgeConfigs {
         private final ModConfigSpec spec;
         private final ModConfigSpec.DoubleValue markerNameScale;
         private final ModConfigSpec.BooleanValue weakLoadingVisible;
+        private final ModConfigSpec.IntValue mainPageView;
 
         private ClientBackend() {
             ModConfigSpec.Builder builder = new ModConfigSpec.Builder();
             markerNameScale = builder.comment("地图上玩家名称的缩放比例。").defineInRange("chunkMap.markerNameScale", 1.0D, 0.5D, 2.0D);
             weakLoadingVisible = builder.comment("是否画出强加载区块外围的弱加载范围。").define("chunkMap.showWeakLoading", true);
+            mainPageView = builder.comment("控制中心上次停留的页面：0 假人列表，1 区块地图，2 全局设置。")
+                .defineInRange("mainPage.lastView", 0, 0, 2);
             spec = builder.build();
         }
 
@@ -80,6 +83,8 @@ public final class NeoForgeConfigs {
         public void setMarkerNameScale(double value) { markerNameScale.set(value); }
         public boolean weakLoadingVisible() { return weakLoadingVisible.get(); }
         public void setWeakLoadingVisible(boolean value) { weakLoadingVisible.set(value); }
+        public int mainPageView() { return mainPageView.get(); }
+        public void setMainPageView(int value) { mainPageView.set(value); }
         public void save() { spec.save(); }
     }
 }

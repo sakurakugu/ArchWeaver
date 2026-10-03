@@ -18,6 +18,7 @@ public final class SolidDropdownButton<T> extends Button {
     private final Consumer<T> onSelected; // 用户选中某个选项后的回调。
     private T selected; // 当前选中的选项，必属于 options。
     private boolean open; // 选项列表是否处于展开状态。
+    private boolean opensUpward; // 选项列表是否向上展开，用于贴近面板底部的控件。
 
     public SolidDropdownButton(
         int x,
@@ -30,7 +31,9 @@ public final class SolidDropdownButton<T> extends Button {
         Consumer<T> onSelected
     ) {
         super(x, y, width, height, Component.empty(), button -> {}, DEFAULT_NARRATION);
-        if (options.isEmpty() || !options.contains(selected)) {
+        // selected 必须先判空：options 可能是 List.copyOf 生成的不可变列表，
+        // 对它调用 contains(null) 会抛 NPE，而不是这里想要的入参校验。
+        if (selected == null || options.isEmpty() || !options.contains(selected)) {
             throw new IllegalArgumentException("下拉选择器必须包含初始选项");
         }
         this.options = List.copyOf(options);
@@ -44,12 +47,24 @@ public final class SolidDropdownButton<T> extends Button {
         return selected;
     }
 
+    /** 让选项列表向上展开，适合靠近面板底部的控件；返回自身便于链式调用。 */
+    public SolidDropdownButton<T> setOpensUpward() {
+        opensUpward = true;
+        return this;
+    }
+
+    /** 选项列表顶边的屏幕坐标。 */
+    private int popupScreenTop() {
+        return opensUpward ? getY() - options.size() * OPTION_HEIGHT : getY() + getHeight();
+    }
+
     public boolean isOpen() {
         return open;
     }
 
     public void setSelected(T selected) {
-        if (options.contains(selected)) {
+        // 同样先判空，避免在不可变选项列表上触发 contains(null) 的 NPE。
+        if (selected != null && options.contains(selected)) {
             this.selected = selected;
             updateMessage();
         }
@@ -63,7 +78,9 @@ public final class SolidDropdownButton<T> extends Button {
             getX() + TEXT_PADDING, getY() + (getHeight() - 8) / 2,
             active ? 0xFFFFFFFF : 0xFF777777, false);
         graphics.disableScissor();
-        graphics.text(Minecraft.getInstance().font, Component.literal(open ? "▲" : "▼"),
+        // 箭头在展开时翻转，收起时指向选项列表实际展开的方向。
+        String arrow = open == opensUpward ? "▼" : "▲";
+        graphics.text(Minecraft.getInstance().font, Component.literal(arrow),
             getX() + getWidth() - 9, getY() + (getHeight() - 8) / 2 + 1,
             active ? 0xFFFFFFFF : 0xFF777777, false);
     }
@@ -80,7 +97,7 @@ public final class SolidDropdownButton<T> extends Button {
             return;
         }
         int left = getX() - graphicsOriginX;
-        int top = getY() - graphicsOriginY + getHeight();
+        int top = popupScreenTop() - graphicsOriginY;
         int right = left + getWidth();
         int bottom = top + options.size() * OPTION_HEIGHT;
         graphics.fill(left, top, right, bottom, 0xFF202326);
@@ -103,7 +120,7 @@ public final class SolidDropdownButton<T> extends Button {
             return false;
         }
         int left = getX();
-        int top = getY() + getHeight();
+        int top = popupScreenTop();
         int right = left + getWidth();
         int bottom = top + options.size() * OPTION_HEIGHT;
         if (event.x() >= left && event.x() < right && event.y() >= top && event.y() < bottom) {

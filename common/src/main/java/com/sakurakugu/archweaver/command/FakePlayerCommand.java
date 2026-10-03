@@ -20,7 +20,9 @@ import com.sakurakugu.archweaver.entity.FakePlayerPossession;
 import com.sakurakugu.archweaver.entity.ProfileResolver;
 import com.sakurakugu.archweaver.entity.FakeServerPlayer;
 import com.sakurakugu.archweaver.menu.FakePlayerMenuOpener;
+import com.sakurakugu.archweaver.network.OpenMainPagePayload;
 import com.sakurakugu.archweaver.persistence.FakePlayerPersistence;
+import com.sakurakugu.archweaver.platform.PlatformNetworking;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.commands.SharedSuggestionProvider;
@@ -669,13 +671,14 @@ public final class FakePlayerCommand {
                     .map(player -> player.getGameProfile().name()), builder));
     }
 
+    /** 主页面由客户端按快照渲染，服务端只能发通知让客户端自己去开。 */
     private static int openGui(CommandContext<CommandSourceStack> context) {
         ServerPlayer viewer = context.getSource().getPlayer();
         if (viewer == null) {
             context.getSource().sendFailure(Component.translatable("commands.fakeplayer.player_only"));
             return 0;
         }
-        FakePlayerMenuOpener.openGlobal(viewer);
+        PlatformNetworking.sendToPlayer(viewer, new OpenMainPagePayload());
         return 1;
     }
 

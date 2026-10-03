@@ -12,14 +12,16 @@ import com.sakurakugu.archweaver.config.ArchWeaverConfig;
 import com.sakurakugu.archweaver.entity.FakePlayerManager;
 import com.sakurakugu.archweaver.entity.FakeServerPlayer;
 import com.sakurakugu.archweaver.network.ChunkMapSnapshotPayload;
+import com.sakurakugu.archweaver.network.OpenMainPagePayload;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.commands.SharedSuggestionProvider;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerPlayer;
 import com.sakurakugu.archweaver.platform.PlatformNetworking;
 
-/** 提供区块票加载点的创建、配置和生命周期命令。 */
+/** 提供区块票加载点的创建、启停和生命周期命令。 */
 public final class ChunkLoaderCommand {
     private ChunkLoaderCommand() {
     }
@@ -29,6 +31,9 @@ public final class ChunkLoaderCommand {
             .requires(ArchWeaverConfig::canUseCommands)
             .executes(context -> openMap(context, false))
             .then(Commands.literal("list").executes(context -> openMap(context, true)))
+            .then(Commands.literal("gui")
+                .executes(context -> openMainPage(context, OpenMainPagePayload.View.MAP))
+                .then(Commands.literal("map").executes(context -> openMap(context, false))))
             .then(Commands.literal("backup").executes(ChunkLoaderCommand::backup))
             .then(Commands.literal("restore").then(Commands.literal("confirm")
                 .executes(ChunkLoaderCommand::restore)))
@@ -50,11 +55,7 @@ public final class ChunkLoaderCommand {
                         IntegerArgumentType.integer(0, 32))
                         .executes(context -> setFakeMode(context, FakePlayerLoadMode.DOLL,
                             IntegerArgumentType.getInteger(context, "distance"))))))))
-            .then(Commands.literal("remove").then(anchorArgument().executes(ChunkLoaderCommand::remove)))
-            .then(Commands.literal("configure").then(anchorArgument()
-                .then(Commands.argument("radius", IntegerArgumentType.integer(0,
-                        ChunkLoaderManager.ABSOLUTE_MAX_RADIUS))
-                    .executes(ChunkLoaderCommand::configure)))));
+            .then(Commands.literal("remove").then(anchorArgument().executes(ChunkLoaderCommand::remove))));
     }
 
     private static int openMap(CommandContext<CommandSourceStack> context, boolean management)
@@ -62,6 +63,16 @@ public final class ChunkLoaderCommand {
         var player = context.getSource().getPlayerOrException();
         PlatformNetworking.sendToPlayer(player, ChunkMapSnapshotPayload.create(player,
             ChunkLoaderManager.data(context.getSource().getServer()), true, management));
+        return 1;
+    }
+
+    /** 主页面由客户端按快照渲染，服务端只能发通知让客户端自己去开。 */
+    private static int openMainPage(CommandContext<CommandSourceStack> context, OpenMainPagePayload.View view) {
+        ServerPlayer player = context.getSource().getPlayer();
+        if (player == null) {
+            return failure(context, Component.translatable("commands.fakeplayer.player_only"));
+        }
+        PlatformNetworking.sendToPlayer(player, new OpenMainPagePayload(view));
         return 1;
     }
 
@@ -111,23 +122,6 @@ public final class ChunkLoaderCommand {
         }
         context.getSource().sendSuccess(() -> Component.translatable(
             enabled ? "commands.fakeplayer.chunkloader.enabled" : "commands.fakeplayer.chunkloader.disabled", name), true);
-        return 1;
-    }
-
-    private static int configure(CommandContext<CommandSourceStack> context) {
-        int radius = IntegerArgumentType.getInteger(context, "radius");
-        if (radius > ArchWeaverConfig.maxChunkLoadingRadius()) {
-            return failure(context, Component.translatable("commands.fakeplayer.chunkloader.radius_limit",
-                ArchWeaverConfig.maxChunkLoadingRadius()));
-        }
-        String name = StringArgumentType.getString(context, "anchor");
-        var result = ChunkLoaderManager.configure(context.getSource().getServer(), name, radius);
-        if (!result.successful()) {
-            return failure(context, Component.translatable("commands.fakeplayer.chunkloader.failed", result.reason()));
-        }
-        ManualLoadRegion anchor = result.region().orElseThrow();
-        context.getSource().sendSuccess(() -> Component.translatable("commands.fakeplayer.chunkloader.configured",
-            anchor.name(), radius), true);
         return 1;
     }
 

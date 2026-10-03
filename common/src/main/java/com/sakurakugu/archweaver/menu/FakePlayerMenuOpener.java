@@ -26,10 +26,6 @@ public final class FakePlayerMenuOpener {
     private FakePlayerMenuOpener() {
     }
 
-    public static void openGlobal(ServerPlayer viewer) {
-        openSpawnMenu(viewer);
-    }
-
     public static void openSpawn(ServerPlayer viewer) {
         openSpawnMenu(viewer);
     }

@@ -4,6 +4,7 @@ import com.mojang.serialization.Codec;
 import com.mojang.serialization.DataResult;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import com.sakurakugu.archweaver.ArchWeaverMod;
+import java.nio.charset.StandardCharsets;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -12,6 +13,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.regex.Pattern;
 import net.minecraft.core.UUIDUtil;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.level.saveddata.SavedData;
@@ -23,6 +25,12 @@ public final class ChunkLoaderSavedData extends SavedData {
     public static final int MAX_REGION_CHUNKS = 16384;
     public static final int MAX_POLICIES = 1024;
     public static final int MAX_SIMULATION_DISTANCE = 32;
+    /** 区域名称长度，按字符计。 */
+    public static final int MAX_NAME_LENGTH = 32;
+    /** 区域名称的 UTF-8 字节上限，与网络 writeUtf(name, 32) 允许的 3 倍字节上限一致。 */
+    private static final int MAX_NAME_BYTES = MAX_NAME_LENGTH * 3;
+    /** 允许任意语言的字母和数字，以及下划线和连字符；空格和符号不参与名称。 */
+    private static final Pattern NAME_PATTERN = Pattern.compile("[\\p{L}\\p{N}_-]{1," + MAX_NAME_LENGTH + "}");
 
     private static final Codec<Set<Long>> CHUNKS_CODEC = Codec.LONG.listOf(1, MAX_REGION_CHUNKS)
         .flatXmap(ChunkLoaderSavedData::uniqueChunks, chunks -> DataResult.success(List.copyOf(chunks)));
@@ -167,8 +175,17 @@ public final class ChunkLoaderSavedData extends SavedData {
         setDirty();
     }
 
+    /**
+     * 区域名称是否合法：1-32 个字符，允许任意语言的字母、数字、下划线和连字符，
+     * 且 UTF-8 编码不超过网络写入上限。
+     */
+    public static boolean isValidName(String name) {
+        return name != null && NAME_PATTERN.matcher(name).matches()
+            && name.getBytes(StandardCharsets.UTF_8).length <= MAX_NAME_BYTES;
+    }
+
     private static DataResult<String> validateName(String name) {
-        return name.matches("[A-Za-z0-9_-]{1,32}")
+        return isValidName(name)
             ? DataResult.success(name)
             : DataResult.error(() -> "非法区域名称");
     }

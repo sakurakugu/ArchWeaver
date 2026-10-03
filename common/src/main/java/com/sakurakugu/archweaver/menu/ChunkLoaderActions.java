@@ -1,7 +1,6 @@
 package com.sakurakugu.archweaver.menu;
 
 import com.sakurakugu.archweaver.chunkloading.ChunkLoaderManager;
-import com.sakurakugu.archweaver.config.ArchWeaverConfig;
 import com.sakurakugu.archweaver.network.ChunkLoaderActionPayload;
 import net.minecraft.network.chat.Component;
 import com.sakurakugu.archweaver.platform.PlatformNetworking;
@@ -15,8 +14,7 @@ public final class ChunkLoaderActions {
 
     public static void handle(ServerPlayer viewer, ChunkLoaderActionPayload payload) {
         ChunkLoaderManager.Result result = switch (payload.action()) {
-            case ADD -> add(viewer, payload);
-            case CONFIGURE -> configure(viewer, payload);
+            case RENAME -> ChunkLoaderManager.rename(server(viewer), payload.name(), payload.newName());
             case ENABLE -> ChunkLoaderManager.setEnabled(server(viewer), payload.name(), true);
             case DISABLE -> ChunkLoaderManager.setEnabled(server(viewer), payload.name(), false);
             case REMOVE -> ChunkLoaderManager.remove(server(viewer), payload.name());
@@ -34,27 +32,6 @@ public final class ChunkLoaderActions {
         }
         PlatformNetworking.sendToPlayer(viewer, ChunkMapSnapshotPayload.create(viewer,
             ChunkLoaderManager.data(server(viewer)), false, false));
-    }
-
-    private static ChunkLoaderManager.Result add(ServerPlayer viewer, ChunkLoaderActionPayload payload) {
-        ChunkLoaderManager.Result validation = validateRadius(payload.radius());
-        return validation == null
-            ? ChunkLoaderManager.add(server(viewer), payload.name(), viewer.level(), viewer.blockPosition(),
-                payload.radius())
-            : validation;
-    }
-
-    private static ChunkLoaderManager.Result configure(ServerPlayer viewer, ChunkLoaderActionPayload payload) {
-        ChunkLoaderManager.Result validation = validateRadius(payload.radius());
-        return validation == null
-            ? ChunkLoaderManager.configure(server(viewer), payload.name(), payload.radius())
-            : validation;
-    }
-
-    private static ChunkLoaderManager.Result validateRadius(int radius) {
-        return radius >= 0 && radius <= ArchWeaverConfig.maxChunkLoadingRadius()
-            ? null
-            : ChunkLoaderManager.Result.failure("半径必须在 0-" + ArchWeaverConfig.maxChunkLoadingRadius() + " 之间");
     }
 
     private static net.minecraft.server.MinecraftServer server(ServerPlayer viewer) {

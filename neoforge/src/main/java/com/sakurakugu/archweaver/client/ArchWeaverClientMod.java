@@ -6,6 +6,7 @@ import com.sakurakugu.archweaver.network.PossessionStatePayload;
 import com.sakurakugu.archweaver.network.StopPossessionPayload;
 import com.sakurakugu.archweaver.network.ChunkMapSnapshotPayload;
 import com.sakurakugu.archweaver.network.BodyRotationPayload;
+import com.sakurakugu.archweaver.network.OpenMainPagePayload;
 import com.sakurakugu.archweaver.client.chunkloading.ClientChunkLoadingState;
 import com.sakurakugu.archweaver.client.chunkloading.ChunkLoadingDebugEntry;
 import com.sakurakugu.archweaver.client.chunkloading.ChunkMapClientConfig;
@@ -87,10 +88,18 @@ public final class ArchWeaverClientMod {
     private static void registerClientPayloads(RegisterClientPayloadHandlersEvent event) {
         event.register(ChunkMapSnapshotPayload.TYPE,
             (payload, context) -> ClientChunkLoadingState.accept(payload));
+        event.register(OpenMainPagePayload.TYPE,
+            (payload, context) -> ClientChunkLoadingState.openMainScreen(mainViewOf(payload.view())));
         event.register(PossessionStatePayload.TYPE,
             (payload, context) -> ClientPossession.accept(payload));
         event.register(BodyRotationPayload.TYPE,
             (payload, context) -> ClientBodyRotation.accept(payload));
+    }
+
+    /** 网络包里的页面枚举措意与客户端界面类型解耦，在这里做一次映射。 */
+    private static MainPageScreen.View mainViewOf(OpenMainPagePayload.View view) {
+        return view == OpenMainPagePayload.View.MAP
+            ? MainPageScreen.View.MAP : MainPageScreen.View.FAKE_PLAYERS;
     }
 
     private static void trackScreenOpening(ScreenEvent.Opening event) {

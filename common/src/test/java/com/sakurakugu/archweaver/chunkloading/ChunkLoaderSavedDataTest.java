@@ -84,6 +84,33 @@ class ChunkLoaderSavedDataTest {
     }
 
     @Test
+    void acceptsUnicodeNamesWithinNetworkLimits() {
+        assertTrue(ChunkLoaderSavedData.isValidName("Spawn"));
+        assertTrue(ChunkLoaderSavedData.isValidName("spawn-2_A"));
+        assertTrue(ChunkLoaderSavedData.isValidName("主城"));
+        assertTrue(ChunkLoaderSavedData.isValidName("刷铁机-1"));
+        assertTrue(ChunkLoaderSavedData.isValidName("жStation"));
+        assertTrue(ChunkLoaderSavedData.isValidName("あ".repeat(ChunkLoaderSavedData.MAX_NAME_LENGTH)));
+
+        assertFalse(ChunkLoaderSavedData.isValidName(""));
+        assertFalse(ChunkLoaderSavedData.isValidName("has space"));
+        assertFalse(ChunkLoaderSavedData.isValidName("emoji😀"));
+        assertFalse(ChunkLoaderSavedData.isValidName("slash/name"));
+        assertFalse(ChunkLoaderSavedData.isValidName("称".repeat(ChunkLoaderSavedData.MAX_NAME_LENGTH + 1)));
+        // 4 字节字符按 32 个字符编码后超过网络写入的 96 字节上限，必须提前拒绝而不是编码时抛异常。
+        assertFalse(ChunkLoaderSavedData.isValidName("𠀋".repeat(ChunkLoaderSavedData.MAX_NAME_LENGTH)));
+    }
+
+    @Test
+    void codecRoundTripsUnicodeRegionNames() {
+        ChunkLoaderSavedData original = new ChunkLoaderSavedData();
+        original.addRegion(region("主城-东区"));
+        var json = ChunkLoaderSavedData.CODEC.encodeStart(JsonOps.INSTANCE, original).getOrThrow();
+        ChunkLoaderSavedData decoded = ChunkLoaderSavedData.CODEC.parse(JsonOps.INSTANCE, json).getOrThrow();
+        assertEquals("主城-东区", decoded.regions().iterator().next().name());
+    }
+
+    @Test
     void codecRejectsUnknownArchWeaverMode() {
         ChunkLoaderSavedData original = new ChunkLoaderSavedData();
         original.putPolicy(new FakePlayerLoadPolicy(UUID.randomUUID(), FakePlayerLoadMode.DOLL, 4));

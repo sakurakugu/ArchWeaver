@@ -13,6 +13,8 @@ import net.minecraft.client.multiplayer.ClientLevel;
 public final class ClientChunkLoadingState {
     private static ChunkMapSnapshotPayload snapshot;
     private static boolean mainScreenPending;
+    /** 等待快照期间要打开的主页面视图，只在 {@link #mainScreenPending} 为真时有意义。 */
+    private static MainPageScreen.View pendingMainView = MainPageScreen.View.FAKE_PLAYERS;
     private static MapReturnTarget mapReturnTarget = MapReturnTarget.CLOSE;
     private static ClientLevel terrainLevel;
     private static ChunkTerrainAtlas terrainAtlas;
@@ -44,7 +46,9 @@ public final class ClientChunkLoadingState {
             }
         } else if (mainScreenPending) {
             mainScreenPending = false;
-            Minecraft.getInstance().setScreen(new MainPageScreen(effective));
+            MainPageScreen.View view = pendingMainView;
+            pendingMainView = MainPageScreen.View.FAKE_PLAYERS;
+            Minecraft.getInstance().setScreen(new MainPageScreen(effective, view));
         } else if (Minecraft.getInstance().screen instanceof ChunkMapScreen screen) {
             screen.update(effective);
         } else if (Minecraft.getInstance().screen instanceof MainPageScreen screen) {
@@ -87,13 +91,22 @@ public final class ClientChunkLoadingState {
         return snapshot;
     }
 
-    /** 打开总览页；没有服务端快照时先请求一次，再由快照回调完成打开。 */
+    /**
+     * 打开总览页并回到上次停留的页面；
+     * 没有服务端快照时先请求一次，再由快照回调完成打开。
+     */
     public static void openMainScreen() {
+        openMainScreen(MainPageScreen.fromIndex(ChunkMapClientConfig.mainPageView()));
+    }
+
+    /** 打开总览页并指定进入时显示的页面。 */
+    public static void openMainScreen(MainPageScreen.View view) {
         if (snapshot != null) {
             mainScreenPending = false;
-            Minecraft.getInstance().setScreen(new MainPageScreen(snapshot));
+            Minecraft.getInstance().setScreen(new MainPageScreen(snapshot, view));
             return;
         }
+        pendingMainView = view;
         mainScreenPending = true;
         com.sakurakugu.archweaver.platform.PlatformNetworking.sendToServer(request(false, false, false));
     }
@@ -112,6 +125,7 @@ public final class ClientChunkLoadingState {
     public static void clear() {
         snapshot = null;
         mainScreenPending = false;
+        pendingMainView = MainPageScreen.View.FAKE_PLAYERS;
         mapReturnTarget = MapReturnTarget.CLOSE;
         ClientScreenNavigation.clear();
         ClientGlobalSettings.clear();

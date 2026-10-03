@@ -94,6 +94,14 @@ public enum PixelGlyph {
             graphics.fill(x + 3, y + 10, x + 8, y + 11, color);
         }
     },
+    ADD(12, 12) { // 加号图标：一条竖杠加两条横臂，宽高均 12。
+        @Override
+        protected void draw(GuiGraphicsExtractor graphics, int x, int y, int color) {
+            graphics.fill(x + 5, y + 1, x + 7, y + 11, color);
+            graphics.fill(x + 1, y + 5, x + 5, y + 7, color);
+            graphics.fill(x + 7, y + 5, x + 11, y + 7, color);
+        }
+    },
     CLOSE(10, 12) { // 关闭图标：两条交叉线组成的叉号，宽 10 高 12。
         @Override
         protected void draw(GuiGraphicsExtractor graphics, int x, int y, int color) {

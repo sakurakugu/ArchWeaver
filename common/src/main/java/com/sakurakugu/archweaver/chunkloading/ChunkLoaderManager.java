@@ -18,6 +18,8 @@ import net.minecraft.world.level.Level;
 /** 区块加载应用服务门面，统一负责校验、预算、票据事务和持久化。 */
 public final class ChunkLoaderManager {
     public static final int ABSOLUTE_MAX_RADIUS = 32;
+    private static final String INVALID_NAME_MESSAGE =
+        "名称只能包含 1-32 个字母、数字、下划线或连字符（支持中文）";
     private static final ChunkLoadRepository REPOSITORY = new ChunkLoadRepository();
     private static ChunkTicketService tickets = new UnavailableChunkTicketService();
 
@@ -58,8 +60,8 @@ public final class ChunkLoaderManager {
     /** 兼容现有命令：以命令位置为中心创建方形区域。 */
     public static Result add(MinecraftServer server, String name, ServerLevel level, BlockPos position,
                              int radius) {
-        if (!name.matches("[A-Za-z0-9_-]{1,32}")) {
-            return Result.failure("名称只能包含 1-32 个字母、数字、下划线或连字符");
+        if (!ChunkLoaderSavedData.isValidName(name)) {
+            return Result.failure(INVALID_NAME_MESSAGE);
         }
         if (radius < 0 || radius > ArchWeaverConfig.maxChunkLoadingRadius()) {
             return Result.failure("半径必须在 0-" + ArchWeaverConfig.maxChunkLoadingRadius() + " 之间");
@@ -67,6 +69,20 @@ public final class ChunkLoaderManager {
         ManualLoadRegion region = new ManualLoadRegion(UUID.randomUUID(), name, level.dimension().identifier(),
             ChunkLoadPlanner.square(position.getX() >> 4, position.getZ() >> 4, radius), true);
         return createRegion(server, region);
+    }
+
+    /** 重命名加载区域：形状、维度、启停状态和已提交的票据都不变。 */
+    public static Result rename(MinecraftServer server, String name, String newName) {
+        ManualLoadRegion region = data(server).region(name).orElse(null);
+        if (region == null) return Result.failure("找不到加载区域");
+        if (!ChunkLoaderSavedData.isValidName(newName)) {
+            return Result.failure(INVALID_NAME_MESSAGE);
+        }
+        if (newName.equals(region.name())) return Result.success(region);
+        ManualLoadRegion existing = data(server).region(newName).orElse(null);
+        if (existing != null && !existing.id().equals(region.id())) return Result.failure("同名加载区域已存在");
+        return replace(server, region, new ManualLoadRegion(
+            region.id(), newName, region.dimension(), region.chunks(), region.enabled()));
     }
 
     public static Result createRegion(MinecraftServer server, ManualLoadRegion region) {
@@ -110,22 +126,6 @@ public final class ChunkLoaderManager {
             rollback(level, claims(region), !enabled);
             return Result.failure(exception.getMessage());
         }
-    }
-
-    public static Result configure(MinecraftServer server, String name, int radius) {
-        ManualLoadRegion region = data(server).region(name).orElse(null);
-        if (region == null) return Result.failure("找不到加载区域");
-        if (radius < 0 || radius > ArchWeaverConfig.maxChunkLoadingRadius()) return Result.failure("半径超出限制");
-        int minX = region.chunks().stream().mapToInt(ChunkKey::x).min().orElse(0);
-        int maxX = region.chunks().stream().mapToInt(ChunkKey::x).max().orElse(0);
-        int minZ = region.chunks().stream().mapToInt(ChunkKey::z).min().orElse(0);
-        int maxZ = region.chunks().stream().mapToInt(ChunkKey::z).max().orElse(0);
-        int centerX = Math.toIntExact(Math.floorDiv((long) minX + maxX, 2L));
-        int centerZ = Math.toIntExact(Math.floorDiv((long) minZ + maxZ, 2L));
-        ManualLoadRegion changed = new ManualLoadRegion(region.id(), region.name(), region.dimension(),
-            ChunkLoadPlanner.square(centerX, centerZ, radius),
-            region.enabled());
-        return replace(server, region, changed);
     }
 
     public static Result replace(MinecraftServer server, ManualLoadRegion oldRegion, ManualLoadRegion changed) {
@@ -198,7 +198,7 @@ public final class ChunkLoaderManager {
 
     private static String validate(MinecraftServer server, ChunkLoaderSavedData current, ManualLoadRegion replacement) {
         if (replacement.chunks().isEmpty() || replacement.chunks().size() > ChunkLoaderSavedData.MAX_REGION_CHUNKS) return "区域区块数量非法";
-        if (!replacement.name().matches("[A-Za-z0-9_-]{1,32}")) return "区域名称非法";
+        if (!ChunkLoaderSavedData.isValidName(replacement.name())) return "区域名称非法";
         if (level(server, replacement) == null) return "目标维度不存在";
         Collection<ManualLoadRegion> candidates = new ArrayList<>(current.regions());
         candidates.removeIf(region -> region.id().equals(replacement.id()));

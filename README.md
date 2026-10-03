@@ -232,6 +232,8 @@ Neoforge 高版本没有类似 Carpet 的假人 mod，还有做生电机器时�
 `/execute in ... positioned ... run ...` 在任意维度和坐标创建。半径 `0` 只包含中心区块，半径 `r`
 包含 `(2r+1)^2` 个区块。内置地图还可以通过画笔创建非矩形区域。
 
+> 当前加载时机是在世界创建后，末影珍珠加载之前
+
 - `/chunkloader`：打开区块加载地图。
 - `/chunkloader list`：打开地图内的手动加载区域管理视图。
 - `/chunkloader backup`：立即创建一份区块加载配置 JSON 备份。
@@ -240,7 +242,6 @@ Neoforge 高版本没有类似 Carpet 的假人 mod，还有做生电机器时�
 - `/chunkloader add <名称> <半径>`：在当前位置创建并启用一个方形强加载区域。
 - `/chunkloader disable <名称>`：撤销该区域的票据，但保留配置。
 - `/chunkloader enable <名称>`：根据已保存配置重新添加票据。
-- `/chunkloader configure <名称> <半径>`：更改方形范围。
 - `/chunkloader remove <名称>`：撤销票据并删除区域配置。
 - `/chunkloader fake <假人> info`：查看该假人的模拟加载状态和距离。
 - `/chunkloader fake <假人> mode player`：切换为玩家模式，使用原版玩家的加载与刷怪语义。

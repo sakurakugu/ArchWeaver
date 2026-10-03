@@ -7,7 +7,7 @@ import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.Identifier;
 
 /** 提交区块加载点管理界面的操作。 */
-public record ChunkLoaderActionPayload(Action action, String name, int radius)
+public record ChunkLoaderActionPayload(Action action, String name, String newName)
     implements CustomPacketPayload {
     public static final Type<ChunkLoaderActionPayload> TYPE = new Type<>(
         Identifier.fromNamespaceAndPath(ArchWeaverMod.MOD_ID, "chunk_loader_action")
@@ -15,14 +15,19 @@ public record ChunkLoaderActionPayload(Action action, String name, int radius)
     public static final StreamCodec<RegistryFriendlyByteBuf, ChunkLoaderActionPayload> STREAM_CODEC =
         CustomPacketPayload.codec(ChunkLoaderActionPayload::write, ChunkLoaderActionPayload::new);
 
+    /** 不需要附加名称的操作（启停、删除、备份、恢复）。 */
+    public ChunkLoaderActionPayload(Action action, String name) {
+        this(action, name, "");
+    }
+
     private ChunkLoaderActionPayload(RegistryFriendlyByteBuf buffer) {
-        this(buffer.readEnum(Action.class), buffer.readUtf(32), buffer.readVarInt());
+        this(buffer.readEnum(Action.class), buffer.readUtf(32), buffer.readUtf(32));
     }
 
     private void write(RegistryFriendlyByteBuf buffer) {
         buffer.writeEnum(action);
         buffer.writeUtf(name, 32);
-        buffer.writeVarInt(radius);
+        buffer.writeUtf(newName, 32);
     }
 
     @Override
@@ -31,6 +36,6 @@ public record ChunkLoaderActionPayload(Action action, String name, int radius)
     }
 
     public enum Action {
-        ADD, CONFIGURE, ENABLE, DISABLE, REMOVE, BACKUP, RESTORE
+        RENAME, ENABLE, DISABLE, REMOVE, BACKUP, RESTORE
     }
 }
