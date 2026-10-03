@@ -5,14 +5,12 @@ import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
 import com.sakurakugu.archweaver.entity.FakePlayerManager;
-import com.sakurakugu.archweaver.entity.FakePlayerPossession;
-import com.sakurakugu.archweaver.entity.FakeServerPlayer;
-import com.sakurakugu.archweaver.persistence.FakePlayerPersistence;
 import com.sakurakugu.archweaver.persistence.FakePlayerSavedData;
+import com.sakurakugu.archweaver.persistence.FakePlayerPersistence;
 import com.sakurakugu.archweaver.persistence.FakePlayerSavedData.Group;
-import com.sakurakugu.archweaver.persistence.FakePlayerSavedData.PlayerSnapshot;
 import com.sakurakugu.archweaver.persistence.FakePlayerSavedData.Preset;
 import com.sakurakugu.archweaver.menu.FakePlayerMenuOpener;
+import com.sakurakugu.archweaver.preset.PresetService;
 import java.util.Comparator;
 import java.util.List;
 import net.minecraft.ChatFormatting;
@@ -89,15 +87,11 @@ public final class PresetCommand {
     private static int savePreset(CommandContext<CommandSourceStack> context, String description) {
         String id = StringArgumentType.getString(context, "preset");
         String playerName = StringArgumentType.getString(context, "player");
-        FakeServerPlayer fake = FakePlayerManager.find(context.getSource().getServer(), playerName);
-        if (fake == null) {
-            return failure(context, "commands.fakeplayer.not_found", playerName);
+        PresetService.Result result = PresetService.savePreset(
+            context.getSource().getServer(), id, playerName, description);
+        if (!result.successful()) {
+            return failure(context, result.failureKey(), result.failureArguments());
         }
-        if (FakePlayerPossession.isPossessed(fake)) {
-            return failure(context, "gui.fakeplayer.possess_locked");
-        }
-        FakePlayerSavedData data = data(context);
-        data.putPreset(new Preset(id, description, PlayerSnapshot.from(fake, true)));
         context.getSource().sendSuccess(
             () -> Component.translatable("commands.fakeplayer.preset.preset_saved", id, playerName), true);
         return 1;
@@ -138,12 +132,9 @@ public final class PresetCommand {
     private static int loadPreset(CommandContext<CommandSourceStack> context) {
         String id = StringArgumentType.getString(context, "preset");
         Preset preset = data(context).preset(id).orElse(null);
-        if (preset == null) {
-            return failure(context, "commands.fakeplayer.preset.preset_not_found", id);
-        }
-        var result = FakePlayerPersistence.loadPreset(context.getSource().getServer(), preset);
+        PresetService.Result result = PresetService.loadPreset(context.getSource().getServer(), id);
         if (!result.successful()) {
-            return failure(context, "commands.fakeplayer.preset.load_failed", id, result.reason());
+            return failure(context, result.failureKey(), result.failureArguments());
         }
         context.getSource().sendSuccess(
             () -> Component.translatable("commands.fakeplayer.preset.preset_loaded", id, preset.player().name()), true);
@@ -152,8 +143,9 @@ public final class PresetCommand {
 
     private static int removePreset(CommandContext<CommandSourceStack> context) {
         String id = StringArgumentType.getString(context, "preset");
-        if (!data(context).removePreset(id)) {
-            return failure(context, "commands.fakeplayer.preset.preset_not_found", id);
+        PresetService.Result result = PresetService.removePreset(context.getSource().getServer(), id);
+        if (!result.successful()) {
+            return failure(context, result.failureKey(), result.failureArguments());
         }
         context.getSource().sendSuccess(
             () -> Component.translatable("commands.fakeplayer.preset.preset_removed", id), true);
@@ -162,8 +154,9 @@ public final class PresetCommand {
 
     private static int createGroup(CommandContext<CommandSourceStack> context) {
         String id = StringArgumentType.getString(context, "group");
-        if (!data(context).createGroup(id)) {
-            return failure(context, "commands.fakeplayer.preset.group_exists", id);
+        PresetService.Result result = PresetService.createGroup(context.getSource().getServer(), id);
+        if (!result.successful()) {
+            return failure(context, result.failureKey(), result.failureArguments());
         }
         context.getSource().sendSuccess(
             () -> Component.translatable("commands.fakeplayer.preset.group_created", id), true);
@@ -207,8 +200,9 @@ public final class PresetCommand {
 
     private static int removeGroup(CommandContext<CommandSourceStack> context) {
         String id = StringArgumentType.getString(context, "group");
-        if (!data(context).removeGroup(id)) {
-            return failure(context, "commands.fakeplayer.preset.group_not_found", id);
+        PresetService.Result result = PresetService.removeGroup(context.getSource().getServer(), id);
+        if (!result.successful()) {
+            return failure(context, result.failureKey(), result.failureArguments());
         }
         context.getSource().sendSuccess(
             () -> Component.translatable("commands.fakeplayer.preset.group_removed", id), true);
@@ -218,15 +212,9 @@ public final class PresetCommand {
     private static int addToGroup(CommandContext<CommandSourceStack> context) {
         String group = StringArgumentType.getString(context, "group");
         String preset = StringArgumentType.getString(context, "preset");
-        FakePlayerSavedData data = data(context);
-        if (data.group(group).isEmpty()) {
-            return failure(context, "commands.fakeplayer.preset.group_not_found", group);
-        }
-        if (data.preset(preset).isEmpty()) {
-            return failure(context, "commands.fakeplayer.preset.preset_not_found", preset);
-        }
-        if (!data.addToGroup(group, preset)) {
-            return failure(context, "commands.fakeplayer.preset.group_member_exists", preset, group);
+        PresetService.Result result = PresetService.addToGroup(context.getSource().getServer(), group, preset);
+        if (!result.successful()) {
+            return failure(context, result.failureKey(), result.failureArguments());
         }
         context.getSource().sendSuccess(
             () -> Component.translatable("commands.fakeplayer.preset.group_member_added", preset, group), true);
@@ -236,12 +224,9 @@ public final class PresetCommand {
     private static int removeFromGroup(CommandContext<CommandSourceStack> context) {
         String group = StringArgumentType.getString(context, "group");
         String preset = StringArgumentType.getString(context, "preset");
-        FakePlayerSavedData data = data(context);
-        if (data.group(group).isEmpty()) {
-            return failure(context, "commands.fakeplayer.preset.group_not_found", group);
-        }
-        if (!data.removeFromGroup(group, preset)) {
-            return failure(context, "commands.fakeplayer.preset.group_member_not_found", preset, group);
+        PresetService.Result result = PresetService.removeFromGroup(context.getSource().getServer(), group, preset);
+        if (!result.successful()) {
+            return failure(context, result.failureKey(), result.failureArguments());
         }
         context.getSource().sendSuccess(
             () -> Component.translatable("commands.fakeplayer.preset.group_member_removed", preset, group), true);
@@ -250,38 +235,15 @@ public final class PresetCommand {
 
     private static int loadGroup(CommandContext<CommandSourceStack> context, boolean unload) {
         String id = StringArgumentType.getString(context, "group");
-        FakePlayerSavedData data = data(context);
-        Group group = data.group(id).orElse(null);
-        if (group == null) {
+        PresetService.GroupLoadResult result = PresetService.loadGroup(context.getSource().getServer(), id, unload);
+        if (!result.groupFound()) {
             return failure(context, "commands.fakeplayer.preset.group_not_found", id);
         }
-        int succeeded = 0;
-        int failed = 0;
-        for (String presetId : group.presetIds()) {
-            Preset preset = data.preset(presetId).orElse(null);
-            if (preset == null) {
-                failed++;
-                continue;
-            }
-            if (unload) {
-                FakeServerPlayer fake = FakePlayerManager.find(context.getSource().getServer(), preset.player().name());
-                if (fake != null && fake.getUUID().equals(preset.player().uuid())) {
-                    FakePlayerManager.remove(fake);
-                    succeeded++;
-                } else {
-                    failed++;
-                }
-            } else if (FakePlayerPersistence.loadPreset(context.getSource().getServer(), preset).successful()) {
-                succeeded++;
-            } else {
-                failed++;
-            }
-        }
-        int successCount = succeeded;
-        int failureCount = failed;
+        int successCount = result.succeeded();
+        int failureCount = result.failed();
         String key = unload ? "commands.fakeplayer.preset.group_unloaded" : "commands.fakeplayer.preset.group_loaded";
         context.getSource().sendSuccess(() -> Component.translatable(key, id, successCount, failureCount), true);
-        return succeeded;
+        return successCount;
     }
 
     private static int groupInfo(CommandContext<CommandSourceStack> context, int page) {

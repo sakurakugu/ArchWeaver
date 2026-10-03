@@ -6,6 +6,7 @@ import com.sakurakugu.archweaver.client.chunkloading.ChunkMapSettingsScreen;
 import com.sakurakugu.archweaver.client.chunkloading.ClientChunkLoadingState;
 import com.sakurakugu.archweaver.menu.FakePlayerInventoryMenu;
 import com.sakurakugu.archweaver.network.ChunkMapSnapshotPayload;
+import com.sakurakugu.archweaver.network.ChunkMapOpenTarget;
 import com.sakurakugu.archweaver.network.OpenFakePlayerInventoryPayload;
 import com.sakurakugu.archweaver.platform.PlatformNetworking;
 import net.minecraft.client.Minecraft;
@@ -121,7 +122,7 @@ public final class ClientScreenNavigation {
             closingEntry = null;
         } else if (snapshotBackground(minecraft.screen) != null && minecraft.player != null
             && minecraft.getConnection() != null && backgroundRefreshTicks-- <= 0) {
-            PlatformNetworking.sendToServer(ClientChunkLoadingState.request(false, false, false));
+            PlatformNetworking.sendToServer(ClientChunkLoadingState.request(ChunkMapOpenTarget.NONE));
             backgroundRefreshTicks = 10;
         }
     }
@@ -312,7 +313,8 @@ public final class ClientScreenNavigation {
         pendingReturnScreen = returning;
         switch (route.kind()) {
             case MAIN -> ClientChunkLoadingState.openMainScreen();
-            case MAP -> ClientChunkLoadingState.openMap(ClientChunkLoadingState.MapReturnTarget.CLOSE, false, false);
+            case MAP -> ClientChunkLoadingState.openMap(ClientChunkLoadingState.MapReturnTarget.CLOSE,
+                ChunkMapOpenTarget.MAP);
             case INVENTORY -> PlatformNetworking.sendToServer(new OpenFakePlayerInventoryPayload(route.name()));
             case CLOSE -> close();
         }

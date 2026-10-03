@@ -29,7 +29,7 @@ public final class ChunkLoadMapController {
     private int draftVersion;
     private boolean awaitingApply;
     /** 当前维度里属于已启用手动区域的区块（强加载）；按区域列表的对象身份缓存。 */
-    private List<ChunkMapSnapshotPayload.AnchorView> strongSource;
+    private List<ChunkMapSnapshotPayload.RegionView> strongSource;
     private Set<Long> strongChunks = Set.of();
     /** 显示用等级表，同样按对象身份缓存，见 {@link #levels()}。 */
     private Set<Long> levelsSource;
@@ -113,7 +113,7 @@ public final class ChunkLoadMapController {
                 ApplyChunkLoadEditsPayload.Action.CREATE_REGION, UUID.randomUUID(),
                 name, true, 0, List.copyOf(painted)));
         }
-        for (ChunkMapSnapshotPayload.AnchorView region : snapshot.regions()) {
+        for (ChunkMapSnapshotPayload.RegionView region : snapshot.regions()) {
             if (!region.dimension().equals(snapshot.dimension())) continue;
             List<Long> chunks = erased.stream().filter(region.chunks()::contains).toList();
             if (chunks.isEmpty()) continue;
@@ -153,11 +153,11 @@ public final class ChunkLoadMapController {
 
     /** 已启用手动区域包含的区块。区域数据每 10 tick 同步一次但内容极少变，所以按列表对象身份判断。 */
     private Set<Long> strongChunks() {
-        List<ChunkMapSnapshotPayload.AnchorView> regions = snapshot.regions();
+        List<ChunkMapSnapshotPayload.RegionView> regions = snapshot.regions();
         if (regions == strongSource) return strongChunks;
         strongSource = regions;
         Set<Long> values = new HashSet<>();
-        for (ChunkMapSnapshotPayload.AnchorView region : regions) {
+        for (ChunkMapSnapshotPayload.RegionView region : regions) {
             if (region.enabled() && region.dimension().equals(snapshot.dimension())) values.addAll(region.chunks());
         }
         strongChunks = Set.copyOf(values);

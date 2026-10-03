@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.sakurakugu.archweaver.chunkloading.ChunkKey;
+import com.sakurakugu.archweaver.network.ChunkMapOpenTarget;
 import com.sakurakugu.archweaver.network.ChunkMapSnapshotPayload;
 import java.util.List;
 import java.util.Set;
@@ -61,7 +62,7 @@ class ChunkLoadMapControllerTest {
 
     @Test
     void eraseOnlyAcceptsChunksThatBelongToAnEnabledRegion() {
-        var region = new ChunkMapSnapshotPayload.AnchorView(UUID.randomUUID(), "main",
+        var region = new ChunkMapSnapshotPayload.RegionView(UUID.randomUUID(), "main",
             "minecraft:overworld", true, Set.of(ChunkKey.pack(10, 20)));
         var controller = new ChunkLoadMapController(snapshot(1L, List.of(region)));
         controller.setMode(ChunkMapEditMode.EDIT);
@@ -83,7 +84,7 @@ class ChunkLoadMapControllerTest {
 
     @Test
     void togglingTheWeakRangeInvalidatesTheCachedLevels() {
-        var region = new ChunkMapSnapshotPayload.AnchorView(UUID.randomUUID(), "main",
+        var region = new ChunkMapSnapshotPayload.RegionView(UUID.randomUUID(), "main",
             "minecraft:overworld", true, Set.of(ChunkKey.pack(10, 20)));
         var controller = new ChunkLoadMapController(snapshot(1L, List.of(region)));
 
@@ -111,7 +112,7 @@ class ChunkLoadMapControllerTest {
 
     @Test
     void disabledRegionsAreNeitherDrawnNorErasable() {
-        var region = new ChunkMapSnapshotPayload.AnchorView(UUID.randomUUID(), "main",
+        var region = new ChunkMapSnapshotPayload.RegionView(UUID.randomUUID(), "main",
             "minecraft:overworld", false, Set.of(ChunkKey.pack(10, 20)));
         var controller = new ChunkLoadMapController(snapshot(1L, List.of(region)));
         controller.setMode(ChunkMapEditMode.EDIT);
@@ -124,7 +125,7 @@ class ChunkLoadMapControllerTest {
 
     @Test
     void applyWithNothingLeftToSubmitDropsTheDraft() {
-        var region = new ChunkMapSnapshotPayload.AnchorView(UUID.randomUUID(), "main",
+        var region = new ChunkMapSnapshotPayload.RegionView(UUID.randomUUID(), "main",
             "minecraft:overworld", true, Set.of(ChunkKey.pack(10, 20)));
         var controller = new ChunkLoadMapController(snapshot(1L, List.of(region)));
         controller.setMode(ChunkMapEditMode.EDIT);
@@ -183,8 +184,8 @@ class ChunkLoadMapControllerTest {
     }
 
     static ChunkMapSnapshotPayload snapshot(long revision,
-                                            List<ChunkMapSnapshotPayload.AnchorView> regions) {
-        return new ChunkMapSnapshotPayload(false, false, false, 0, 32, revision, false,
+                                            List<ChunkMapSnapshotPayload.RegionView> regions) {
+        return new ChunkMapSnapshotPayload(ChunkMapOpenTarget.NONE, 0, 32, revision, false,
             "minecraft:overworld", 0, 0, regions, List.of(), List.of());
     }
 }

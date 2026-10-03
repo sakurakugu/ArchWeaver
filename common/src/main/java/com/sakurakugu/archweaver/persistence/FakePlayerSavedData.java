@@ -295,10 +295,6 @@ public final class FakePlayerSavedData extends SavedData {
         List<ProfileProperty> profileProperties,
         FakePlayerAutomation.AutomationState automation
     ) {
-        public Resident(UUID uuid, String name, FakePlayerAutomation.AutomationState automation) {
-            this(uuid, name, List.of(), automation);
-        }
-
         public Resident {
             profileProperties = List.copyOf(profileProperties);
         }
@@ -321,16 +317,6 @@ public final class FakePlayerSavedData extends SavedData {
         FakePlayerActions.State actions,
         FakePlayerAutomation.AutomationState automation
     ) {
-        public PlayerSnapshot(
-            UUID uuid,
-            String name,
-            CompoundTag playerData,
-            FakePlayerActions.State actions,
-            FakePlayerAutomation.AutomationState automation
-        ) {
-            this(uuid, name, List.of(), playerData, actions, automation);
-        }
-
         public PlayerSnapshot {
             profileProperties = List.copyOf(profileProperties);
             playerData = playerData.copy();

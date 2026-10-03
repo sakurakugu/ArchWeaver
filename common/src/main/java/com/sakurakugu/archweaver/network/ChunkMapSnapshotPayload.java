@@ -26,9 +26,7 @@ import net.minecraft.world.level.ChunkPos;
  * 应当保留原样（见 {@code ClientChunkLoadingState}）。假人位置与区域摘要始终是最新的。
  */
 public record ChunkMapSnapshotPayload(
-    boolean openScreen,
-    boolean openManagement,
-    boolean openSettings,
+    ChunkMapOpenTarget openTarget,
     int globalSettingsMask,
     int maximumRadius,
     long revision,
@@ -36,7 +34,7 @@ public record ChunkMapSnapshotPayload(
     String dimension,
     int playerChunkX,
     int playerChunkZ,
-    List<AnchorView> regions,
+    List<RegionView> regions,
     List<RegionSummary> managementRegions,
     List<FakePlayerView> fakePlayers
 ) implements CustomPacketPayload {
@@ -57,16 +55,14 @@ public record ChunkMapSnapshotPayload(
     }
 
     private ChunkMapSnapshotPayload(RegistryFriendlyByteBuf buffer) {
-        this(buffer.readBoolean(), buffer.readBoolean(), buffer.readBoolean(), buffer.readVarInt(),
+        this(buffer.readEnum(ChunkMapOpenTarget.class), buffer.readVarInt(),
             buffer.readVarInt(), buffer.readVarLong(), buffer.readBoolean(),
             buffer.readUtf(256), buffer.readInt(), buffer.readInt(),
             readRegions(buffer), readRegionSummaries(buffer), readFakePlayers(buffer));
     }
 
     private void write(RegistryFriendlyByteBuf buffer) {
-        buffer.writeBoolean(openScreen);
-        buffer.writeBoolean(openManagement);
-        buffer.writeBoolean(openSettings);
+        buffer.writeEnum(openTarget);
         buffer.writeVarInt(globalSettingsMask);
         buffer.writeVarInt(maximumRadius);
         buffer.writeVarLong(revision);
@@ -83,15 +79,8 @@ public record ChunkMapSnapshotPayload(
     }
 
     public static ChunkMapSnapshotPayload create(ServerPlayer player, ChunkLoaderSavedData data,
-                                                 boolean openScreen, boolean openManagement) {
-        return create(player, data, openScreen, openManagement, false);
-    }
-
-    public static ChunkMapSnapshotPayload create(ServerPlayer player, ChunkLoaderSavedData data,
-                                                 boolean openScreen, boolean openManagement,
-                                                 boolean openSettings) {
-        return create(player, data, openScreen, openManagement, openSettings,
-            RequestChunkMapPayload.NO_REVISION, null);
+                                                 ChunkMapOpenTarget openTarget) {
+        return create(player, data, openTarget, RequestChunkMapPayload.NO_REVISION, null);
     }
 
     /**
@@ -99,15 +88,14 @@ public record ChunkMapSnapshotPayload(
      * @param knownDimension 该数据对应的维度，为 null 表示按"客户端可能有别的维度"处理
      */
     public static ChunkMapSnapshotPayload create(ServerPlayer player, ChunkLoaderSavedData data,
-                                                 boolean openScreen, boolean openManagement,
-                                                 boolean openSettings, long knownRevision,
-                                                 String knownDimension) {
+                                                 ChunkMapOpenTarget openTarget,
+                                                 long knownRevision, String knownDimension) {
         String dimension = player.level().dimension().identifier().toString();
         boolean regionsUnchanged = canSkipRegions(knownRevision, knownDimension, data.revision(), dimension);
-        List<AnchorView> regionViews = regionsUnchanged ? List.of() : data.regions().stream()
+        List<RegionView> regionViews = regionsUnchanged ? List.of() : data.regions().stream()
             .filter(region -> region.dimension().toString().equals(dimension))
             .limit(MAX_REGIONS)
-            .map(AnchorView::from)
+            .map(RegionView::from)
             .toList();
         List<RegionSummary> summaries = data.regions().stream()
             .limit(MAX_REGIONS)
@@ -130,7 +118,7 @@ public record ChunkMapSnapshotPayload(
                     activeRange == null ? 0 : activeRange.chunkX(), activeRange == null ? 0 : activeRange.chunkZ(),
                     activeRange == null ? 0 : activeRange.distance());
             }).toList();
-        return new ChunkMapSnapshotPayload(openScreen, openManagement, openSettings,
+        return new ChunkMapSnapshotPayload(openTarget,
             com.sakurakugu.archweaver.config.ArchWeaverConfig.globalSettingsMask(),
             com.sakurakugu.archweaver.config.ArchWeaverConfig.maxChunkLoadingRadius(), data.revision(),
             regionsUnchanged, dimension,
@@ -148,17 +136,17 @@ public record ChunkMapSnapshotPayload(
 
     /** 把上一份快照的区域列表套到这份增量快照上，其余字段保持最新。 */
     public ChunkMapSnapshotPayload withPreviousRegions(ChunkMapSnapshotPayload previous) {
-        return new ChunkMapSnapshotPayload(openScreen, openManagement, openSettings, globalSettingsMask,
+        return new ChunkMapSnapshotPayload(openTarget, globalSettingsMask,
             maximumRadius, revision, false, dimension, playerChunkX, playerChunkZ, previous.regions,
             managementRegions, fakePlayers);
     }
 
-    private static List<AnchorView> readRegions(RegistryFriendlyByteBuf buffer) {
+    private static List<RegionView> readRegions(RegistryFriendlyByteBuf buffer) {
         int size = checkedSize(buffer.readVarInt(), MAX_REGIONS, "区域");
-        List<AnchorView> values = new ArrayList<>(size);
+        List<RegionView> values = new ArrayList<>(size);
         int chunks = 0;
         for (int index = 0; index < size; index++) {
-            AnchorView value = new AnchorView(buffer);
+            RegionView value = new RegionView(buffer);
             chunks = Math.addExact(chunks, value.chunks().size());
             if (chunks > MAX_SNAPSHOT_CHUNKS) throw new IllegalArgumentException("快照区块数量超过上限");
             values.add(value);
@@ -188,12 +176,8 @@ public record ChunkMapSnapshotPayload(
     @Override
     public Type<? extends CustomPacketPayload> type() { return TYPE; }
 
-    public List<AnchorView> anchors() {
-        return regions;
-    }
-
-    public record AnchorView(UUID id, String name, String dimension, boolean enabled, Set<Long> chunks) {
-        private AnchorView(RegistryFriendlyByteBuf buffer) {
+    public record RegionView(UUID id, String name, String dimension, boolean enabled, Set<Long> chunks) {
+        private RegionView(RegistryFriendlyByteBuf buffer) {
             this(buffer.readUUID(), buffer.readUtf(32), buffer.readUtf(256),
                 buffer.readBoolean(), readChunks(buffer));
         }
@@ -207,8 +191,8 @@ public record ChunkMapSnapshotPayload(
             chunks.forEach(buffer::writeLong);
         }
 
-        private static AnchorView from(ManualLoadRegion region) {
-            return new AnchorView(region.id(), region.name(), region.dimension().toString(),
+        private static RegionView from(ManualLoadRegion region) {
+            return new RegionView(region.id(), region.name(), region.dimension().toString(),
                 region.enabled(), region.chunks());
         }
 

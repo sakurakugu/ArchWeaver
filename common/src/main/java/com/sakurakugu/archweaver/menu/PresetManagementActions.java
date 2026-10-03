@@ -1,14 +1,8 @@
 package com.sakurakugu.archweaver.menu;
 
-import com.sakurakugu.archweaver.entity.FakePlayerManager;
-import com.sakurakugu.archweaver.entity.FakePlayerPossession;
-import com.sakurakugu.archweaver.entity.FakeServerPlayer;
 import com.sakurakugu.archweaver.network.PresetActionPayload;
 import com.sakurakugu.archweaver.persistence.FakePlayerPersistence;
-import com.sakurakugu.archweaver.persistence.FakePlayerSavedData;
-import com.sakurakugu.archweaver.persistence.FakePlayerSavedData.Group;
-import com.sakurakugu.archweaver.persistence.FakePlayerSavedData.PlayerSnapshot;
-import com.sakurakugu.archweaver.persistence.FakePlayerSavedData.Preset;
+import com.sakurakugu.archweaver.preset.PresetService;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 
@@ -37,135 +31,62 @@ public final class PresetManagementActions {
     }
 
     private static void savePreset(ServerPlayer viewer, String id, String playerName, String description) {
-        if (!validId(id)) {
-            failure(viewer, "gui.fakeplayer.preset.invalid_id");
-            return;
-        }
-        FakeServerPlayer fake = FakePlayerManager.find(viewer.level().getServer(), playerName);
-        if (fake == null) {
-            failure(viewer, "commands.fakeplayer.not_found", playerName);
-            return;
-        }
-        if (FakePlayerPossession.isPossessed(fake)) {
-            failure(viewer, "gui.fakeplayer.possess_locked");
-            return;
-        }
-        data(viewer).putPreset(new Preset(id, description, PlayerSnapshot.from(fake, true)));
-        success(viewer, "commands.fakeplayer.preset.preset_saved", id, playerName);
+        report(viewer, PresetService.savePreset(viewer.level().getServer(), id, playerName, description),
+            "commands.fakeplayer.preset.preset_saved", id, playerName);
     }
 
     private static void loadPreset(ServerPlayer viewer, String id) {
-        Preset preset = data(viewer).preset(id).orElse(null);
-        if (preset == null) {
-            failure(viewer, "commands.fakeplayer.preset.preset_not_found", id);
-            return;
-        }
-        var result = FakePlayerPersistence.loadPreset(viewer.level().getServer(), preset);
+        var preset = FakePlayerPersistence.data(viewer.level().getServer())
+            .preset(id).orElse(null);
+        var result = PresetService.loadPreset(viewer.level().getServer(), id);
         if (!result.successful()) {
-            failure(viewer, "commands.fakeplayer.preset.load_failed", id, result.reason());
+            failure(viewer, result.failureKey(), result.failureArguments());
             return;
         }
         success(viewer, "commands.fakeplayer.preset.preset_loaded", id, preset.player().name());
     }
 
     private static void removePreset(ServerPlayer viewer, String id) {
-        if (!data(viewer).removePreset(id)) {
-            failure(viewer, "commands.fakeplayer.preset.preset_not_found", id);
-            return;
-        }
-        success(viewer, "commands.fakeplayer.preset.preset_removed", id);
+        report(viewer, PresetService.removePreset(viewer.level().getServer(), id),
+            "commands.fakeplayer.preset.preset_removed", id);
     }
 
     private static void createGroup(ServerPlayer viewer, String id) {
-        if (!validId(id)) {
-            failure(viewer, "gui.fakeplayer.preset.invalid_id");
-            return;
-        }
-        if (!data(viewer).createGroup(id)) {
-            failure(viewer, "commands.fakeplayer.preset.group_exists", id);
-            return;
-        }
-        success(viewer, "commands.fakeplayer.preset.group_created", id);
+        report(viewer, PresetService.createGroup(viewer.level().getServer(), id),
+            "commands.fakeplayer.preset.group_created", id);
     }
 
     private static void addToGroup(ServerPlayer viewer, String groupId, String presetId) {
-        FakePlayerSavedData data = data(viewer);
-        if (data.group(groupId).isEmpty()) {
-            failure(viewer, "commands.fakeplayer.preset.group_not_found", groupId);
-            return;
-        }
-        if (data.preset(presetId).isEmpty()) {
-            failure(viewer, "commands.fakeplayer.preset.preset_not_found", presetId);
-            return;
-        }
-        if (!data.addToGroup(groupId, presetId)) {
-            failure(viewer, "commands.fakeplayer.preset.group_member_exists", presetId, groupId);
-            return;
-        }
-        success(viewer, "commands.fakeplayer.preset.group_member_added", presetId, groupId);
+        report(viewer, PresetService.addToGroup(viewer.level().getServer(), groupId, presetId),
+            "commands.fakeplayer.preset.group_member_added", presetId, groupId);
     }
 
     private static void removeFromGroup(ServerPlayer viewer, String groupId, String presetId) {
-        FakePlayerSavedData data = data(viewer);
-        if (data.group(groupId).isEmpty()) {
-            failure(viewer, "commands.fakeplayer.preset.group_not_found", groupId);
-            return;
-        }
-        if (!data.removeFromGroup(groupId, presetId)) {
-            failure(viewer, "commands.fakeplayer.preset.group_member_not_found", presetId, groupId);
-            return;
-        }
-        success(viewer, "commands.fakeplayer.preset.group_member_removed", presetId, groupId);
+        report(viewer, PresetService.removeFromGroup(viewer.level().getServer(), groupId, presetId),
+            "commands.fakeplayer.preset.group_member_removed", presetId, groupId);
     }
 
     private static void loadGroup(ServerPlayer viewer, String id, boolean unload) {
-        FakePlayerSavedData data = data(viewer);
-        Group group = data.group(id).orElse(null);
-        if (group == null) {
+        PresetService.GroupLoadResult result = PresetService.loadGroup(viewer.level().getServer(), id, unload);
+        if (!result.groupFound()) {
             failure(viewer, "commands.fakeplayer.preset.group_not_found", id);
             return;
         }
-        int succeeded = 0;
-        int failed = 0;
-        for (String presetId : group.presetIds()) {
-            Preset preset = data.preset(presetId).orElse(null);
-            if (preset == null) {
-                failed++;
-                continue;
-            }
-            if (unload) {
-                FakeServerPlayer fake = FakePlayerManager.find(viewer.level().getServer(), preset.player().name());
-                if (fake != null && fake.getUUID().equals(preset.player().uuid())
-                    && !FakePlayerPossession.isPossessed(fake)) {
-                    FakePlayerManager.remove(fake);
-                    succeeded++;
-                } else {
-                    failed++;
-                }
-            } else if (FakePlayerPersistence.loadPreset(viewer.level().getServer(), preset).successful()) {
-                succeeded++;
-            } else {
-                failed++;
-            }
-        }
         success(viewer, unload ? "commands.fakeplayer.preset.group_unloaded" : "commands.fakeplayer.preset.group_loaded",
-            id, succeeded, failed);
+            id, result.succeeded(), result.failed());
     }
 
     private static void removeGroup(ServerPlayer viewer, String id) {
-        if (!data(viewer).removeGroup(id)) {
-            failure(viewer, "commands.fakeplayer.preset.group_not_found", id);
-            return;
+        report(viewer, PresetService.removeGroup(viewer.level().getServer(), id),
+            "commands.fakeplayer.preset.group_removed", id);
+    }
+
+    private static void report(ServerPlayer viewer, PresetService.Result result, String successKey, Object... successArguments) {
+        if (result.successful()) {
+            success(viewer, successKey, successArguments);
+        } else {
+            failure(viewer, result.failureKey(), result.failureArguments());
         }
-        success(viewer, "commands.fakeplayer.preset.group_removed", id);
-    }
-
-    private static boolean validId(String value) {
-        return !value.isBlank() && value.length() <= 64 && value.chars().noneMatch(Character::isWhitespace);
-    }
-
-    private static FakePlayerSavedData data(ServerPlayer viewer) {
-        return FakePlayerPersistence.data(viewer.level().getServer());
     }
 
     private static void success(ServerPlayer viewer, String key, Object... arguments) {

@@ -1,7 +1,7 @@
 package com.sakurakugu.archweaver.client.chunkloading;
 
 import com.sakurakugu.archweaver.ArchWeaverMod;
-import com.sakurakugu.archweaver.network.ChunkMapSnapshotPayload.AnchorView;
+import com.sakurakugu.archweaver.network.ChunkMapSnapshotPayload.RegionView;
 import java.util.stream.Collectors;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.debug.DebugScreenDisplayer;
@@ -27,9 +27,9 @@ public final class ChunkLoadingDebugEntry implements DebugScreenEntry {
             int chunkX = minecraft.player.chunkPosition().x();
             int chunkZ = minecraft.player.chunkPosition().z();
             String dimension = minecraft.player.level().dimension().identifier().toString();
-            entries = snapshot.anchors().stream()
-                .filter(anchor -> anchor.dimension().equals(dimension))
-                .filter(anchor -> anchor.contains(chunkX, chunkZ))
+            entries = snapshot.regions().stream()
+                .filter(region -> region.dimension().equals(dimension))
+                .filter(region -> region.contains(chunkX, chunkZ))
                 .map(ChunkLoadingDebugEntry::describe)
                 .collect(Collectors.joining("; "));
             boolean loadedByFakePlayer = snapshot.fakePlayers().stream()
@@ -47,9 +47,9 @@ public final class ChunkLoadingDebugEntry implements DebugScreenEntry {
             "f3.fakeplayer.chunkloader.line", status).getString());
     }
 
-    private static String describe(AnchorView anchor) {
-        return Component.translatable("f3.fakeplayer.chunkloader.entry", anchor.name(),
-            anchor.chunks().size(), Component.translatable(
+    private static String describe(RegionView region) {
+        return Component.translatable("f3.fakeplayer.chunkloader.entry", region.name(),
+            region.chunks().size(), Component.translatable(
                 "gui.fakeplayer.chunkloader.level_strong")).getString();
     }
 }

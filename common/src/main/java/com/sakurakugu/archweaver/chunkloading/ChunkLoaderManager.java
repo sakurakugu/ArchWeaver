@@ -57,7 +57,7 @@ public final class ChunkLoaderManager {
         ChunkLoaderBackupStore.save(server, data(server));
     }
 
-    /** 兼容现有命令：以命令位置为中心创建方形区域。 */
+    /** 以指定位置为中心创建方形加载区域，供 {@code /chunkloader add} 使用。 */
     public static Result add(MinecraftServer server, String name, ServerLevel level, BlockPos position,
                              int radius) {
         if (!ChunkLoaderSavedData.isValidName(name)) {

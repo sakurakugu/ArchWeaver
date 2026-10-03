@@ -13,7 +13,7 @@ import net.minecraft.resources.Identifier;
  * 服务端据此判断能否跳过区块列表的序列化（快照里最大的一块）。
  * 客户端没有快照时传 {@link #NO_REVISION} 与空维度。
  */
-public record RequestChunkMapPayload(boolean openScreen, boolean openManagement, boolean openSettings,
+public record RequestChunkMapPayload(ChunkMapOpenTarget openTarget,
                                      long knownRevision, String knownDimension)
     implements CustomPacketPayload {
     /** 客户端还没有任何区域数据。 */
@@ -24,19 +24,17 @@ public record RequestChunkMapPayload(boolean openScreen, boolean openManagement,
     public static final StreamCodec<RegistryFriendlyByteBuf, RequestChunkMapPayload> STREAM_CODEC =
         CustomPacketPayload.codec(RequestChunkMapPayload::write, RequestChunkMapPayload::new);
 
-    public RequestChunkMapPayload(boolean openScreen, boolean openManagement, boolean openSettings) {
-        this(openScreen, openManagement, openSettings, NO_REVISION, "");
+    public RequestChunkMapPayload(ChunkMapOpenTarget openTarget) {
+        this(openTarget, NO_REVISION, "");
     }
 
     private RequestChunkMapPayload(RegistryFriendlyByteBuf buffer) {
-        this(buffer.readBoolean(), buffer.readBoolean(), buffer.readBoolean(),
+        this(buffer.readEnum(ChunkMapOpenTarget.class),
             buffer.readVarLong(), buffer.readUtf(256));
     }
 
     private void write(RegistryFriendlyByteBuf buffer) {
-        buffer.writeBoolean(openScreen);
-        buffer.writeBoolean(openManagement);
-        buffer.writeBoolean(openSettings);
+        buffer.writeEnum(openTarget);
         buffer.writeVarLong(knownRevision);
         buffer.writeUtf(knownDimension, 256);
     }

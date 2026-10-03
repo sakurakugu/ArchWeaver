@@ -76,7 +76,8 @@ class FakePlayerSavedDataTest {
             "MinerBackup",
             "backup",
             new FakePlayerSavedData.PlayerSnapshot(
-                original.uuid(), original.name(), original.playerData(), original.actions(), original.automation())
+                original.uuid(), original.name(), original.profileProperties(), original.playerData(),
+                original.actions(), original.automation())
         );
         FakePlayerSavedData.Preset unrelated = preset("Builder");
         data.putResident(resident(original.uuid(), original.name()));
@@ -218,6 +219,7 @@ class FakePlayerSavedDataTest {
             new FakePlayerSavedData.PlayerSnapshot(
                 UUID.nameUUIDFromBytes(id.getBytes(java.nio.charset.StandardCharsets.UTF_8)),
                 "TestBot",
+                java.util.List.of(),
                 playerData(id),
                 actions,
                 com.sakurakugu.archweaver.automation.FakePlayerAutomation.AutomationState.DEFAULT
@@ -229,6 +231,7 @@ class FakePlayerSavedDataTest {
         return new FakePlayerSavedData.Resident(
             uuid,
             name,
+            java.util.List.of(),
             com.sakurakugu.archweaver.automation.FakePlayerAutomation.AutomationState.DEFAULT
         );
     }

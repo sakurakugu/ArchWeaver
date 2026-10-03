@@ -11,6 +11,7 @@ import com.sakurakugu.archweaver.chunkloading.ManualLoadRegion;
 import com.sakurakugu.archweaver.config.ArchWeaverConfig;
 import com.sakurakugu.archweaver.entity.FakePlayerManager;
 import com.sakurakugu.archweaver.entity.FakeServerPlayer;
+import com.sakurakugu.archweaver.network.ChunkMapOpenTarget;
 import com.sakurakugu.archweaver.network.ChunkMapSnapshotPayload;
 import com.sakurakugu.archweaver.network.OpenMainPagePayload;
 import net.minecraft.commands.CommandSourceStack;
@@ -29,11 +30,11 @@ public final class ChunkLoaderCommand {
     public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
         dispatcher.register(Commands.literal("chunkloader")
             .requires(ArchWeaverConfig::canUseCommands)
-            .executes(context -> openMap(context, false))
-            .then(Commands.literal("list").executes(context -> openMap(context, true)))
+            .executes(context -> openMap(context, ChunkMapOpenTarget.MAP))
+            .then(Commands.literal("list").executes(context -> openMap(context, ChunkMapOpenTarget.MANAGEMENT)))
             .then(Commands.literal("gui")
                 .executes(context -> openMainPage(context, OpenMainPagePayload.View.MAP))
-                .then(Commands.literal("map").executes(context -> openMap(context, false))))
+                .then(Commands.literal("map").executes(context -> openMap(context, ChunkMapOpenTarget.MAP))))
             .then(Commands.literal("backup").executes(ChunkLoaderCommand::backup))
             .then(Commands.literal("restore").then(Commands.literal("confirm")
                 .executes(ChunkLoaderCommand::restore)))
@@ -58,11 +59,11 @@ public final class ChunkLoaderCommand {
             .then(Commands.literal("remove").then(anchorArgument().executes(ChunkLoaderCommand::remove))));
     }
 
-    private static int openMap(CommandContext<CommandSourceStack> context, boolean management)
+    private static int openMap(CommandContext<CommandSourceStack> context, ChunkMapOpenTarget openTarget)
         throws com.mojang.brigadier.exceptions.CommandSyntaxException {
         var player = context.getSource().getPlayerOrException();
         PlatformNetworking.sendToPlayer(player, ChunkMapSnapshotPayload.create(player,
-            ChunkLoaderManager.data(context.getSource().getServer()), true, management));
+            ChunkLoaderManager.data(context.getSource().getServer()), openTarget));
         return 1;
     }
 

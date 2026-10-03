@@ -6,6 +6,7 @@ import com.sakurakugu.archweaver.client.ui.PixelGlyph;
 import com.sakurakugu.archweaver.client.ui.SolidButton;
 import com.sakurakugu.archweaver.client.ui.TitlePanel;
 import com.sakurakugu.archweaver.network.ChunkMapSnapshotPayload;
+import com.sakurakugu.archweaver.network.ChunkMapOpenTarget;
 import com.sakurakugu.archweaver.network.OpenFakePlayerInventoryPayload;
 import com.sakurakugu.archweaver.network.OpenFakePlayerPagePayload;
 import com.sakurakugu.archweaver.network.ToggleGlobalSettingPayload;
@@ -243,11 +244,12 @@ public final class MainPageScreen extends Screen {
     }
 
     private void openMap() {
-        ClientChunkLoadingState.openMap(ClientChunkLoadingState.MapReturnTarget.MAIN, false, false);
+        ClientChunkLoadingState.openMap(ClientChunkLoadingState.MapReturnTarget.MAIN, ChunkMapOpenTarget.MAP);
     }
 
     private void openManagement() {
-        ClientChunkLoadingState.openMap(ClientChunkLoadingState.MapReturnTarget.MAIN, true, false);
+        ClientChunkLoadingState.openMap(ClientChunkLoadingState.MapReturnTarget.MAIN,
+            ChunkMapOpenTarget.MANAGEMENT);
     }
 
     private void openSpawn() {
@@ -275,7 +277,7 @@ public final class MainPageScreen extends Screen {
     }
 
     private void refresh() {
-        PlatformNetworking.sendToServer(ClientChunkLoadingState.request(false, false, false));
+        PlatformNetworking.sendToServer(ClientChunkLoadingState.request(ChunkMapOpenTarget.NONE));
     }
 
     private void toggleSetting(int index) {

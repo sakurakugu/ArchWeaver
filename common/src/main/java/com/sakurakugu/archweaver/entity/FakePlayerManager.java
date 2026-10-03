@@ -8,7 +8,6 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
-import net.minecraft.core.UUIDUtil;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
@@ -23,19 +22,6 @@ import net.minecraft.world.phys.Vec3;
 /** 负责假玩家的创建、查询和移除，并统一维护其玩家列表生命周期。 */
 public final class FakePlayerManager {
     private FakePlayerManager() {
-    }
-
-    public static FakeServerPlayer spawn(
-        MinecraftServer server,
-        ServerLevel level,
-        String name,
-        Vec3 position,
-        Vec2 rotation,
-        GameType gameType,
-        boolean flying
-    ) {
-        return spawn(server, level, new GameProfile(UUIDUtil.createOfflinePlayerUUID(name), name), position, rotation,
-            gameType, flying);
     }
 
     public static FakeServerPlayer spawn(

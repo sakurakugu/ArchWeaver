@@ -59,7 +59,7 @@ public final class ModNetworking {
                     && ArchWeaverConfig.canUseCommands(player.createCommandSourceStack())
                     && ArchWeaverConfig.toggleGlobalSetting(payload.settingIndex())) {
                     PacketDistributor.sendToPlayer(player, ChunkMapSnapshotPayload.create(player,
-                        ChunkLoaderManager.data(player.level().getServer()), false, false));
+                        ChunkLoaderManager.data(player.level().getServer()), ChunkMapOpenTarget.NONE));
                 }
             }
         );
@@ -145,7 +145,7 @@ public final class ModNetworking {
                     var result = ChunkLoadApplicationService.apply(player, payload);
                     if (!result.successful()) player.sendSystemMessage(net.minecraft.network.chat.Component.literal(result.reason()));
                     PacketDistributor.sendToPlayer(player, ChunkMapSnapshotPayload.create(player,
-                        ChunkLoaderManager.data(player.level().getServer()), false, false));
+                        ChunkLoaderManager.data(player.level().getServer()), ChunkMapOpenTarget.NONE));
                 }
             }
         );
@@ -158,7 +158,7 @@ public final class ModNetworking {
                     var data = ChunkLoaderManager.data(player.level().getServer());
                     PacketDistributor.sendToPlayer(player,
                         ChunkMapSnapshotPayload.create(player, data,
-                            payload.openScreen(), payload.openManagement(), payload.openSettings(),
+                            payload.openTarget(),
                             payload.knownRevision(), payload.knownDimension()));
                 }
             }

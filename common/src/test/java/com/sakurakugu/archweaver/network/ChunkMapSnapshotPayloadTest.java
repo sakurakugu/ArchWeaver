@@ -36,7 +36,7 @@ class ChunkMapSnapshotPayloadTest {
     @Test
     void skippingRegionsKeepsThePreviousChunkLists() {
         var chunk = ChunkKey.pack(4, -9);
-        var region = new ChunkMapSnapshotPayload.AnchorView(UUID.randomUUID(), "main",
+        var region = new ChunkMapSnapshotPayload.RegionView(UUID.randomUUID(), "main",
             "minecraft:overworld", true, Set.of(chunk));
         var previous = payload(3L, List.of(region));
         // 服务端说区域没变时列表是空的，客户端得把上一份拼回去
@@ -51,8 +51,8 @@ class ChunkMapSnapshotPayloadTest {
     }
 
     private static ChunkMapSnapshotPayload payload(long revision,
-                                                   List<ChunkMapSnapshotPayload.AnchorView> regions) {
-        return new ChunkMapSnapshotPayload(false, false, false, 0, 32, revision, true,
+                                                   List<ChunkMapSnapshotPayload.RegionView> regions) {
+        return new ChunkMapSnapshotPayload(ChunkMapOpenTarget.NONE, 0, 32, revision, true,
             "minecraft:overworld", 12, -3, regions, List.of(), List.of());
     }
 

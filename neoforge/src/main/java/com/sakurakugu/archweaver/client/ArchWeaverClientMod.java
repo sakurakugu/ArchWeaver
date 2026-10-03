@@ -4,6 +4,7 @@ import com.mojang.blaze3d.platform.InputConstants;
 import com.sakurakugu.archweaver.ArchWeaverMod;
 import com.sakurakugu.archweaver.network.PossessionStatePayload;
 import com.sakurakugu.archweaver.network.StopPossessionPayload;
+import com.sakurakugu.archweaver.network.ChunkMapOpenTarget;
 import com.sakurakugu.archweaver.network.ChunkMapSnapshotPayload;
 import com.sakurakugu.archweaver.network.BodyRotationPayload;
 import com.sakurakugu.archweaver.network.OpenMainPagePayload;
@@ -123,7 +124,8 @@ public final class ArchWeaverClientMod {
         }
         while (OPEN_CHUNK_MAP.consumeClick()) {
             if (minecraft.player != null && minecraft.screen == null) {
-                ClientChunkLoadingState.openMap(ClientChunkLoadingState.MapReturnTarget.CLOSE, false, false);
+                ClientChunkLoadingState.openMap(ClientChunkLoadingState.MapReturnTarget.CLOSE,
+                    ChunkMapOpenTarget.MAP);
             }
         }
         while (OPEN_MAIN_PAGE.consumeClick()) {
@@ -137,7 +139,7 @@ public final class ArchWeaverClientMod {
         } else if (!minecraft.debugEntries.isOverlayVisible()) {
             refreshTicks = 0;
         } else if (refreshTicks-- <= 0) {
-            PlatformNetworking.sendToServer(ClientChunkLoadingState.request(false, false, false));
+            PlatformNetworking.sendToServer(ClientChunkLoadingState.request(ChunkMapOpenTarget.NONE));
             refreshTicks = 40;
         }
     }

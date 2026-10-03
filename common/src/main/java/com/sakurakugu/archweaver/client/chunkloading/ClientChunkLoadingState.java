@@ -5,6 +5,7 @@ import com.sakurakugu.archweaver.client.ClientScreenNavigation;
 import com.sakurakugu.archweaver.client.MainPageScreen;
 import com.sakurakugu.archweaver.config.ArchWeaverConfig;
 import com.sakurakugu.archweaver.network.ChunkMapSnapshotPayload;
+import com.sakurakugu.archweaver.network.ChunkMapOpenTarget;
 import com.sakurakugu.archweaver.network.RequestChunkMapPayload;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
@@ -35,12 +36,12 @@ public final class ClientChunkLoadingState {
         int transferSetting = ArchWeaverConfig.GlobalSetting.CONTAINER_TRANSFER_BUTTONS.ordinal();
         ClientGlobalSettings.setContainerTransferButtons(
             (value.globalSettingsMask() & (1 << transferSetting)) != 0);
-        if (value.openScreen()) {
+        if (value.openTarget() != ChunkMapOpenTarget.NONE) {
             mainScreenPending = false;
             MapReturnTarget returnTarget = mapReturnTarget;
             mapReturnTarget = MapReturnTarget.CLOSE;
-            if (value.openManagement() || value.openSettings()) {
-                ChunkMapScreen.openPanel(effective, value.openManagement(), value.openSettings());
+            if (value.openTarget() != ChunkMapOpenTarget.MAP) {
+                ChunkMapScreen.openPanel(effective, value.openTarget());
             } else {
                 Minecraft.getInstance().setScreen(new ChunkMapScreen(effective, returnTarget));
             }
@@ -59,20 +60,18 @@ public final class ClientChunkLoadingState {
     }
 
     /** 按已知快照构造请求，让服务端能跳过区块列表。 */
-    public static RequestChunkMapPayload request(boolean openScreen, boolean openManagement,
-                                                 boolean openSettings) {
+    public static RequestChunkMapPayload request(ChunkMapOpenTarget openTarget) {
         ChunkMapSnapshotPayload known = snapshot;
         return known == null
-            ? new RequestChunkMapPayload(openScreen, openManagement, openSettings)
-            : new RequestChunkMapPayload(openScreen, openManagement, openSettings,
+            ? new RequestChunkMapPayload(openTarget)
+            : new RequestChunkMapPayload(openTarget,
                 known.revision(), known.dimension());
     }
 
     /** 从指定页面打开地图，返回键和 Esc 会回到该页面。 */
-    public static void openMap(MapReturnTarget returnTarget, boolean management, boolean settings) {
+    public static void openMap(MapReturnTarget returnTarget, ChunkMapOpenTarget openTarget) {
         mapReturnTarget = returnTarget;
-        com.sakurakugu.archweaver.platform.PlatformNetworking.sendToServer(
-            request(true, management, settings));
+        com.sakurakugu.archweaver.platform.PlatformNetworking.sendToServer(request(openTarget));
     }
 
     /** 从地图页面返回进入地图前的页面。关闭按钮不调用此方法。 */
@@ -108,7 +107,7 @@ public final class ClientChunkLoadingState {
         }
         pendingMainView = view;
         mainScreenPending = true;
-        com.sakurakugu.archweaver.platform.PlatformNetworking.sendToServer(request(false, false, false));
+        com.sakurakugu.archweaver.platform.PlatformNetworking.sendToServer(request(ChunkMapOpenTarget.NONE));
     }
 
     /** 图集跟随连接存在：换维度时释放重建，同一个世界内数据一直有效。 */

@@ -8,6 +8,7 @@ import com.sakurakugu.archweaver.client.ui.PixelGlyph;
 import com.sakurakugu.archweaver.client.ui.SegmentedSwitchButton;
 import com.sakurakugu.archweaver.client.ui.ToggleSwitchButton;
 import com.sakurakugu.archweaver.network.ChunkMapSnapshotPayload;
+import com.sakurakugu.archweaver.network.ChunkMapOpenTarget;
 import com.sakurakugu.archweaver.platform.PlatformNetworking;
 import java.util.Map;
 import net.minecraft.client.Minecraft;
@@ -77,7 +78,7 @@ public final class ChunkMapScreen extends Screen implements ChunkLoadMapFrontend
     }
 
     /** 在当前地图页面上打开独立的设置或管理页面。 */
-    public static void openPanel(ChunkMapSnapshotPayload snapshot, boolean management, boolean settings) {
+    public static void openPanel(ChunkMapSnapshotPayload snapshot, ChunkMapOpenTarget target) {
         Minecraft minecraft = Minecraft.getInstance();
         Screen parent = minecraft.screen;
         if (parent != null) parent.clearFocus();
@@ -85,7 +86,7 @@ public final class ChunkMapScreen extends Screen implements ChunkLoadMapFrontend
             map.dragging = false;
             map.draggingButton = -1;
         }
-        Screen panel = settings
+        Screen panel = target == ChunkMapOpenTarget.SETTINGS
             ? new ChunkMapSettingsScreen(snapshot)
             : new ChunkMapManagementScreen(snapshot);
         ClientScreenNavigation.registerLayer(parent, panel);
@@ -101,7 +102,7 @@ public final class ChunkMapScreen extends Screen implements ChunkLoadMapFrontend
         if (saveButton != null) saveButton.active = controller.dirty();
         if (undoButton != null) undoButton.active = controller.mode() == ChunkMapEditMode.EDIT && controller.canUndo();
         if (minecraft.player != null && minecraft.getConnection() != null && snapshotRefreshTicks-- <= 0) {
-            PlatformNetworking.sendToServer(ClientChunkLoadingState.request(false, false, false));
+            PlatformNetworking.sendToServer(ClientChunkLoadingState.request(ChunkMapOpenTarget.NONE));
             snapshotRefreshTicks = 10;
         }
     }
@@ -131,7 +132,7 @@ public final class ChunkMapScreen extends Screen implements ChunkLoadMapFrontend
         saveButton.active = controller.dirty();
         addRenderableWidget(new SolidButton(width - 42, 7, 18, 18, PixelGlyph.SETTING,
             Component.translatable("gui.fakeplayer.chunkloader.map_settings"),
-            button -> openPanel(controller.snapshot(), false, true)));
+            button -> openPanel(controller.snapshot(), ChunkMapOpenTarget.SETTINGS)));
         addRenderableWidget(new SolidButton(width - 22, 7, 18, 18, PixelGlyph.CLOSE,
             Component.translatable("gui.close"), button -> minecraft.setScreen(null)));
 
@@ -384,7 +385,7 @@ public final class ChunkMapScreen extends Screen implements ChunkLoadMapFrontend
         int y = height - 26;
         addRenderableWidget(new SolidButton(x, y, BOTTOM_BUTTON_WIDTH, 20,
             Component.translatable("gui.fakeplayer.chunkloader.bottom_management"),
-            button -> openPanel(controller.snapshot(), true, false)));
+            button -> openPanel(controller.snapshot(), ChunkMapOpenTarget.MANAGEMENT)));
     }
 
     /** 顶部开关：是否显示弱加载区块。窗口很窄时只留开关本身，标签自己滚动。 */

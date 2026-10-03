@@ -829,31 +829,6 @@ public final class FakePlayerActions {
         blockDamage = 0.0F;
     }
 
-    public boolean isRepeatingAttack() {
-        return schedules.containsKey(ScheduledAction.ATTACK);
-    }
-
-    public boolean isRepeatingUse() {
-        return schedules.containsKey(ScheduledAction.USE);
-    }
-
-    // 保留菜单所用的切换接口。
-    public void toggleAttack() {
-        if (isRepeatingAttack()) {
-            stopAction(ScheduledAction.ATTACK);
-        } else {
-            attack(RepeatMode.CONTINUOUS, 1);
-        }
-    }
-
-    public void toggleUse() {
-        if (isRepeatingUse()) {
-            stopAction(ScheduledAction.USE);
-        } else {
-            use(RepeatMode.CONTINUOUS, 1);
-        }
-    }
-
     public void jump() {
         jumpOnce();
     }

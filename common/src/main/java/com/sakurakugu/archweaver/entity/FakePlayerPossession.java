@@ -79,13 +79,6 @@ public final class FakePlayerPossession {
         }
     }
 
-    public static void discardTarget(FakeServerPlayer target) {
-        Session session = BY_TARGET.get(target.getUUID());
-        if (session != null) {
-            removeSession(session);
-        }
-    }
-
     /** 假玩家被移除前把身体状态交换回去；会话不处于活动状态或恢复失败时退回丢弃。 */
     public static void restoreTarget(FakeServerPlayer target) {
         Session session = BY_TARGET.get(target.getUUID());
@@ -100,12 +93,6 @@ public final class FakePlayerPossession {
             // 恢复失败不能阻断假玩家移除流程。
             ArchWeaverMod.LOGGER.error("移除假玩家 {} 前恢复附身失败",
                 target.getGameProfile().name(), exception);
-            removeSession(session);
-        }
-    }
-
-    public static void discardAll() {
-        for (Session session : BY_VIEWER.values().toArray(Session[]::new)) {
             removeSession(session);
         }
     }

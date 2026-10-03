@@ -4,6 +4,7 @@ import com.sakurakugu.archweaver.chunkloading.ChunkLoaderManager;
 import com.sakurakugu.archweaver.network.ChunkLoaderActionPayload;
 import net.minecraft.network.chat.Component;
 import com.sakurakugu.archweaver.platform.PlatformNetworking;
+import com.sakurakugu.archweaver.network.ChunkMapOpenTarget;
 import com.sakurakugu.archweaver.network.ChunkMapSnapshotPayload;
 import net.minecraft.server.level.ServerPlayer;
 
@@ -31,7 +32,7 @@ public final class ChunkLoaderActions {
                 "gui.fakeplayer.chunkloader.action_success." + payload.action().name().toLowerCase(java.util.Locale.ROOT)));
         }
         PlatformNetworking.sendToPlayer(viewer, ChunkMapSnapshotPayload.create(viewer,
-            ChunkLoaderManager.data(server(viewer)), false, false));
+            ChunkLoaderManager.data(server(viewer)), ChunkMapOpenTarget.NONE));
     }
 
     private static net.minecraft.server.MinecraftServer server(ServerPlayer viewer) {

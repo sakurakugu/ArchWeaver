@@ -84,9 +84,6 @@ public final class ChunkLoadPlanner {
     }
 
     public record BudgetUsage(long manualTotal, long player) {
-        public long manualTotal() {
-            return manualTotal;
-        }
     }
 
     /** 在线假人当前实际提交的模拟范围。 */
