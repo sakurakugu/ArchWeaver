@@ -39,10 +39,12 @@ public final class ChunkMapScreen extends Screen implements ChunkLoadMapFrontend
     private static final double MIN_SCALE = 0.35D; // 缩放下限，即每个方块最少占多少屏幕像素。
     private static final double MAX_SCALE = 2.5D; // 缩放上限，即每个方块最多占多少屏幕像素。
     private static final int BACKGROUND_COLOR = 0xFF22282C; // 整屏底色，未加载区域与地形透明处都露出它。
-    private static final int GRID_COLOR = 0x283A4449; // 区块网格线的颜色，间距小于 MIN_GRID_PIXELS 像素时干脆不画。
-    private static final int HIGHLIGHT_FILL = 0x6651C8B4;
-    private static final int HIGHLIGHT_BORDER = 0xFFF6DC70;
+    private static final int GRID_COLOR = 0x283A4449; // 普通区块网格用约 16% 不透明度的蓝灰色。
+    private static final int HIGHLIGHT_FILL = 0x6651C8B4; // 选中区域用 40% 不透明度的青绿色填充。
+    private static final int HIGHLIGHT_BORDER = 0xFFF6DC70; // 选中区域外轮廓用不透明亮黄色。
+    private static final int HOVER_BORDER = 0xFFFFFFFF; // 鼠标悬停的单个区块用白色 1px 描边。
     private static final double MIN_GRID_PIXELS = 8.0D; // 绘制区块网格线所需的最小像素间距。
+    private static final double MIN_THICK_HIGHLIGHT_PIXELS = 16.0D; // 区块边长至少 16px 时选中外框才用 2px，否则用 1px。
     // 玩家标记用的原版地图装饰图标纹理。
     private static final Identifier PLAYER_MARKER = Identifier.withDefaultNamespace(
         "textures/map/decorations/player.png"
@@ -268,6 +270,7 @@ public final class ChunkMapScreen extends Screen implements ChunkLoadMapFrontend
     private void drawHighlightedRegion() {
         if (highlightedRegion == null) return;
         Set<Long> chunks = highlightedRegion.chunks();
+        int borderWidth = 16.0D * pixelsPerBlock >= MIN_THICK_HIGHLIGHT_PIXELS ? 2 : 1;
         for (long chunk : chunks) {
             int chunkX = ChunkKey.x(chunk);
             int chunkZ = ChunkKey.z(chunk);
@@ -277,7 +280,7 @@ public final class ChunkMapScreen extends Screen implements ChunkLoadMapFrontend
             int bottom = Math.max(top + 1, worldToScreenZ((chunkZ + 1.0D) * 16.0D));
             if (right <= 0 || left >= width || bottom <= 0 || top >= height) continue;
             overlayBatch.addRect(left, top, right, bottom, HIGHLIGHT_FILL);
-            int border = Math.min(2, Math.min(right - left, bottom - top));
+            int border = Math.min(borderWidth, Math.min(right - left, bottom - top));
             if (!chunks.contains(ChunkKey.pack(chunkX - 1, chunkZ)))
                 overlayBatch.addRect(left, top, left + border, bottom, HIGHLIGHT_BORDER);
             if (!chunks.contains(ChunkKey.pack(chunkX + 1, chunkZ)))
@@ -505,7 +508,7 @@ public final class ChunkMapScreen extends Screen implements ChunkLoadMapFrontend
         int top = worldToScreenZ(chunk[1] * 16.0D);
         int right = worldToScreenX((chunk[0] + 1) * 16.0D);
         int tileBottom = worldToScreenZ((chunk[1] + 1) * 16.0D);
-        graphics.outline(left, top, Math.max(1, right - left), Math.max(1, tileBottom - top), 0xFFFFFFFF);
+        graphics.outline(left, top, Math.max(1, right - left), Math.max(1, tileBottom - top), HOVER_BORDER);
         var regionNames = controller.snapshot().regions().stream()
             .filter(region -> region.dimension().equals(controller.snapshot().dimension()))
             .filter(region -> region.contains(chunk[0], chunk[1]))
