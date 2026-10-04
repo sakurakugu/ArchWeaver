@@ -267,6 +267,7 @@
   "gui.archweaver.chunkloader.select": "请选择一个加载点",
   "gui.archweaver.chunkloader.position": "位置：%1$s, %2$s, %3$s",
   "gui.archweaver.chunkloader.chunks": "加载区块：%s",
+  "gui.archweaver.chunkloader.view_on_map": "在地图上查看",
   "gui.archweaver.chunkloader.action_success.rename": "已重命名区块加载点",
   "gui.archweaver.chunkloader.action_success.enable": "已启用区块加载点",
   "gui.archweaver.chunkloader.action_success.disable": "已禁用区块加载点",
@@ -301,7 +302,7 @@
   "gui.archweaver.main.select_region": "请选择一个加载区域",
   "gui.archweaver.main.simulation": "模拟距离：%s 区块",
   "gui.archweaver.main.region_position": "起始区块：%s, %s",
-  "gui.archweaver.main.region_size": "大小：%s 区块，半径 %s",
+  "gui.archweaver.main.region_size": "大小：%s 区块",
   "gui.archweaver.main.region_status": "状态：%s",
   "gui.archweaver.main.settings_hint": "在中间调整全局设置",
   "gui.archweaver.main.settings_count": "设置项：%s"

@@ -11,6 +11,8 @@ import com.sakurakugu.archweaver.network.ChunkMapSnapshotPayload;
 import com.sakurakugu.archweaver.network.ChunkMapOpenTarget;
 import com.sakurakugu.archweaver.platform.PlatformNetworking;
 import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.AbstractWidget;
@@ -38,6 +40,8 @@ public final class ChunkMapScreen extends Screen implements ChunkLoadMapFrontend
     private static final double MAX_SCALE = 2.5D; // 缩放上限，即每个方块最多占多少屏幕像素。
     private static final int BACKGROUND_COLOR = 0xFF22282C; // 整屏底色，未加载区域与地形透明处都露出它。
     private static final int GRID_COLOR = 0x283A4449; // 区块网格线的颜色，间距小于 MIN_GRID_PIXELS 像素时干脆不画。
+    private static final int HIGHLIGHT_FILL = 0x6651C8B4;
+    private static final int HIGHLIGHT_BORDER = 0xFFF6DC70;
     private static final double MIN_GRID_PIXELS = 8.0D; // 绘制区块网格线所需的最小像素间距。
     // 玩家标记用的原版地图装饰图标纹理。
     private static final Identifier PLAYER_MARKER = Identifier.withDefaultNamespace(
@@ -65,6 +69,8 @@ public final class ChunkMapScreen extends Screen implements ChunkLoadMapFrontend
     private int draggingButton = -1; // 按下时用的是哪个键，拖动过程中按这个键决定是涂、擦还是平移。
     private final ClientChunkLoadingState.MapReturnTarget returnTarget; // 关闭地图后要返回的上级页面目标。
     private int snapshotRefreshTicks; // 距离下次向服务端请求状态刷新的剩余 tick 数。
+    private UUID highlightedRegionId;
+    private ChunkMapSnapshotPayload.RegionView highlightedRegion;
     private Button saveButton; // 顶部工具条上的保存按钮。
     private Button undoButton; // 顶部工具条上的撤回按钮。
 
@@ -88,7 +94,7 @@ public final class ChunkMapScreen extends Screen implements ChunkLoadMapFrontend
         }
         Screen panel = target == ChunkMapOpenTarget.SETTINGS
             ? new ChunkMapSettingsScreen(snapshot)
-            : new ChunkMapManagementScreen(snapshot);
+            : new ChunkMapManagementScreen(snapshot, parent instanceof ChunkMapScreen map ? map : null);
         ClientScreenNavigation.registerLayer(parent, panel);
         // 子页由导航器统一绘制父页面背景，不能同时保留 GUI layer 的底层自动绘制。
         minecraft.setScreen(panel);
@@ -171,6 +177,7 @@ public final class ChunkMapScreen extends Screen implements ChunkLoadMapFrontend
         overlayBatch.begin(false, RenderPipelines.GUI, TextureSetup.noTexture(), graphics, width, height);
         drawChunkGrid();
         drawChunkOverlays();
+        drawHighlightedRegion();
         if (!overlayBatch.isEmpty()) graphics.submitGuiElementRenderState(overlayBatch);
 
         // 假人标记数量有限，直接走原版元素即可
@@ -255,6 +262,83 @@ public final class ChunkMapScreen extends Screen implements ChunkLoadMapFrontend
             if (right <= 0 || left >= width || bottom <= 0 || top >= height) continue;
             overlayBatch.addRect(left, top, Math.max(left + 1, right), Math.max(top + 1, bottom),
                 overlayColor[index]);
+        }
+    }
+
+    private void drawHighlightedRegion() {
+        if (highlightedRegion == null) return;
+        Set<Long> chunks = highlightedRegion.chunks();
+        for (long chunk : chunks) {
+            int chunkX = ChunkKey.x(chunk);
+            int chunkZ = ChunkKey.z(chunk);
+            int left = worldToScreenX(chunkX * 16.0D);
+            int top = worldToScreenZ(chunkZ * 16.0D);
+            int right = Math.max(left + 1, worldToScreenX((chunkX + 1.0D) * 16.0D));
+            int bottom = Math.max(top + 1, worldToScreenZ((chunkZ + 1.0D) * 16.0D));
+            if (right <= 0 || left >= width || bottom <= 0 || top >= height) continue;
+            overlayBatch.addRect(left, top, right, bottom, HIGHLIGHT_FILL);
+            int border = Math.min(2, Math.min(right - left, bottom - top));
+            if (!chunks.contains(ChunkKey.pack(chunkX - 1, chunkZ)))
+                overlayBatch.addRect(left, top, left + border, bottom, HIGHLIGHT_BORDER);
+            if (!chunks.contains(ChunkKey.pack(chunkX + 1, chunkZ)))
+                overlayBatch.addRect(right - border, top, right, bottom, HIGHLIGHT_BORDER);
+            if (!chunks.contains(ChunkKey.pack(chunkX, chunkZ - 1)))
+                overlayBatch.addRect(left, top, right, top + border, HIGHLIGHT_BORDER);
+            if (!chunks.contains(ChunkKey.pack(chunkX, chunkZ + 1)))
+                overlayBatch.addRect(left, bottom - border, right, bottom, HIGHLIGHT_BORDER);
+        }
+    }
+
+    public boolean highlightRegion(String name, String dimension) {
+        highlightedRegion = controller.snapshot().regions().stream()
+            .filter(region -> region.dimension().equals(dimension) && region.name().equals(name))
+            .findFirst().orElse(null);
+        highlightedRegionId = highlightedRegion == null ? null : highlightedRegion.id();
+        return highlightedRegion != null;
+    }
+
+    public void clearHighlightedRegion() {
+        highlightedRegionId = null;
+        highlightedRegion = null;
+    }
+
+    public void focusHighlightedRegion() {
+        if (highlightedRegion == null) return;
+        int minX = Integer.MAX_VALUE, minZ = Integer.MAX_VALUE;
+        int maxX = Integer.MIN_VALUE, maxZ = Integer.MIN_VALUE;
+        for (long chunk : highlightedRegion.chunks()) {
+            int x = ChunkKey.x(chunk), z = ChunkKey.z(chunk);
+            minX = Math.min(minX, x);
+            minZ = Math.min(minZ, z);
+            maxX = Math.max(maxX, x);
+            maxZ = Math.max(maxZ, z);
+        }
+        if (minX > maxX) return;
+        double spanX = ((double) maxX - minX + 1.0D) * 16.0D;
+        double spanZ = ((double) maxZ - minZ + 1.0D) * 16.0D;
+        double fitScale = Math.min(Math.max(1, width - 32) / spanX,
+            Math.max(1, height - 96) / spanZ);
+        pixelsPerBlock = Math.min(pixelsPerBlock, Mth.clamp(fitScale, MIN_SCALE, MAX_SCALE));
+        if (fitScale >= MIN_SCALE) {
+            centerBlockX = (minX / 2.0D + maxX / 2.0D + 0.5D) * 16.0D;
+            centerBlockZ = (minZ / 2.0D + maxZ / 2.0D + 0.5D) * 16.0D;
+        } else {
+            // 区域跨度超出最小缩放可见范围时，至少定位到一个真实区块。
+            long nearest = highlightedRegion.chunks().iterator().next();
+            double distance = Double.POSITIVE_INFINITY;
+            double middleX = minX / 2.0D + maxX / 2.0D;
+            double middleZ = minZ / 2.0D + maxZ / 2.0D;
+            for (long chunk : highlightedRegion.chunks()) {
+                double dx = ChunkKey.x(chunk) - middleX;
+                double dz = ChunkKey.z(chunk) - middleZ;
+                double squared = dx * dx + dz * dz;
+                if (squared < distance) {
+                    distance = squared;
+                    nearest = chunk;
+                }
+            }
+            centerBlockX = ChunkKey.x(nearest) * 16.0D + 8.0D;
+            centerBlockZ = ChunkKey.z(nearest) * 16.0D + 8.0D;
         }
     }
 
@@ -584,6 +668,12 @@ public final class ChunkMapScreen extends Screen implements ChunkLoadMapFrontend
     @Override
     public void acceptSnapshot(ChunkMapSnapshotPayload snapshot) {
         controller.accept(snapshot);
+        if (highlightedRegionId != null) {
+            highlightedRegion = snapshot.regions().stream()
+                .filter(region -> region.id().equals(highlightedRegionId))
+                .findFirst().orElse(null);
+            if (highlightedRegion == null) highlightedRegionId = null;
+        }
     }
 
     @Override

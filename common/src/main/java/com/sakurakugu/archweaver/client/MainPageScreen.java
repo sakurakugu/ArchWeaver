@@ -357,7 +357,7 @@ public final class MainPageScreen extends Screen {
         graphics.text(font, Component.literal(region.name()), x + PANEL_PADDING, y, 0xFFFFFFFF, false);
         graphics.text(font, Component.translatable("gui.archweaver.main.world", region.dimension()), x + PANEL_PADDING, y + 18, 0xFFFFFFFF, false);
         graphics.text(font, Component.translatable("gui.archweaver.main.region_position", region.chunkX(), region.chunkZ()), x + PANEL_PADDING, y + 36, 0xFFFFFFFF, false);
-        graphics.text(font, Component.translatable("gui.archweaver.main.region_size", region.chunkCount(), region.radius()), x + PANEL_PADDING, y + 54, 0xFFFFFFFF, false);
+        graphics.text(font, Component.translatable("gui.archweaver.main.region_size", region.chunkCount()), x + PANEL_PADDING, y + 54, 0xFFFFFFFF, false);
         graphics.text(font, Component.translatable("gui.archweaver.main.region_status", Component.translatable(region.enabled() ? "gui.archweaver.fakeplayer.global.enabled" : "gui.archweaver.fakeplayer.global.disabled")), x + PANEL_PADDING, y + 72, 0xFFFFFFFF, false);
     }
 

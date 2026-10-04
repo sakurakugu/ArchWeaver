@@ -31,12 +31,19 @@ public final class ChunkLoadApplicationService {
                 return ApplyResult.failure(result.reason(), data.revision());
             }
         }
+        // 区域的增删改会改变假人的加载预算，整包提交后重新核对票据，失败同样整包回滚。
+        if (!FakePlayerSimulationService.reconcile(server)) {
+            ChunkLoaderManager.restoreState(server, before);
+            return ApplyResult.failure("更新假玩家区块票据失败，请查看服务端日志", data.revision());
+        }
         return ApplyResult.success(data.revision());
     }
 
     private static ChunkLoaderManager.Result applyOne(net.minecraft.server.MinecraftServer server,
                                                        ChunkLoaderSavedData data, Identifier dimension,
                                                        ApplyChunkLoadEditsPayload.Edit edit) {
+        ChunkLoaderManager.Result rejected = rejectForeignDimension(data, dimension, edit);
+        if (rejected != null) return rejected;
         return switch (edit.action()) {
             case CREATE_REGION -> create(server, data, dimension, edit);
             case ADD_CHUNKS -> changeChunks(server, data, edit.targetId(), edit.chunks(), true);
@@ -48,6 +55,20 @@ public final class ChunkLoadApplicationService {
                 edit.enabled() ? FakePlayerLoadMode.DOLL : FakePlayerLoadMode.PLAYER,
                 edit.simulationDistance());
         };
+    }
+
+    /** payload 只声明了目标维度，被编辑的区域自身可能属于其它维度，逐个核对后才放行。 */
+    private static ChunkLoaderManager.Result rejectForeignDimension(ChunkLoaderSavedData data,
+                                                                    Identifier dimension,
+                                                                    ApplyChunkLoadEditsPayload.Edit edit) {
+        if (edit.action() == ApplyChunkLoadEditsPayload.Action.CREATE_REGION
+            || edit.action() == ApplyChunkLoadEditsPayload.Action.SET_FAKE_POLICY) {
+            return null;
+        }
+        ManualLoadRegion region = data.region(edit.targetId()).orElse(null);
+        if (region == null) return ChunkLoaderManager.Result.failure("区域不存在");
+        return region.dimension().equals(dimension) ? null
+            : ChunkLoaderManager.Result.failure("只能编辑当前所在维度的区域");
     }
 
     private static ChunkLoaderManager.Result create(net.minecraft.server.MinecraftServer server,

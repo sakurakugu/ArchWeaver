@@ -213,12 +213,12 @@ public record ChunkMapSnapshotPayload(
         public int chunkZ() { return chunks.stream().mapToInt(ChunkPos::getZ).min().orElse(0); }
     }
 
-    public record RegionSummary(String name, String dimension, int chunkX, int chunkZ, int radius,
+    public record RegionSummary(String name, String dimension, int chunkX, int chunkZ,
                                 int chunkCount, boolean enabled) {
         private RegionSummary(RegistryFriendlyByteBuf buffer) {
             this(buffer.readUtf(32), buffer.readUtf(256), buffer.readInt(), buffer.readInt(),
-                buffer.readVarInt(), buffer.readVarInt(), buffer.readBoolean());
-            if (radius < 0 || radius > 32 || chunkCount < 1 || chunkCount > ChunkLoaderSavedData.MAX_REGION_CHUNKS) {
+                buffer.readVarInt(), buffer.readBoolean());
+            if (chunkCount < 1 || chunkCount > ChunkLoaderSavedData.MAX_REGION_CHUNKS) {
                 throw new IllegalArgumentException("区域摘要非法");
             }
         }
@@ -228,18 +228,15 @@ public record ChunkMapSnapshotPayload(
             buffer.writeUtf(dimension, 256);
             buffer.writeInt(chunkX);
             buffer.writeInt(chunkZ);
-            buffer.writeVarInt(radius);
             buffer.writeVarInt(chunkCount);
             buffer.writeBoolean(enabled);
         }
 
         private static RegionSummary from(ManualLoadRegion region) {
             int minX = region.chunks().stream().mapToInt(ChunkPos::getX).min().orElse(0);
-            int maxX = region.chunks().stream().mapToInt(ChunkPos::getX).max().orElse(0);
             int minZ = region.chunks().stream().mapToInt(ChunkPos::getZ).min().orElse(0);
-            int maxZ = region.chunks().stream().mapToInt(ChunkPos::getZ).max().orElse(0);
             return new RegionSummary(region.name(), region.dimension().toString(), minX, minZ,
-                Math.max(maxX - minX, maxZ - minZ) / 2, region.chunks().size(), region.enabled());
+                region.chunks().size(), region.enabled());
         }
     }
 

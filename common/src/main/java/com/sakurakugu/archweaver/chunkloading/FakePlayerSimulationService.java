@@ -22,18 +22,25 @@ public final class FakePlayerSimulationService {
     private FakePlayerSimulationService() {
     }
 
-    public static void reconcile(MinecraftServer server) {
-        tick(server);
+    public static boolean reconcile(MinecraftServer server) {
+        boolean successful = tick(server);
         for (FakeServerPlayer fake : FakePlayerManager.all(server)) {
             fake.level().getChunkSource().move(fake);
         }
+        return successful;
     }
 
-    public static void tick(MinecraftServer server) {
+    public static boolean tick(MinecraftServer server) {
         var online = FakePlayerManager.all(server);
-        for (FakeServerPlayer fake : online) update(fake);
+        boolean successful = true;
+        for (FakeServerPlayer fake : online) {
+            if (!update(fake)) successful = false;
+        }
         Set<UUID> onlineIds = online.stream().map(FakeServerPlayer::getUUID).collect(java.util.stream.Collectors.toSet());
-        ACTIVE.keySet().stream().filter(id -> !onlineIds.contains(id)).toList().forEach(FakePlayerSimulationService::removeActive);
+        for (UUID id : ACTIVE.keySet().stream().filter(id -> !onlineIds.contains(id)).toList()) {
+            if (!removeActive(id)) successful = false;
+        }
+        return successful;
     }
 
     /** 返回已实际提交区块票的假人加载范围。 */
@@ -67,16 +74,19 @@ public final class FakePlayerSimulationService {
             && uniquePlayerChunks(server, fakePlayerId, policy) > budget) {
             return ChunkLoaderManager.Result.failure("玩家加载预算超限");
         }
-        ChunkLoaderManager.data(server).putPolicy(policy);
+        ChunkLoaderSavedData data = ChunkLoaderManager.data(server);
+        ChunkLoaderSavedData.State before = data.snapshot();
+        data.putPolicy(policy);
         FakeServerPlayer fake = FakePlayerManager.all(server).stream()
             .filter(value -> value.getUUID().equals(fakePlayerId)).findFirst().orElse(null);
-        if (fake != null) {
-            update(fake);
-            fake.level().getChunkSource().move(fake);
-        } else {
-            removeActive(fakePlayerId);
+        if (!(fake != null ? update(fake) : removeActive(fakePlayerId))) {
+            data.restore(before);
+            return ChunkLoaderManager.Result.failure("更新假玩家区块票据失败，请查看服务端日志");
         }
-        ChunkLoaderBackupStore.save(server, ChunkLoaderManager.data(server));
+        if (fake != null) {
+            fake.level().getChunkSource().move(fake);
+        }
+        ChunkLoaderBackupStore.save(server, data);
         return ChunkLoaderManager.Result.success();
     }
 
@@ -86,43 +96,86 @@ public final class FakePlayerSimulationService {
         ChunkLoaderBackupStore.save(server, ChunkLoaderManager.data(server));
     }
 
-    private static void update(FakeServerPlayer fake) {
+    private static boolean update(FakeServerPlayer fake) {
         FakePlayerLoadPolicy policy = ChunkLoaderManager.data(fake.server()).policy(fake.getUUID()).orElse(null);
         if (policy == null || !policy.usesCustomSimulation()) {
-            removeActive(fake.getUUID());
-            return;
+            return removeActive(fake.getUUID());
         }
         int distance = effectiveSimulationDistance(fake.server(), policy);
         ActiveRange previous = ACTIVE.get(fake.getUUID());
         int chunkX = fake.chunkPosition().x();
         int chunkZ = fake.chunkPosition().z();
-        if (previous != null && previous.sameLocation(fake.level(), chunkX, chunkZ, distance)) return;
+        if (previous != null && previous.sameLocation(fake.level(), chunkX, chunkZ, distance)) return true;
         ActiveRange next = new ActiveRange(fake.level(), chunkX, chunkZ, distance,
             ChunkLoadPlanner.square(chunkX, chunkZ, distance));
         if (!withinBudget(fake, next)) {
-            removeActive(fake.getUUID());
-            return;
+            return removeActive(fake.getUUID());
         }
         try {
-            if (previous != null) setDifference(fake.getUUID(), previous, next, false);
-            setDifference(fake.getUUID(), next, previous, true);
+            List<TicketChange> changes = new ArrayList<>();
+            appendDifference(changes, previous, next, false);
+            appendDifference(changes, next, previous, true);
+            applyChanges(fake.getUUID(), changes, FakePlayerSimulationService::set);
             ACTIVE.put(fake.getUUID(), next);
+            return true;
         } catch (RuntimeException exception) {
             ArchWeaverMod.LOGGER.error("更新假玩家 {} 的模拟范围失败", fake.getGameProfile().name(), exception);
+            return false;
         }
     }
 
-    private static void removeActive(UUID id) {
-        ActiveRange previous = ACTIVE.remove(id);
-        if (previous != null) previous.chunks().forEach(chunk -> set(previous.level(), id, chunk, false));
+    private static boolean removeActive(UUID id) {
+        ActiveRange previous = ACTIVE.get(id);
+        if (previous == null) return true;
+        try {
+            List<TicketChange> changes = new ArrayList<>();
+            appendDifference(changes, previous, null, false);
+            applyChanges(id, changes, FakePlayerSimulationService::set);
+            ACTIVE.remove(id);
+            return true;
+        } catch (RuntimeException exception) {
+            ArchWeaverMod.LOGGER.error("移除假玩家 {} 的模拟范围失败", id, exception);
+            return false;
+        }
     }
 
-    private static void setDifference(UUID id, ActiveRange source, ActiveRange other, boolean add) {
+    private static void appendDifference(List<TicketChange> changes, ActiveRange source,
+                                         ActiveRange other, boolean add) {
+        if (source == null) return;
         for (long chunk : source.chunks()) {
             if (other == null || other.level() != source.level() || !other.chunks().contains(chunk)) {
-                set(source.level(), id, chunk, add);
+                changes.add(new TicketChange(source.level(), chunk, add));
             }
         }
+    }
+
+    /** 失败的操作也可能已经生效，回滚时一并执行其反向操作。 */
+    static void applyChanges(UUID id, List<TicketChange> changes, TicketWriter writer) {
+        int attempted = -1;
+        try {
+            for (int index = 0; index < changes.size(); index++) {
+                TicketChange change = changes.get(index);
+                attempted = index;
+                writer.set(change.level(), id, change.chunk(), change.add());
+            }
+        } catch (RuntimeException exception) {
+            for (int index = attempted; index >= 0; index--) {
+                TicketChange change = changes.get(index);
+                try {
+                    writer.set(change.level(), id, change.chunk(), !change.add());
+                } catch (RuntimeException rollbackException) {
+                    exception.addSuppressed(rollbackException);
+                }
+            }
+            throw exception;
+        }
+    }
+
+    record TicketChange(ServerLevel level, long chunk, boolean add) { }
+
+    @FunctionalInterface
+    interface TicketWriter {
+        void set(ServerLevel level, UUID id, long chunk, boolean add);
     }
 
     private static void set(ServerLevel level, UUID id, long chunk, boolean add) {

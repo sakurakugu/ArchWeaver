@@ -267,6 +267,7 @@
   "gui.archweaver.chunkloader.select": "Select a chunk loader",
   "gui.archweaver.chunkloader.position": "Position: %1$s, %2$s, %3$s",
   "gui.archweaver.chunkloader.chunks": "Loaded chunks: %s",
+  "gui.archweaver.chunkloader.view_on_map": "View on map",
   "gui.archweaver.chunkloader.action_success.rename": "Renamed the chunk loader",
   "gui.archweaver.chunkloader.action_success.enable": "Enabled the chunk loader",
   "gui.archweaver.chunkloader.action_success.disable": "Disabled the chunk loader",
@@ -301,7 +302,7 @@
   "gui.archweaver.main.select_region": "Select a loading region",
   "gui.archweaver.main.simulation": "Simulation distance: %s chunks",
   "gui.archweaver.main.region_position": "Starting chunk: %s, %s",
-  "gui.archweaver.main.region_size": "Size: %s chunks, radius %s",
+  "gui.archweaver.main.region_size": "Size: %s chunks",
   "gui.archweaver.main.region_status": "Status: %s",
   "gui.archweaver.main.settings_hint": "Adjust global settings in the center",
   "gui.archweaver.main.settings_count": "Settings: %s"
