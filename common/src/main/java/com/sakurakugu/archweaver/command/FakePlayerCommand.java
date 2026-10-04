@@ -64,7 +64,6 @@ public final class FakePlayerCommand {
                 .then(Commands.literal("unpossess").executes(FakePlayerCommand::unpossess))
                 .then(Commands.literal("list").executes(FakePlayerCommand::list))
                 .then(guiCommand("gui"))
-                .then(guiCommand("setting"))
                 .then(PresetCommand.presetCommand())
                 .then(PresetCommand.groupCommand())
                 .then(Commands.literal("player").then(playerTargetCommand()))
@@ -93,10 +92,9 @@ public final class FakePlayerCommand {
         target.then(Commands.literal("shadow").executes(FakePlayerCommand::shadow));
         target.then(Commands.literal("gui")
             .executes(FakePlayerCommand::openPlayerGui)
-            .then(Commands.literal("bag").executes(FakePlayerCommand::openPlayerGui))
             .then(Commands.literal("enderchest").executes(FakePlayerCommand::openEnderChest)));
-        target.then(Commands.literal("setting")
-            .executes(FakePlayerCommand::openPlayerGui)
+        // 只把动作与输入设置恢复为默认值，不动背包等数据。
+        target.then(Commands.literal("config")
             .then(Commands.literal("default").executes(FakePlayerCommand::resetSettings))
             .then(Commands.literal("reset").executes(FakePlayerCommand::resetSettings)));
         target.then(automationCommand());

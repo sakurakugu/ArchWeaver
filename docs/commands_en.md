@@ -19,7 +19,6 @@ In command syntax, `<name>` indicates a required argument and `[option]` indicat
 - `/fakeplayer unpossess`: exit the current possession.
 - `/fakeplayer list`: list all current fake players.
 - `/fakeplayer gui [name]`: open the control center, or go directly to the specified fake player's inventory management screen.
-- `/fakeplayer setting [name]`: alias for `gui`.
 - `/fakeplayer player <name> <action>`: equivalent to `/player <name> <action>`; see the action list below.
 
 Spawn position, dimension, and rotation come from the command source. The game mode is inherited from the player running the command, or defaults to creative when run from the console.
@@ -83,10 +82,9 @@ Example:
 
 ### Interfaces and Inventory
 
-- `/player <name> gui` / `/player <name> gui bag`: open the full inventory: 36 main inventory slots, 4 armor slots, and 1 offhand slot.
+- `/player <name> gui`: open the full inventory: 36 main inventory slots, 4 armor slots, and 1 offhand slot.
 - `/player <name> gui enderchest`: open the fake player's ender chest.
-- `/player <name> setting`: open the fake player's inventory management screen.
-- `/player <name> setting default` / `/player <name> setting reset`: reset action and input settings to defaults without changing inventory or other data.
+- `/player <name> config default` / `/player <name> config reset`: reset action and input settings to defaults without changing inventory or other data.
 - `/player <name> possess`: possess the fake player.
 - `/player <name> unpossess`: exit possession if currently possessing this fake player.
 
