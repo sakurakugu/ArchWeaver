@@ -95,7 +95,7 @@ public final class CommonEvents {
         }
         if (FakePlayerPossession.isPossessed(fake)) {
             // 附身中的假人表现为当前玩家的躯壳，右键时应与普通玩家一样不打开管理界面。
-            // viewer.sendSystemMessage(Component.translatable("gui.fakeplayer.possess_locked"));
+            // viewer.sendSystemMessage(Component.translatable("gui.archweaver.fakeplayer.possess_locked"));
             event.setCancellationResult(InteractionResult.FAIL);
             event.setCanceled(true);
             return;
@@ -138,7 +138,7 @@ public final class CommonEvents {
             event.setCanceled(true);
         } else if (event.getEntity() instanceof ServerPlayer player
             && FakePlayerPossession.isPossessing(player)) {
-            player.sendSystemMessage(Component.translatable("gui.fakeplayer.possess_no_dimension"));
+            player.sendSystemMessage(Component.translatable("gui.archweaver.fakeplayer.possess_no_dimension"));
             event.setCanceled(true);
         }
     }

@@ -19,14 +19,14 @@ public final class PresetService {
 
     public static Result savePreset(MinecraftServer server, String id, String playerName, String description) {
         if (!isValidId(id)) {
-            return Result.failure("gui.fakeplayer.preset.invalid_id");
+            return Result.failure("gui.archweaver.preset.invalid_id");
         }
         FakeServerPlayer fake = FakePlayerManager.find(server, playerName);
         if (fake == null) {
-            return Result.failure("commands.fakeplayer.not_found", playerName);
+            return Result.failure("commands.archweaver.fakeplayer.not_found", playerName);
         }
         if (FakePlayerPossession.isPossessed(fake)) {
-            return Result.failure("gui.fakeplayer.possess_locked");
+            return Result.failure("gui.archweaver.fakeplayer.possess_locked");
         }
         data(server).putPreset(new Preset(id, description, PlayerSnapshot.from(fake, true)));
         return Result.success();
@@ -35,56 +35,56 @@ public final class PresetService {
     public static Result loadPreset(MinecraftServer server, String id) {
         Preset preset = data(server).preset(id).orElse(null);
         if (preset == null) {
-            return Result.failure("commands.fakeplayer.preset.preset_not_found", id);
+            return Result.failure("commands.archweaver.preset.preset_not_found", id);
         }
         FakePlayerPersistence.LoadResult result = FakePlayerPersistence.loadPreset(server, preset);
         return result.successful()
             ? Result.success()
-            : Result.failure("commands.fakeplayer.preset.load_failed", id, result.reason());
+            : Result.failure("commands.archweaver.preset.load_failed", id, result.reason());
     }
 
     public static Result removePreset(MinecraftServer server, String id) {
         return data(server).removePreset(id)
             ? Result.success()
-            : Result.failure("commands.fakeplayer.preset.preset_not_found", id);
+            : Result.failure("commands.archweaver.preset.preset_not_found", id);
     }
 
     public static Result createGroup(MinecraftServer server, String id) {
         if (!isValidId(id)) {
-            return Result.failure("gui.fakeplayer.preset.invalid_id");
+            return Result.failure("gui.archweaver.preset.invalid_id");
         }
         return data(server).createGroup(id)
             ? Result.success()
-            : Result.failure("commands.fakeplayer.preset.group_exists", id);
+            : Result.failure("commands.archweaver.preset.group_exists", id);
     }
 
     public static Result addToGroup(MinecraftServer server, String groupId, String presetId) {
         FakePlayerSavedData data = data(server);
         if (data.group(groupId).isEmpty()) {
-            return Result.failure("commands.fakeplayer.preset.group_not_found", groupId);
+            return Result.failure("commands.archweaver.preset.group_not_found", groupId);
         }
         if (data.preset(presetId).isEmpty()) {
-            return Result.failure("commands.fakeplayer.preset.preset_not_found", presetId);
+            return Result.failure("commands.archweaver.preset.preset_not_found", presetId);
         }
         return data.addToGroup(groupId, presetId)
             ? Result.success()
-            : Result.failure("commands.fakeplayer.preset.group_member_exists", presetId, groupId);
+            : Result.failure("commands.archweaver.preset.group_member_exists", presetId, groupId);
     }
 
     public static Result removeFromGroup(MinecraftServer server, String groupId, String presetId) {
         FakePlayerSavedData data = data(server);
         if (data.group(groupId).isEmpty()) {
-            return Result.failure("commands.fakeplayer.preset.group_not_found", groupId);
+            return Result.failure("commands.archweaver.preset.group_not_found", groupId);
         }
         return data.removeFromGroup(groupId, presetId)
             ? Result.success()
-            : Result.failure("commands.fakeplayer.preset.group_member_not_found", presetId, groupId);
+            : Result.failure("commands.archweaver.preset.group_member_not_found", presetId, groupId);
     }
 
     public static Result removeGroup(MinecraftServer server, String id) {
         return data(server).removeGroup(id)
             ? Result.success()
-            : Result.failure("commands.fakeplayer.preset.group_not_found", id);
+            : Result.failure("commands.archweaver.preset.group_not_found", id);
     }
 
     public static GroupLoadResult loadGroup(MinecraftServer server, String id, boolean unload) {

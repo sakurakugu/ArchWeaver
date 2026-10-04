@@ -55,7 +55,7 @@ public final class FakePlayerMenuOpener {
             new ManagementMenuProvider(
                 (containerId, inventory, player) -> new PresetManagementMenu(
                     containerId, inventory, openGroupsInitially, presets, groups, onlinePlayers),
-                Component.translatable("gui.fakeplayer.preset.title")
+                Component.translatable("gui.archweaver.preset.title")
             ),
             data -> {
                 data.writeBoolean(openGroupsInitially);
@@ -84,7 +84,7 @@ public final class FakePlayerMenuOpener {
         viewer.openMenu(
             new ManagementMenuProvider(
                 (containerId, inventory, player) -> new GlobalFakePlayerMenu(containerId, inventory),
-                Component.translatable("gui.fakeplayer.global.title")
+                Component.translatable("gui.archweaver.fakeplayer.global.title")
             ),
             data -> { }
         );
@@ -112,8 +112,8 @@ public final class FakePlayerMenuOpener {
             .policy(fake.getUUID()).orElse(new FakePlayerLoadPolicy(fake.getUUID(), FakePlayerLoadMode.PLAYER, 0));
         Component title = Component.translatable(
             view == FakePlayerInventoryMenu.View.ENDER_CHEST
-                ? "gui.fakeplayer.ender_chest"
-                : "gui.fakeplayer.inventory",
+                ? "gui.archweaver.fakeplayer.ender_chest"
+                : "gui.archweaver.fakeplayer.inventory",
             fake.getGameProfile().name()
         );
         viewer.openMenu(
@@ -151,7 +151,7 @@ public final class FakePlayerMenuOpener {
         if (!FakePlayerPossession.isPossessed(fake)) {
             return true;
         }
-        viewer.sendSystemMessage(Component.translatable("gui.fakeplayer.possess_locked"));
+        viewer.sendSystemMessage(Component.translatable("gui.archweaver.fakeplayer.possess_locked"));
         return false;
     }
 

@@ -36,20 +36,20 @@ public final class ChunkLoadingDebugEntry implements DebugScreenEntry {
                 .anyMatch(fake -> fake.loadsChunk(dimension, chunkX, chunkZ));
             if (loadedByFakePlayer) {
                 entries = entries.isEmpty()
-                    ? Component.translatable("fakeplayer.chunkloader.fake_label").getString()
-                    : entries + " | " + Component.translatable("fakeplayer.chunkloader.fake_label").getString();
+                    ? Component.translatable("archweaver.chunkloader.fake_label").getString()
+                    : entries + " | " + Component.translatable("archweaver.chunkloader.fake_label").getString();
             }
         }
         String status = entries.isEmpty()
-            ? Component.translatable("commands.fakeplayer.none").getString()
+            ? Component.translatable("commands.archweaver.fakeplayer.none").getString()
             : entries;
         displayer.addPriorityLine(Component.translatable(
-            "f3.fakeplayer.chunkloader.line", status).getString());
+            "f3.archweaver.chunkloader.line", status).getString());
     }
 
     private static String describe(RegionView region) {
-        return Component.translatable("f3.fakeplayer.chunkloader.entry", region.name(),
+        return Component.translatable("f3.archweaver.chunkloader.entry", region.name(),
             region.chunks().size(), Component.translatable(
-                "gui.fakeplayer.chunkloader.level_strong")).getString();
+                "gui.archweaver.chunkloader.level_strong")).getString();
     }
 }

@@ -288,9 +288,9 @@ public final class MainPageScreen extends Screen {
     private Component settingLabel(int index) {
         String key = index == 0 ? "restore_players" : "container_transfer_buttons";
         boolean enabled = (snapshot.globalSettingsMask() & (1 << index)) != 0;
-        return Component.translatable("gui.fakeplayer.global.setting_value",
-            Component.translatable("gui.fakeplayer.global.setting." + key),
-            Component.translatable(enabled ? "gui.fakeplayer.global.enabled" : "gui.fakeplayer.global.disabled"));
+        return Component.translatable("gui.archweaver.fakeplayer.global.setting_value",
+            Component.translatable("gui.archweaver.fakeplayer.global.setting." + key),
+            Component.translatable(enabled ? "gui.archweaver.fakeplayer.global.enabled" : "gui.archweaver.fakeplayer.global.disabled"));
     }
 
     @Override
@@ -358,7 +358,7 @@ public final class MainPageScreen extends Screen {
         graphics.text(font, Component.translatable("gui.archweaver.main.world", region.dimension()), x + PANEL_PADDING, y + 18, 0xFFFFFFFF, false);
         graphics.text(font, Component.translatable("gui.archweaver.main.region_position", region.chunkX(), region.chunkZ()), x + PANEL_PADDING, y + 36, 0xFFFFFFFF, false);
         graphics.text(font, Component.translatable("gui.archweaver.main.region_size", region.chunkCount(), region.radius()), x + PANEL_PADDING, y + 54, 0xFFFFFFFF, false);
-        graphics.text(font, Component.translatable("gui.archweaver.main.region_status", Component.translatable(region.enabled() ? "gui.fakeplayer.global.enabled" : "gui.fakeplayer.global.disabled")), x + PANEL_PADDING, y + 72, 0xFFFFFFFF, false);
+        graphics.text(font, Component.translatable("gui.archweaver.main.region_status", Component.translatable(region.enabled() ? "gui.archweaver.fakeplayer.global.enabled" : "gui.archweaver.fakeplayer.global.disabled")), x + PANEL_PADDING, y + 72, 0xFFFFFFFF, false);
     }
 
     private void drawSettingsDetail(GuiGraphicsExtractor graphics, int x, int w) {

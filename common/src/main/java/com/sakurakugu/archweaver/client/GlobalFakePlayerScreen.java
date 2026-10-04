@@ -38,14 +38,14 @@ public final class GlobalFakePlayerScreen extends ResponsiveContainerScreen<Glob
         int fieldWidth = Math.max(1, responsiveWidth() - margin * 2);
         nameInput = addRenderableWidget(new EditBox(
             font, leftPos + margin, topPos + s(86), fieldWidth, size(22),
-            Component.translatable("gui.fakeplayer.global.spawn_name")
+            Component.translatable("gui.archweaver.fakeplayer.global.spawn_name")
         ));
         nameInput.setMaxLength(16);
-        nameInput.setHint(Component.translatable("gui.fakeplayer.global.spawn_name"));
+        nameInput.setHint(Component.translatable("gui.archweaver.fakeplayer.global.spawn_name"));
         nameInput.setResponder(value -> updateSpawnButton());
         spawnButton = addRenderableWidget(
             new SolidButton(leftPos + margin, topPos + s(120), fieldWidth, size(BUTTON_HEIGHT),
-                Component.translatable("gui.fakeplayer.global.spawn"), button -> submitSpawn())
+                Component.translatable("gui.archweaver.fakeplayer.global.spawn"), button -> submitSpawn())
         );
         updateSpawnButton();
         addRenderableWidget(new SolidButton(titlePanel().leftButtonX(), titlePanel().buttonY(18), 18, 18,
@@ -77,7 +77,7 @@ public final class GlobalFakePlayerScreen extends ResponsiveContainerScreen<Glob
         if (!ClientScreenNavigation.extractBackground(this, graphics, partialTick)) {
             graphics.fill(0, 0, width, height, 0xFF22282C);
         }
-        Component pageTitle = Component.translatable("gui.fakeplayer.global.spawn_title");
+        Component pageTitle = Component.translatable("gui.archweaver.fakeplayer.global.spawn_title");
         new TitlePanel(leftPos, topPos, responsiveWidth(), responsiveHeight(), pageTitle).draw(graphics, font);
     }
 
@@ -88,6 +88,6 @@ public final class GlobalFakePlayerScreen extends ResponsiveContainerScreen<Glob
 
     private TitlePanel titlePanel() {
         return new TitlePanel(leftPos, topPos, responsiveWidth(), responsiveHeight(),
-            Component.translatable("gui.fakeplayer.global.spawn_title"));
+            Component.translatable("gui.archweaver.fakeplayer.global.spawn_title"));
     }
 }

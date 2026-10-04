@@ -32,7 +32,7 @@ public final class ChunkMapManagementScreen extends Screen {
     private int layoutHeight = PANEL_HEIGHT; // 当前面板实际高度。
 
     public ChunkMapManagementScreen(ChunkMapSnapshotPayload snapshot) {
-        super(Component.translatable("gui.fakeplayer.chunkloader.title"));
+        super(Component.translatable("gui.archweaver.chunkloader.title"));
         this.snapshot = snapshot;
     }
 
@@ -53,16 +53,16 @@ public final class ChunkMapManagementScreen extends Screen {
         int left = panelLeft();
         int top = panelTop();
         TitlePanel titlePanel = new TitlePanel(left, top, layoutWidth, layoutHeight,
-            Component.translatable("gui.fakeplayer.chunkloader.title"));
+            Component.translatable("gui.archweaver.chunkloader.title"));
         addRenderableWidget(new SolidButton(titlePanel.leftButtonX(), titlePanel.buttonY(size(18)), size(18), size(18),
             PixelGlyph.BACK, Component.translatable("gui.back"), button -> onClose()));
         // 备份/恢复贴着标题栏右缘，并与标题栏垂直居中。
         addRenderableWidget(new SolidButton(left + s(288), titlePanel.buttonY(size(20)), size(64), size(20),
-            Component.translatable("gui.fakeplayer.chunkloader.backup"),
+            Component.translatable("gui.archweaver.chunkloader.backup"),
             button -> sendManagementAction(Action.BACKUP, "")));
         addRenderableWidget(new SolidButton(left + s(356), titlePanel.buttonY(size(20)), size(66), size(20),
             Component.translatable(confirmation == Action.RESTORE
-                ? "gui.fakeplayer.chunkloader.confirm_restore" : "gui.fakeplayer.chunkloader.restore"),
+                ? "gui.archweaver.chunkloader.confirm_restore" : "gui.archweaver.chunkloader.restore"),
             button -> confirmOrSend(Action.RESTORE, "")));
         int first = page * PAGE_SIZE;
         int end = Math.min(first + PAGE_SIZE, regions().size());
@@ -86,22 +86,22 @@ public final class ChunkMapManagementScreen extends Screen {
         int left = panelLeft();
         int top = panelTop();
         new TitlePanel(left, top, layoutWidth, layoutHeight,
-            Component.translatable("gui.fakeplayer.chunkloader.title")).draw(graphics, font);
+            Component.translatable("gui.archweaver.chunkloader.title")).draw(graphics, font);
         // 详情区跟着列表一起上移，下缘停在最后一行上方 13px 处。
         graphics.fill(left + s(166), top + s(CONTENT_TOP), left + s(422), top + s(194), 0x802C3033);
-        graphics.centeredText(font, Component.translatable("gui.fakeplayer.chunkloader.page",
+        graphics.centeredText(font, Component.translatable("gui.archweaver.chunkloader.page",
             page + 1, managementPageCount()), left + s(80), top + s(CONTENT_BOTTOM - 15), 0xFFC6C6C6);
         var selected = selectedRegion();
         if (selected == null) {
             graphics.centeredText(font, Component.translatable(regions().isEmpty()
-                ? "gui.fakeplayer.chunkloader.empty" : "gui.fakeplayer.chunkloader.select"),
+                ? "gui.archweaver.chunkloader.empty" : "gui.archweaver.chunkloader.select"),
                 left + s(294), top + s(104), 0xFFAAAAAA);
         } else {
             graphics.text(font, Component.literal(selected.name()), left + s(176), top + s(52), 0xFFFFFFFF, false);
             graphics.text(font, Component.literal(selected.dimension()), left + s(176), top + s(72), 0xFFC6C6C6, false);
-            graphics.text(font, Component.translatable("gui.fakeplayer.chunkloader.position",
+            graphics.text(font, Component.translatable("gui.archweaver.chunkloader.position",
                 selected.chunkX() << 4, 0, selected.chunkZ() << 4), left + s(176), top + s(92), 0xFFCCCCCC, false);
-            graphics.text(font, Component.translatable("gui.fakeplayer.chunkloader.chunks", selected.chunkCount()),
+            graphics.text(font, Component.translatable("gui.archweaver.chunkloader.chunks", selected.chunkCount()),
                 left + s(176), top + s(112), 0xFFCCCCCC, false);
         }
     }
@@ -110,20 +110,20 @@ public final class ChunkMapManagementScreen extends Screen {
         var selected = selectedRegion();
         if (selected == null) return;
         EditBox name = addRenderableWidget(new EditBox(font, left + s(172), top + s(140), size(141), size(20),
-            Component.translatable("gui.fakeplayer.chunkloader.name")));
+            Component.translatable("gui.archweaver.chunkloader.name")));
         name.setMaxLength(ChunkLoaderSavedData.MAX_NAME_LENGTH);
         name.setValue(selected.name());
         name.setFilter(value -> value.codePoints().allMatch(ChunkMapManagementScreen::isNameCharacter));
         addRenderableWidget(new SolidButton(left + s(317), top + s(140), size(95), size(20),
-            Component.translatable("gui.fakeplayer.chunkloader.rename"), button ->
+            Component.translatable("gui.archweaver.chunkloader.rename"), button ->
                 sendRename(selected.name(), name.getValue())));
         addRenderableWidget(new SolidButton(left + s(172), top + s(168), size(121), size(20),
-            Component.translatable(selected.enabled() ? "gui.fakeplayer.chunkloader.disable"
-                : "gui.fakeplayer.chunkloader.enable"), button ->
+            Component.translatable(selected.enabled() ? "gui.archweaver.chunkloader.disable"
+                : "gui.archweaver.chunkloader.enable"), button ->
             sendManagementAction(selected.enabled() ? Action.DISABLE : Action.ENABLE, selected.name())));
         addRenderableWidget(new SolidButton(left + s(297), top + s(168), size(115), size(20),
             Component.translatable(confirmation == Action.REMOVE
-                ? "gui.fakeplayer.chunkloader.confirm_remove" : "gui.fakeplayer.chunkloader.remove"),
+                ? "gui.archweaver.chunkloader.confirm_remove" : "gui.archweaver.chunkloader.remove"),
             button -> confirmOrSend(Action.REMOVE, selected.name())));
     }
 

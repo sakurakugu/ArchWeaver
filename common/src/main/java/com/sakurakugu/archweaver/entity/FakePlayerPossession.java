@@ -27,14 +27,14 @@ public final class FakePlayerPossession {
             return true;
         }
         if (BY_VIEWER.containsKey(viewer.getUUID())) {
-            viewer.sendSystemMessage(Component.translatable("gui.fakeplayer.possess_unavailable"));
+            viewer.sendSystemMessage(Component.translatable("gui.archweaver.fakeplayer.possess_unavailable"));
             return false;
         }
         if (!canStart(viewer, target)) {
             return false;
         }
         if (isPossessed(target)) {
-            viewer.sendSystemMessage(Component.translatable("gui.fakeplayer.possess_occupied"));
+            viewer.sendSystemMessage(Component.translatable("gui.archweaver.fakeplayer.possess_occupied"));
             return false;
         }
 
@@ -61,7 +61,7 @@ public final class FakePlayerPossession {
             if (recoverOriginal(session)) {
                 removeSession(session);
             }
-            viewer.sendSystemMessage(Component.translatable("gui.fakeplayer.possess_failed"));
+            viewer.sendSystemMessage(Component.translatable("gui.archweaver.fakeplayer.possess_failed"));
             return false;
         }
     }
@@ -248,7 +248,7 @@ public final class FakePlayerPossession {
             || viewer.level() != target.level() || !viewer.isAlive() || !target.isAlive()
             || viewer.isPassenger() || target.isPassenger() || viewer.isVehicle() || target.isVehicle()
             || !ArchWeaverConfig.canUseCommands(viewer.createCommandSourceStack())) {
-            viewer.sendSystemMessage(Component.translatable("gui.fakeplayer.possess_unavailable"));
+            viewer.sendSystemMessage(Component.translatable("gui.archweaver.fakeplayer.possess_unavailable"));
             return false;
         }
         GameType viewerMode = viewer.gameMode.getGameModeForPlayer();
@@ -260,7 +260,7 @@ public final class FakePlayerPossession {
             default -> false;
         };
         if (!allowed) {
-            viewer.sendSystemMessage(Component.translatable("gui.fakeplayer.possess_gamemode"));
+            viewer.sendSystemMessage(Component.translatable("gui.archweaver.fakeplayer.possess_gamemode"));
         }
         return allowed;
     }

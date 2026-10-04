@@ -20,7 +20,7 @@ public final class FakePlayerManagementActions {
             return;
         }
         if (!name.matches("[A-Za-z0-9_-]{1,16}")) {
-            viewer.sendSystemMessage(Component.translatable("commands.fakeplayer.invalid_name").withColor(0xFF5555));
+            viewer.sendSystemMessage(Component.translatable("commands.archweaver.fakeplayer.invalid_name").withColor(0xFF5555));
             return;
         }
 
@@ -28,12 +28,12 @@ public final class FakePlayerManagementActions {
         if (target.getGameProfile().name().equals(name)) {
             return;
         }
-        viewer.sendSystemMessage(Component.translatable("commands.fakeplayer.resolving_profile", name));
+        viewer.sendSystemMessage(Component.translatable("commands.archweaver.fakeplayer.resolving_profile", name));
         MinecraftServer server = viewer.level().getServer();
         ProfileResolver.resolve(server, name).whenCompleteAsync((profileResult, throwable) -> {
             if (throwable != null) {
                 ArchWeaverMod.LOGGER.error("解析假玩家新名称 {} 的档案时发生异常", name, throwable);
-                failure(viewer, "commands.fakeplayer.profile_service_unavailable", name);
+                failure(viewer, "commands.archweaver.fakeplayer.profile_service_unavailable", name);
                 return;
             }
             if (!profileResult.successful()) {
@@ -41,7 +41,7 @@ public final class FakePlayerManagementActions {
                 return;
             }
             if (target.hasDisconnected()) {
-                failure(viewer, "commands.fakeplayer.not_found", target.getGameProfile().name());
+                failure(viewer, "commands.archweaver.fakeplayer.not_found", target.getGameProfile().name());
                 return;
             }
             completeRename(viewer, target, profileResult.profile());
@@ -61,15 +61,15 @@ public final class FakePlayerManagementActions {
         }
 
         viewer.sendSystemMessage(Component.translatable(
-            "commands.fakeplayer.renamed", oldName, profile.name()));
+            "commands.archweaver.fakeplayer.renamed", oldName, profile.name()));
         FakePlayerMenuOpener.openInventory(viewer, result.player());
     }
 
     private static String profileFailureKey(ProfileResolver.Status status) {
         return switch (status) {
-            case BUSY -> "commands.fakeplayer.profile_busy";
-            case SERVICE_UNAVAILABLE -> "commands.fakeplayer.profile_service_unavailable";
-            default -> "commands.fakeplayer.profile_not_found";
+            case BUSY -> "commands.archweaver.fakeplayer.profile_busy";
+            case SERVICE_UNAVAILABLE -> "commands.archweaver.fakeplayer.profile_service_unavailable";
+            default -> "commands.archweaver.fakeplayer.profile_not_found";
         };
     }
 

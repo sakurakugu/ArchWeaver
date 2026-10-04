@@ -32,7 +32,7 @@ public final class PresetManagementActions {
 
     private static void savePreset(ServerPlayer viewer, String id, String playerName, String description) {
         report(viewer, PresetService.savePreset(viewer.level().getServer(), id, playerName, description),
-            "commands.fakeplayer.preset.preset_saved", id, playerName);
+            "commands.archweaver.preset.preset_saved", id, playerName);
     }
 
     private static void loadPreset(ServerPlayer viewer, String id) {
@@ -43,42 +43,42 @@ public final class PresetManagementActions {
             failure(viewer, result.failureKey(), result.failureArguments());
             return;
         }
-        success(viewer, "commands.fakeplayer.preset.preset_loaded", id, preset.player().name());
+        success(viewer, "commands.archweaver.preset.preset_loaded", id, preset.player().name());
     }
 
     private static void removePreset(ServerPlayer viewer, String id) {
         report(viewer, PresetService.removePreset(viewer.level().getServer(), id),
-            "commands.fakeplayer.preset.preset_removed", id);
+            "commands.archweaver.preset.preset_removed", id);
     }
 
     private static void createGroup(ServerPlayer viewer, String id) {
         report(viewer, PresetService.createGroup(viewer.level().getServer(), id),
-            "commands.fakeplayer.preset.group_created", id);
+            "commands.archweaver.preset.group_created", id);
     }
 
     private static void addToGroup(ServerPlayer viewer, String groupId, String presetId) {
         report(viewer, PresetService.addToGroup(viewer.level().getServer(), groupId, presetId),
-            "commands.fakeplayer.preset.group_member_added", presetId, groupId);
+            "commands.archweaver.preset.group_member_added", presetId, groupId);
     }
 
     private static void removeFromGroup(ServerPlayer viewer, String groupId, String presetId) {
         report(viewer, PresetService.removeFromGroup(viewer.level().getServer(), groupId, presetId),
-            "commands.fakeplayer.preset.group_member_removed", presetId, groupId);
+            "commands.archweaver.preset.group_member_removed", presetId, groupId);
     }
 
     private static void loadGroup(ServerPlayer viewer, String id, boolean unload) {
         PresetService.GroupLoadResult result = PresetService.loadGroup(viewer.level().getServer(), id, unload);
         if (!result.groupFound()) {
-            failure(viewer, "commands.fakeplayer.preset.group_not_found", id);
+            failure(viewer, "commands.archweaver.preset.group_not_found", id);
             return;
         }
-        success(viewer, unload ? "commands.fakeplayer.preset.group_unloaded" : "commands.fakeplayer.preset.group_loaded",
+        success(viewer, unload ? "commands.archweaver.preset.group_unloaded" : "commands.archweaver.preset.group_loaded",
             id, result.succeeded(), result.failed());
     }
 
     private static void removeGroup(ServerPlayer viewer, String id) {
         report(viewer, PresetService.removeGroup(viewer.level().getServer(), id),
-            "commands.fakeplayer.preset.group_removed", id);
+            "commands.archweaver.preset.group_removed", id);
     }
 
     private static void report(ServerPlayer viewer, PresetService.Result result, String successKey, Object... successArguments) {

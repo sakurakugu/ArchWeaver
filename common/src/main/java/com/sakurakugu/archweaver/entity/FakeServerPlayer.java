@@ -75,7 +75,7 @@ public final class FakeServerPlayer extends ServerPlayer {
         if (displayName == null) {
             displayName = getDisplayName();
         }
-        return displayName.copy().append(Component.translatable("gui.fakeplayer.tab_marker").withStyle(ChatFormatting.DARK_GRAY));
+        return displayName.copy().append(Component.translatable("gui.archweaver.fakeplayer.tab_marker").withStyle(ChatFormatting.DARK_GRAY));
     }
 
     public void showAllSkinLayers() {

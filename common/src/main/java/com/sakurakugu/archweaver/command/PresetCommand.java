@@ -52,7 +52,7 @@ public final class PresetCommand {
     private static int openGui(CommandContext<CommandSourceStack> context, boolean openGroupsInitially) {
         ServerPlayer viewer = context.getSource().getPlayer();
         if (viewer == null) {
-            return failure(context, "commands.fakeplayer.player_only");
+            return failure(context, "commands.archweaver.fakeplayer.player_only");
         }
         FakePlayerMenuOpener.openPresetManagement(viewer, openGroupsInitially);
         return 1;
@@ -93,7 +93,7 @@ public final class PresetCommand {
             return failure(context, result.failureKey(), result.failureArguments());
         }
         context.getSource().sendSuccess(
-            () -> Component.translatable("commands.fakeplayer.preset.preset_saved", id, playerName), true);
+            () -> Component.translatable("commands.archweaver.preset.preset_saved", id, playerName), true);
         return 1;
     }
 
@@ -106,10 +106,10 @@ public final class PresetCommand {
             return 0;
         }
         context.getSource().sendSuccess(
-            () -> Component.translatable("commands.fakeplayer.preset.preset_page", page, pageCount, presets.size())
+            () -> Component.translatable("commands.archweaver.preset.preset_page", page, pageCount, presets.size())
                 .withStyle(ChatFormatting.GOLD), false);
         if (presets.isEmpty()) {
-            context.getSource().sendSuccess(() -> Component.translatable("commands.fakeplayer.none"), false);
+            context.getSource().sendSuccess(() -> Component.translatable("commands.archweaver.fakeplayer.none"), false);
         }
         int start = (page - 1) * PAGE_SIZE;
         for (Preset preset : presets.subList(start, Math.min(start + PAGE_SIZE, presets.size()))) {
@@ -137,7 +137,7 @@ public final class PresetCommand {
             return failure(context, result.failureKey(), result.failureArguments());
         }
         context.getSource().sendSuccess(
-            () -> Component.translatable("commands.fakeplayer.preset.preset_loaded", id, preset.player().name()), true);
+            () -> Component.translatable("commands.archweaver.preset.preset_loaded", id, preset.player().name()), true);
         return 1;
     }
 
@@ -148,7 +148,7 @@ public final class PresetCommand {
             return failure(context, result.failureKey(), result.failureArguments());
         }
         context.getSource().sendSuccess(
-            () -> Component.translatable("commands.fakeplayer.preset.preset_removed", id), true);
+            () -> Component.translatable("commands.archweaver.preset.preset_removed", id), true);
         return 1;
     }
 
@@ -159,7 +159,7 @@ public final class PresetCommand {
             return failure(context, result.failureKey(), result.failureArguments());
         }
         context.getSource().sendSuccess(
-            () -> Component.translatable("commands.fakeplayer.preset.group_created", id), true);
+            () -> Component.translatable("commands.archweaver.preset.group_created", id), true);
         return 1;
     }
 
@@ -172,10 +172,10 @@ public final class PresetCommand {
             return 0;
         }
         context.getSource().sendSuccess(
-            () -> Component.translatable("commands.fakeplayer.preset.group_page", page, pageCount, groups.size())
+            () -> Component.translatable("commands.archweaver.preset.group_page", page, pageCount, groups.size())
                 .withStyle(ChatFormatting.GOLD), false);
         if (groups.isEmpty()) {
-            context.getSource().sendSuccess(() -> Component.translatable("commands.fakeplayer.none"), false);
+            context.getSource().sendSuccess(() -> Component.translatable("commands.archweaver.fakeplayer.none"), false);
         }
         int start = (page - 1) * PAGE_SIZE;
         for (Group group : groups.subList(start, Math.min(start + PAGE_SIZE, groups.size()))) {
@@ -205,7 +205,7 @@ public final class PresetCommand {
             return failure(context, result.failureKey(), result.failureArguments());
         }
         context.getSource().sendSuccess(
-            () -> Component.translatable("commands.fakeplayer.preset.group_removed", id), true);
+            () -> Component.translatable("commands.archweaver.preset.group_removed", id), true);
         return 1;
     }
 
@@ -217,7 +217,7 @@ public final class PresetCommand {
             return failure(context, result.failureKey(), result.failureArguments());
         }
         context.getSource().sendSuccess(
-            () -> Component.translatable("commands.fakeplayer.preset.group_member_added", preset, group), true);
+            () -> Component.translatable("commands.archweaver.preset.group_member_added", preset, group), true);
         return 1;
     }
 
@@ -229,7 +229,7 @@ public final class PresetCommand {
             return failure(context, result.failureKey(), result.failureArguments());
         }
         context.getSource().sendSuccess(
-            () -> Component.translatable("commands.fakeplayer.preset.group_member_removed", preset, group), true);
+            () -> Component.translatable("commands.archweaver.preset.group_member_removed", preset, group), true);
         return 1;
     }
 
@@ -237,11 +237,11 @@ public final class PresetCommand {
         String id = StringArgumentType.getString(context, "group");
         PresetService.GroupLoadResult result = PresetService.loadGroup(context.getSource().getServer(), id, unload);
         if (!result.groupFound()) {
-            return failure(context, "commands.fakeplayer.preset.group_not_found", id);
+            return failure(context, "commands.archweaver.preset.group_not_found", id);
         }
         int successCount = result.succeeded();
         int failureCount = result.failed();
-        String key = unload ? "commands.fakeplayer.preset.group_unloaded" : "commands.fakeplayer.preset.group_loaded";
+        String key = unload ? "commands.archweaver.preset.group_unloaded" : "commands.archweaver.preset.group_loaded";
         context.getSource().sendSuccess(() -> Component.translatable(key, id, successCount, failureCount), true);
         return successCount;
     }
@@ -250,17 +250,17 @@ public final class PresetCommand {
         String id = StringArgumentType.getString(context, "group");
         Group group = data(context).group(id).orElse(null);
         if (group == null) {
-            return failure(context, "commands.fakeplayer.preset.group_not_found", id);
+            return failure(context, "commands.archweaver.preset.group_not_found", id);
         }
         int pageCount = pageCount(group.presetIds().size());
         if (!validPage(context, page, pageCount)) {
             return 0;
         }
         context.getSource().sendSuccess(
-            () -> Component.translatable("commands.fakeplayer.preset.group_info_page",
+            () -> Component.translatable("commands.archweaver.preset.group_info_page",
                 group.id(), page, pageCount, group.presetIds().size()).withStyle(ChatFormatting.GOLD), false);
         if (group.presetIds().isEmpty()) {
-            context.getSource().sendSuccess(() -> Component.translatable("commands.fakeplayer.none"), false);
+            context.getSource().sendSuccess(() -> Component.translatable("commands.archweaver.fakeplayer.none"), false);
         }
         int start = (page - 1) * PAGE_SIZE;
         for (String preset : group.presetIds().subList(start, Math.min(start + PAGE_SIZE, group.presetIds().size()))) {
@@ -292,7 +292,7 @@ public final class PresetCommand {
             navigation.append(actionButton("« ", ChatFormatting.GRAY,
                 new ClickEvent.RunCommand(commandPrefix + (page - 1))));
         }
-        navigation.append(Component.translatable("commands.fakeplayer.preset.page_navigation", page, pageCount));
+        navigation.append(Component.translatable("commands.archweaver.preset.page_navigation", page, pageCount));
         if (page < pageCount) {
             navigation.append(actionButton(" »", ChatFormatting.GRAY,
                 new ClickEvent.RunCommand(commandPrefix + (page + 1))));
@@ -308,7 +308,7 @@ public final class PresetCommand {
         if (page <= pageCount) {
             return true;
         }
-        failure(context, "commands.fakeplayer.preset.page_not_found", page, pageCount);
+        failure(context, "commands.archweaver.preset.page_not_found", page, pageCount);
         return false;
     }
 

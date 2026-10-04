@@ -71,7 +71,7 @@ public final class ChunkLoaderCommand {
     private static int openMainPage(CommandContext<CommandSourceStack> context, OpenMainPagePayload.View view) {
         ServerPlayer player = context.getSource().getPlayer();
         if (player == null) {
-            return failure(context, Component.translatable("commands.fakeplayer.player_only"));
+            return failure(context, Component.translatable("commands.archweaver.fakeplayer.player_only"));
         }
         PlatformNetworking.sendToPlayer(player, new OpenMainPagePayload(view));
         return 1;
@@ -79,27 +79,27 @@ public final class ChunkLoaderCommand {
 
     private static int backup(CommandContext<CommandSourceStack> context) {
         if (!ChunkLoaderManager.backup(context.getSource().getServer())) {
-            return failure(context, Component.translatable("commands.fakeplayer.chunkloader.backup_failed"));
+            return failure(context, Component.translatable("commands.archweaver.chunkloader.backup_failed"));
         }
         context.getSource().sendSuccess(
-            () -> Component.translatable("commands.fakeplayer.chunkloader.backup_created"), false);
+            () -> Component.translatable("commands.archweaver.chunkloader.backup_created"), false);
         return 1;
     }
 
     private static int restore(CommandContext<CommandSourceStack> context) {
         var result = ChunkLoaderManager.restoreLatestBackup(context.getSource().getServer());
         if (!result.successful()) {
-            return failure(context, Component.translatable("commands.fakeplayer.chunkloader.failed", result.reason()));
+            return failure(context, Component.translatable("commands.archweaver.chunkloader.failed", result.reason()));
         }
         context.getSource().sendSuccess(
-            () -> Component.translatable("commands.fakeplayer.chunkloader.backup_restored"), true);
+            () -> Component.translatable("commands.archweaver.chunkloader.backup_restored"), true);
         return 1;
     }
 
     private static int add(CommandContext<CommandSourceStack> context) {
         int radius = IntegerArgumentType.getInteger(context, "radius");
         if (radius > ArchWeaverConfig.maxChunkLoadingRadius()) {
-            return failure(context, Component.translatable("commands.fakeplayer.chunkloader.radius_limit",
+            return failure(context, Component.translatable("commands.archweaver.chunkloader.radius_limit",
                 ArchWeaverConfig.maxChunkLoadingRadius()));
         }
         String name = StringArgumentType.getString(context, "anchor");
@@ -107,10 +107,10 @@ public final class ChunkLoaderCommand {
         var result = ChunkLoaderManager.add(context.getSource().getServer(), name,
             context.getSource().getLevel(), position, radius);
         if (!result.successful()) {
-            return failure(context, Component.translatable("commands.fakeplayer.chunkloader.failed", result.reason()));
+            return failure(context, Component.translatable("commands.archweaver.chunkloader.failed", result.reason()));
         }
         ManualLoadRegion anchor = result.region().orElseThrow();
-        context.getSource().sendSuccess(() -> Component.translatable("commands.fakeplayer.chunkloader.added",
+        context.getSource().sendSuccess(() -> Component.translatable("commands.archweaver.chunkloader.added",
             anchor.name(), position.toShortString(), anchor.dimension(), radius), true);
         return 1;
     }
@@ -119,10 +119,10 @@ public final class ChunkLoaderCommand {
         String name = StringArgumentType.getString(context, "anchor");
         var result = ChunkLoaderManager.setEnabled(context.getSource().getServer(), name, enabled);
         if (!result.successful()) {
-            return failure(context, Component.translatable("commands.fakeplayer.chunkloader.failed", result.reason()));
+            return failure(context, Component.translatable("commands.archweaver.chunkloader.failed", result.reason()));
         }
         context.getSource().sendSuccess(() -> Component.translatable(
-            enabled ? "commands.fakeplayer.chunkloader.enabled" : "commands.fakeplayer.chunkloader.disabled", name), true);
+            enabled ? "commands.archweaver.chunkloader.enabled" : "commands.archweaver.chunkloader.disabled", name), true);
         return 1;
     }
 
@@ -130,10 +130,10 @@ public final class ChunkLoaderCommand {
         String name = StringArgumentType.getString(context, "anchor");
         var result = ChunkLoaderManager.remove(context.getSource().getServer(), name);
         if (!result.successful()) {
-            return failure(context, Component.translatable("commands.fakeplayer.chunkloader.failed", result.reason()));
+            return failure(context, Component.translatable("commands.archweaver.chunkloader.failed", result.reason()));
         }
         context.getSource().sendSuccess(
-            () -> Component.translatable("commands.fakeplayer.chunkloader.removed", name), true);
+            () -> Component.translatable("commands.archweaver.chunkloader.removed", name), true);
         return 1;
     }
 
@@ -143,15 +143,15 @@ public final class ChunkLoaderCommand {
         if (fake == null) return 0;
         var result = FakePlayerSimulationService.setPolicy(context.getSource().getServer(), fake.getUUID(), mode, distance);
         if (!result.successful()) {
-            return failure(context, Component.translatable("commands.fakeplayer.chunkloader.fake_mode_failed", result.reason()));
+            return failure(context, Component.translatable("commands.archweaver.chunkloader.fake_mode_failed", result.reason()));
         }
         if (mode == FakePlayerLoadMode.PLAYER) {
             context.getSource().sendSuccess(() -> Component.translatable(
-                "commands.fakeplayer.chunkloader.fake_mode_set", fake.getName().getString(),
-                Component.translatable("commands.fakeplayer.chunkloader.fake_mode_player")), true);
+                "commands.archweaver.chunkloader.fake_mode_set", fake.getName().getString(),
+                Component.translatable("commands.archweaver.chunkloader.fake_mode_player")), true);
         } else {
             context.getSource().sendSuccess(() -> Component.translatable(
-                "commands.fakeplayer.chunkloader.fake_mode_set_doll", fake.getName().getString(), distance), true);
+                "commands.archweaver.chunkloader.fake_mode_set_doll", fake.getName().getString(), distance), true);
         }
         return 1;
     }
@@ -165,10 +165,10 @@ public final class ChunkLoaderCommand {
             : policy.usesCustomSimulation() ? FakePlayerSimulationService.dollSimulationDistance(fake)
             : policy.simulationDistance();
         Component modeLabel = Component.translatable(mode == FakePlayerLoadMode.PLAYER
-            ? "commands.fakeplayer.chunkloader.fake_mode_player"
-            : "commands.fakeplayer.chunkloader.fake_mode_doll");
+            ? "commands.archweaver.chunkloader.fake_mode_player"
+            : "commands.archweaver.chunkloader.fake_mode_doll");
         context.getSource().sendSuccess(() -> Component.translatable(
-            "commands.fakeplayer.chunkloader.fake_mode_info", fake.getName().getString(), modeLabel, distance), false);
+            "commands.archweaver.chunkloader.fake_mode_info", fake.getName().getString(), modeLabel, distance), false);
         return 1;
     }
 
@@ -176,9 +176,9 @@ public final class ChunkLoaderCommand {
         String name = StringArgumentType.getString(context, "anchor");
         ManualLoadRegion anchor = ChunkLoaderManager.data(context.getSource().getServer()).region(name).orElse(null);
         if (anchor == null) {
-            return failure(context, Component.translatable("commands.fakeplayer.chunkloader.not_found", name));
+            return failure(context, Component.translatable("commands.archweaver.chunkloader.not_found", name));
         }
-        context.getSource().sendSuccess(() -> Component.translatable("commands.fakeplayer.chunkloader.info",
+        context.getSource().sendSuccess(() -> Component.translatable("commands.archweaver.chunkloader.info",
             anchor.name(), anchor.enabled(), anchor.dimension(), "-", 0,
             anchor.chunks().size()), false);
         return 1;
@@ -200,7 +200,7 @@ public final class ChunkLoaderCommand {
         String name = StringArgumentType.getString(context, "fake");
         FakeServerPlayer fake = FakePlayerManager.find(context.getSource().getServer(), name);
         if (fake == null) {
-            context.getSource().sendFailure(Component.translatable("commands.fakeplayer.not_found", name));
+            context.getSource().sendFailure(Component.translatable("commands.archweaver.fakeplayer.not_found", name));
         }
         return fake;
     }

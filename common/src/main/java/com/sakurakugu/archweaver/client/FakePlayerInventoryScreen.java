@@ -227,7 +227,7 @@ public final class FakePlayerInventoryScreen extends AbstractContainerScreen<Fak
                     leftPos + ACTION_BUTTON_LEFT,
                     topPos + ACTION_BUTTON_TOP + (ACTION_BUTTON_HEIGHT + ACTION_BUTTON_GAP) * 2,
                     POSSESSION_EXIT_ICON,
-                    Component.translatable("gui.fakeplayer.stop_possessing"),
+                    Component.translatable("gui.archweaver.fakeplayer.stop_possessing"),
                     button -> sendAction(FakePlayerInventoryMenu.ACTION_POSSESS)
                 )
             );
@@ -238,7 +238,7 @@ public final class FakePlayerInventoryScreen extends AbstractContainerScreen<Fak
                 leftPos + ACTION_BUTTON_LEFT,
                 topPos + ACTION_BUTTON_TOP,
                 new ItemStack(Items.BARRIER),
-                Component.translatable("gui.fakeplayer.remove"),
+                Component.translatable("gui.archweaver.fakeplayer.remove"),
                 button -> sendAction(FakePlayerInventoryMenu.ACTION_REMOVE)
             )
         );
@@ -249,8 +249,8 @@ public final class FakePlayerInventoryScreen extends AbstractContainerScreen<Fak
                 menu.possessedByViewer() ? POSSESSION_EXIT_ICON : POSSESSION_ENTER_ICON,
                 menu.targetOccupied() && !menu.possessedByViewer() ? new ItemStack(Items.BARRIER) : null,
                 Component.translatable(menu.possessedByViewer()
-                    ? "gui.fakeplayer.stop_possessing"
-                    : menu.targetOccupied() ? "gui.fakeplayer.possess_disabled" : "gui.fakeplayer.possess"),
+                    ? "gui.archweaver.fakeplayer.stop_possessing"
+                    : menu.targetOccupied() ? "gui.archweaver.fakeplayer.possess_disabled" : "gui.archweaver.fakeplayer.possess"),
                 button -> sendAction(FakePlayerInventoryMenu.ACTION_POSSESS)
             )
         );
@@ -262,7 +262,7 @@ public final class FakePlayerInventoryScreen extends AbstractContainerScreen<Fak
                 leftPos + ACTION_BUTTON_LEFT,
                 topPos + ACTION_BUTTON_TOP + ACTION_BUTTON_HEIGHT + ACTION_BUTTON_GAP,
                 new ItemStack(Items.ENDER_CHEST),
-                Component.translatable("gui.fakeplayer.open_ender_chest"),
+                Component.translatable("gui.archweaver.fakeplayer.open_ender_chest"),
                 button -> sendAction(FakePlayerInventoryMenu.ACTION_ENDER_CHEST)
             )
         );
@@ -295,18 +295,18 @@ public final class FakePlayerInventoryScreen extends AbstractContainerScreen<Fak
         int panelLeft = leftPos + imageWidth;
         panelManager = new OverlayPanelManager(font);
         aimPanel = panelManager.addRightPanel(AIM_PANEL_ID, panelLeft, topPos, AIM_PANEL_LAYOUT,
-            Component.translatable("gui.fakeplayer.look.title"));
+            Component.translatable("gui.archweaver.fakeplayer.look.title"));
         continuousPanel = panelManager.addRightPanel(CONTINUOUS_PANEL_ID, panelLeft, topPos, CONTINUOUS_PANEL_LAYOUT,
-            Component.translatable("gui.fakeplayer.continuous.title"));
+            Component.translatable("gui.archweaver.fakeplayer.continuous.title"));
         infoPanel = panelManager.addRightPanel(INFO_PANEL_ID, panelLeft, topPos, INFO_PANEL_LAYOUT,
-            Component.translatable("gui.fakeplayer.info.title"));
+            Component.translatable("gui.archweaver.fakeplayer.info.title"));
         dropPanel = panelManager.addRightPanel(DROP_PANEL_ID, panelLeft, topPos, DROP_PANEL_LAYOUT,
-            Component.translatable("gui.fakeplayer.drop_panel_title"));
+            Component.translatable("gui.archweaver.fakeplayer.drop_panel_title"));
         automationPanel = panelManager.addRightPanel(
             AUTOMATION_PANEL_ID, panelLeft, topPos, AUTOMATION_PANEL_LAYOUT,
-            Component.translatable("gui.fakeplayer.automation.title"));
+            Component.translatable("gui.archweaver.fakeplayer.automation.title"));
         mountPanel = panelManager.addRightPanel(MOUNT_PANEL_ID, panelLeft, topPos, MOUNT_PANEL_LAYOUT,
-            Component.translatable("gui.fakeplayer.mount.title"));
+            Component.translatable("gui.archweaver.fakeplayer.mount.title"));
     }
 
     private void addAutomationPanel() {
@@ -322,7 +322,7 @@ public final class FakePlayerInventoryScreen extends AbstractContainerScreen<Fak
                 automationTop + index * (AUTOMATION_BUTTON_HEIGHT + 2),
                 automationPanel.contentWidth() - 12,
                 AUTOMATION_BUTTON_HEIGHT,
-                Component.translatable("gui.fakeplayer.automation." + AUTOMATION_KEYS[index]),
+                Component.translatable("gui.archweaver.fakeplayer.automation." + AUTOMATION_KEYS[index]),
                 () -> menu.automationEnabled(automationIndex),
                 button -> sendAction(actionId)
             ));
@@ -337,17 +337,17 @@ public final class FakePlayerInventoryScreen extends AbstractContainerScreen<Fak
         int mountTop = mountPanel.getY();
         Button mountButton = addRenderableWidget(new SolidButton(
             panelLeft + 6, mountTop + 21, mountPanel.contentWidth() - 12, MOUNT_BUTTON_HEIGHT,
-            Component.translatable("gui.fakeplayer.mount.mount"),
+            Component.translatable("gui.archweaver.fakeplayer.mount.mount"),
             button -> sendAction(FakePlayerInventoryMenu.ACTION_MOUNT)
         ));
         Button mountAnythingButton = addRenderableWidget(new SolidButton(
             panelLeft + 6, mountTop + 39, mountPanel.contentWidth() - 12, MOUNT_BUTTON_HEIGHT,
-            Component.translatable("gui.fakeplayer.mount.mount_anything"),
+            Component.translatable("gui.archweaver.fakeplayer.mount.mount_anything"),
             button -> sendAction(FakePlayerInventoryMenu.ACTION_MOUNT_ANYTHING)
         ));
         Button dismountButton = addRenderableWidget(new SolidButton(
             panelLeft + 6, mountTop + 57, mountPanel.contentWidth() - 12, MOUNT_BUTTON_HEIGHT,
-            Component.translatable("gui.fakeplayer.mount.dismount"),
+            Component.translatable("gui.archweaver.fakeplayer.mount.dismount"),
             button -> sendAction(FakePlayerInventoryMenu.ACTION_DISMOUNT)
         ));
         // 马鞍贴图的视觉重心偏下，单独向左上修正 1 像素。
@@ -371,7 +371,7 @@ public final class FakePlayerInventoryScreen extends AbstractContainerScreen<Fak
                 buttonTop,
                 continuousPanel.contentWidth() - 12,
                 CONTINUOUS_BUTTON_HEIGHT,
-                Component.translatable("gui.fakeplayer.continuous." + CONTINUOUS_KEYS[index]),
+                Component.translatable("gui.archweaver.fakeplayer.continuous." + CONTINUOUS_KEYS[index]),
                 () -> menu.continuousControlEnabled(controlIndex),
                 button -> sendAction(CONTINUOUS_ACTIONS[controlIndex])
             ));
@@ -389,11 +389,11 @@ public final class FakePlayerInventoryScreen extends AbstractContainerScreen<Fak
                 1,
                 FakePlayerInventoryMenu.MAX_CONTINUOUS_INTERVAL,
                 menu.continuousInterval(controlIndex),
-                value -> Component.translatable("gui.fakeplayer.continuous.interval", value),
+                value -> Component.translatable("gui.archweaver.fakeplayer.continuous.interval", value),
                 value -> sendAction(FakePlayerInventoryMenu.continuousIntervalActionId(controlIndex, value))
             ));
             intervalSliders[index].setTooltip(Tooltip.create(
-                Component.translatable("gui.fakeplayer.continuous.interval_tooltip")));
+                Component.translatable("gui.archweaver.fakeplayer.continuous.interval_tooltip")));
         }
         Button stopAllContinuousButton = addRenderableWidget(new SolidButton(
             panelLeft + 6,
@@ -401,7 +401,7 @@ public final class FakePlayerInventoryScreen extends AbstractContainerScreen<Fak
                 + intervalSliders.length * (CONTINUOUS_BUTTON_HEIGHT + CONTINUOUS_SLIDER_HEIGHT + 4) + 2,
             continuousPanel.contentWidth() - 12,
             CONTINUOUS_BUTTON_HEIGHT,
-            Component.translatable("gui.fakeplayer.stop"),
+            Component.translatable("gui.archweaver.fakeplayer.stop"),
             button -> sendAction(FakePlayerInventoryMenu.ACTION_STOP_ALL)
         ));
         addRenderableWidget(continuousPanel.createTab(new ItemStack(Items.CLOCK)));
@@ -419,9 +419,9 @@ public final class FakePlayerInventoryScreen extends AbstractContainerScreen<Fak
         int panelTop = dropPanel.getY();
         addRenderableWidget(dropPanel);
         dropPanel.setContentRenderer((graphics, x, y) -> graphics.text(font,
-            Component.translatable("gui.fakeplayer.drop_amount"), x + 6, y + 31, 0xFF404040, false));
+            Component.translatable("gui.archweaver.fakeplayer.drop_amount"), x + 6, y + 31, 0xFF404040, false));
         addRenderableWidget(dropPanel.createTab(
-            DROP_TAB_ICON, Component.translatable("gui.fakeplayer.drop_tab")));
+            DROP_TAB_ICON, Component.translatable("gui.archweaver.fakeplayer.drop_tab")));
 
         dropModeButton = addRenderableWidget(
             new SolidButton(panelLeft + 74, panelTop + 28, 14, 14, dropModeMessage(), button -> toggleDropMode())
@@ -446,7 +446,7 @@ public final class FakePlayerInventoryScreen extends AbstractContainerScreen<Fak
         ));
         ToggleSwitchButton continuousDropButton = addRenderableWidget(
             new ToggleSwitchButton(panelLeft + 6, panelTop + 67, dropPanel.contentWidth() - 12, 16,
-                Component.translatable("gui.fakeplayer.drop_continuous"), () -> continuousDrop, button -> {
+                Component.translatable("gui.archweaver.fakeplayer.drop_continuous"), () -> continuousDrop, button -> {
                 continuousDrop = !continuousDrop;
             })
         );
@@ -456,7 +456,7 @@ public final class FakePlayerInventoryScreen extends AbstractContainerScreen<Fak
                 panelTop + 88,
                 dropPanel.contentWidth() - 12,
                 16,
-                Component.translatable("gui.fakeplayer.drop_execute"),
+                Component.translatable("gui.archweaver.fakeplayer.drop_execute"),
                 button -> sendAction(FakePlayerInventoryMenu.dropActionId(
                     currentDropValue(), percentageDrop, continuousDrop))
             )
@@ -471,13 +471,13 @@ public final class FakePlayerInventoryScreen extends AbstractContainerScreen<Fak
         addRenderableWidget(infoPanel);
         infoPanel.setContentRenderer(this::drawInfoPanelContents);
         nameInput = addRenderableWidget(new EditBox(font, left + 6, top + 28, 86, 16,
-            Component.translatable("gui.fakeplayer.info.name")));
+            Component.translatable("gui.archweaver.fakeplayer.info.name")));
         nameInput.setMaxLength(16);
         nameInput.setValue(menu.targetName());
-        nameInput.setHint(Component.translatable("gui.fakeplayer.info.name"));
+        nameInput.setHint(Component.translatable("gui.archweaver.fakeplayer.info.name"));
         Button renameButton = addRenderableWidget(new SolidButton(
             left + 96, top + 28, 28, 16,
-            Component.translatable("gui.fakeplayer.info.rename"),
+            Component.translatable("gui.archweaver.fakeplayer.info.rename"),
             button -> submitRename()
         ));
         // 收窄下拉框，右边界与名称、复制、经验等控件对齐在 left + 124。
@@ -495,7 +495,7 @@ public final class FakePlayerInventoryScreen extends AbstractContainerScreen<Fak
         ));
         Button copyPositionButton = addRenderableWidget(new SolidButton(
             left + 96, top + 139, 28, 14,
-            Component.translatable("gui.fakeplayer.info.copy"),
+            Component.translatable("gui.archweaver.fakeplayer.info.copy"),
             button -> copyPosition()
         ));
         addRenderableWidget(infoPanel.createTab(new ItemStack(Items.NAME_TAG)));
@@ -516,7 +516,7 @@ public final class FakePlayerInventoryScreen extends AbstractContainerScreen<Fak
         OverlayPanelManager simulationPanelManager = new OverlayPanelManager(font);
         simulationPanel = simulationPanelManager.addLeftPanel(
             SIMULATION_PANEL_ID, left, top - SIMULATION_PANEL_LAYOUT.top(),
-            SIMULATION_PANEL_LAYOUT, Component.translatable("gui.fakeplayer.simulation.title"));
+            SIMULATION_PANEL_LAYOUT, Component.translatable("gui.archweaver.fakeplayer.simulation.title"));
         addRenderableWidget(simulationPanel);
         if (!simulationStateInitialized) {
             simulationMode = menu.simulationMode();
@@ -526,25 +526,25 @@ public final class FakePlayerInventoryScreen extends AbstractContainerScreen<Fak
         IntegerSliderButton[] distanceControl = new IntegerSliderButton[1];
         SegmentedSwitchButton mode = addRenderableWidget(new SegmentedSwitchButton(
             left + 6, top + 24, simulationPanel.contentWidth() - 12, 18,
-            Component.translatable("gui.fakeplayer.simulation.auto"),
-            Component.translatable("gui.fakeplayer.simulation.manual"),
+            Component.translatable("gui.archweaver.fakeplayer.simulation.auto"),
+            Component.translatable("gui.archweaver.fakeplayer.simulation.manual"),
             () -> simulationMode == FakePlayerLoadMode.DOLL,
             doll -> {
                 simulationMode = doll ? FakePlayerLoadMode.DOLL : FakePlayerLoadMode.PLAYER;
                 if (distanceControl[0] != null) distanceControl[0].active = doll;
             }));
-        mode.setTooltip(Tooltip.create(Component.translatable("gui.fakeplayer.simulation.mode_tooltip")));
+        mode.setTooltip(Tooltip.create(Component.translatable("gui.archweaver.fakeplayer.simulation.mode_tooltip")));
         IntegerSliderButton slider = addRenderableWidget(new IntegerSliderButton(
             left + 6, top + 47, simulationPanel.contentWidth() - 12, 16,
             0, Math.max(1, menu.simulationDistanceLimit()),
             Math.min(simulationDistance, menu.simulationDistanceLimit()),
-            value -> Component.translatable("gui.fakeplayer.simulation.distance", value),
+            value -> Component.translatable("gui.archweaver.fakeplayer.simulation.distance", value),
             value -> simulationDistance = value));
         slider.active = simulationMode == FakePlayerLoadMode.DOLL;
         distanceControl[0] = slider;
         SolidButton apply = addRenderableWidget(new SolidButton(
             left + 6, top + 70, simulationPanel.contentWidth() - 12, 16,
-            Component.translatable("gui.fakeplayer.simulation.apply"), button -> {
+            Component.translatable("gui.archweaver.fakeplayer.simulation.apply"), button -> {
                 PlatformNetworking.sendToServer(new FakePlayerSimulationPayload(
                     menu.containerId, simulationMode, simulationDistance));
                 simulationApplied = true;
@@ -609,14 +609,14 @@ public final class FakePlayerInventoryScreen extends AbstractContainerScreen<Fak
             "↑",
             FakePlayerInventoryMenu.ACTION_FLY_UP
         );
-        flyUpButton.setTooltip(Tooltip.create(Component.translatable("gui.fakeplayer.fly_up")));
+        flyUpButton.setTooltip(Tooltip.create(Component.translatable("gui.archweaver.fakeplayer.fly_up")));
         flyDownButton = addControlButtonAt(
             leftPos + SNEAK_BUTTON_LEFT,
             topPos + CONTROL_TOP + CONTROL_SIZE * 2,
             "↓",
             FakePlayerInventoryMenu.ACTION_FLY_DOWN
         );
-        flyDownButton.setTooltip(Tooltip.create(Component.translatable("gui.fakeplayer.fly_down")));
+        flyDownButton.setTooltip(Tooltip.create(Component.translatable("gui.archweaver.fakeplayer.fly_down")));
         updateFlyingButtons();
     }
 
@@ -627,12 +627,12 @@ public final class FakePlayerInventoryScreen extends AbstractContainerScreen<Fak
         aimPanel.setContentRenderer(this::drawAimPanelContents);
         bodyFollowsHeadButton = addRenderableWidget(new ToggleSwitchButton(
             x + 6, y + 20, aimPanel.contentWidth() - 12, 16,
-            Component.translatable("gui.fakeplayer.look.body_follows_head"),
+            Component.translatable("gui.archweaver.fakeplayer.look.body_follows_head"),
             menu::bodyFollowsHead,
             button -> sendAction(FakePlayerInventoryMenu.ACTION_TOGGLE_BODY_FOLLOWS_HEAD)
         ));
         bodyFollowsHeadButton.setTooltip(Tooltip.create(
-            Component.translatable("gui.fakeplayer.look.body_follows_head_tooltip")));
+            Component.translatable("gui.archweaver.fakeplayer.look.body_follows_head_tooltip")));
         aimPad = addRenderableWidget(new RotationPad(
             x + 16, y + 50, AIM_PAD_SIZE, RotationPad.Mode.VIEW,
             menu::pitch, menu::yaw, menu::bodyYaw, menu::bodyFollowsHead,
@@ -644,9 +644,9 @@ public final class FakePlayerInventoryScreen extends AbstractContainerScreen<Fak
             selectedYaw -> sendAction(FakePlayerInventoryMenu.bodyYawAction(selectedYaw)),
             this::sendViewRotation));
         pitchInput = addRenderableWidget(new EditBox(font, x + 36, y + 192, 52, 16,
-            Component.translatable("gui.fakeplayer.look_pitch")));
+            Component.translatable("gui.archweaver.fakeplayer.look_pitch")));
         yawInput = addRenderableWidget(new EditBox(font, x + 36, y + 212, 52, 16,
-            Component.translatable("gui.fakeplayer.look_yaw")));
+            Component.translatable("gui.archweaver.fakeplayer.look_yaw")));
         pitchInput.setValue(Integer.toString(menu.pitch()));
         yawInput.setValue(Integer.toString(menu.yaw()));
         pitchInput.setFilter(value -> value.matches("-?\\d{0,3}"));
@@ -734,7 +734,7 @@ public final class FakePlayerInventoryScreen extends AbstractContainerScreen<Fak
         jumpButtonFlying = flying;
         jumpButton.setMessage(Component.literal(flying ? "F" : "J"));
         jumpButton.setTooltip(Tooltip.create(Component.translatable(
-            flying ? "gui.fakeplayer.stop_flying" : "gui.fakeplayer.jump")));
+            flying ? "gui.archweaver.fakeplayer.stop_flying" : "gui.archweaver.fakeplayer.jump")));
     }
 
     private void addTransferButtons(int buttonTop) {
@@ -770,8 +770,8 @@ public final class FakePlayerInventoryScreen extends AbstractContainerScreen<Fak
 
     private void updateDropModeTooltip() {
         dropModeButton.setTooltip(Tooltip.create(Component.translatable(percentageDrop
-            ? "gui.fakeplayer.drop_mode_percentage"
-            : "gui.fakeplayer.drop_mode_amount")));
+            ? "gui.archweaver.fakeplayer.drop_mode_percentage"
+            : "gui.archweaver.fakeplayer.drop_mode_amount")));
     }
 
     private int currentDropValue() {
@@ -818,7 +818,7 @@ public final class FakePlayerInventoryScreen extends AbstractContainerScreen<Fak
     /** 标签保持固定，仅在空间不足时滚动坐标值。 */
     private final class CoordinateDisplay extends Button {
         private CoordinateDisplay(int x, int y, int width, int height) {
-            super(x, y, width, height, Component.translatable("gui.fakeplayer.info.position"),
+            super(x, y, width, height, Component.translatable("gui.archweaver.fakeplayer.info.position"),
                 button -> {}, DEFAULT_NARRATION);
         }
 
@@ -836,7 +836,7 @@ public final class FakePlayerInventoryScreen extends AbstractContainerScreen<Fak
                 PixelGui.drawScrollingText(graphics, font, value,
                     valueLeft, valueRight, getY(), getHeight(), 0xFF404040);
             }
-            setTooltip(Tooltip.create(Component.translatable("gui.fakeplayer.info.position_tooltip",
+            setTooltip(Tooltip.create(Component.translatable("gui.archweaver.fakeplayer.info.position_tooltip",
                 menu.positionX(), menu.positionY(), menu.positionZ())));
         }
     }
@@ -849,18 +849,18 @@ public final class FakePlayerInventoryScreen extends AbstractContainerScreen<Fak
 
         @Override
         protected void extractContents(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
-            Component label = Component.translatable("gui.fakeplayer.info.experience");
+            Component label = Component.translatable("gui.archweaver.fakeplayer.info.experience");
             graphics.text(font, label, getX(), getY() + 4, 0xFF404040, false);
 
             int iconX = getX() + font.width(label) + 4;
             // 使用原版最大经验球的图块，并补上实体渲染时使用的黄绿色着色。
             graphics.blit(RenderPipelines.GUI_TEXTURED, EXPERIENCE_ORB_TEXTURE,
                 iconX, getY() + 4, 32.0F, 32.0F, 9, 9, 16, 16, 64, 64, 0xFF80FF20);
-            graphics.text(font, Component.translatable("gui.fakeplayer.info.experience_level",
+            graphics.text(font, Component.translatable("gui.archweaver.fakeplayer.info.experience_level",
                 menu.experienceLevel()), iconX + 13, getY() + 4, 0xFF80FF20, true);
 
             int remaining = Math.max(0, menu.experienceNeeded() - menu.experiencePoints());
-            setTooltip(Tooltip.create(Component.translatable("gui.fakeplayer.info.experience_tooltip",
+            setTooltip(Tooltip.create(Component.translatable("gui.archweaver.fakeplayer.info.experience_tooltip",
                 menu.experiencePoints(), remaining, menu.totalExperience())));
         }
     }
@@ -1035,24 +1035,24 @@ public final class FakePlayerInventoryScreen extends AbstractContainerScreen<Fak
         int labelLeft = left + 7;
         int statusLeft = labelLeft + statusLabelWidth() + 4;
         int line = top + 66;
-        drawStatusLabel(graphics, "gui.fakeplayer.info.health", labelLeft, line);
+        drawStatusLabel(graphics, "gui.archweaver.fakeplayer.info.health", labelLeft, line);
         drawHealth(graphics, statusLeft, line);
-        drawStatusLabel(graphics, "gui.fakeplayer.info.food", labelLeft, line + 15);
+        drawStatusLabel(graphics, "gui.archweaver.fakeplayer.info.food", labelLeft, line + 15);
         drawFood(graphics, statusLeft, line + 15);
         drawSaturation(graphics, statusLeft, line + 15);
-        drawStatusLabel(graphics, "gui.fakeplayer.info.armor", labelLeft, line + 30);
+        drawStatusLabel(graphics, "gui.archweaver.fakeplayer.info.armor", labelLeft, line + 30);
         drawArmor(graphics, statusLeft, line + 30);
-        drawStatusLabel(graphics, "gui.fakeplayer.info.air", labelLeft, line + 45);
+        drawStatusLabel(graphics, "gui.archweaver.fakeplayer.info.air", labelLeft, line + 45);
         drawAir(graphics, statusLeft, line + 45);
-        graphics.text(font, Component.translatable("gui.fakeplayer.info.game_mode"), labelLeft, top + 51,
+        graphics.text(font, Component.translatable("gui.archweaver.fakeplayer.info.game_mode"), labelLeft, top + 51,
             0xFF404040, false);
     }
 
     private int statusLabelWidth() {
-        int width = font.width(Component.translatable("gui.fakeplayer.info.health"));
-        width = Math.max(width, font.width(Component.translatable("gui.fakeplayer.info.food")));
-        width = Math.max(width, font.width(Component.translatable("gui.fakeplayer.info.armor")));
-        return Math.max(width, font.width(Component.translatable("gui.fakeplayer.info.air")));
+        int width = font.width(Component.translatable("gui.archweaver.fakeplayer.info.health"));
+        width = Math.max(width, font.width(Component.translatable("gui.archweaver.fakeplayer.info.food")));
+        width = Math.max(width, font.width(Component.translatable("gui.archweaver.fakeplayer.info.armor")));
+        return Math.max(width, font.width(Component.translatable("gui.archweaver.fakeplayer.info.air")));
     }
 
     private void drawStatusLabel(GuiGraphicsExtractor graphics, String key, int left, int top) {
@@ -1172,13 +1172,13 @@ public final class FakePlayerInventoryScreen extends AbstractContainerScreen<Fak
     }
 
     private void drawAimPanelContents(GuiGraphicsExtractor graphics, int x, int y) {
-        graphics.text(font, Component.translatable("gui.fakeplayer.look.view"), x + 16, y + 41,
+        graphics.text(font, Component.translatable("gui.archweaver.fakeplayer.look.view"), x + 16, y + 41,
             0xFF606060, false);
-        graphics.text(font, Component.translatable("gui.fakeplayer.look.direction"), x + 16, y + 115,
+        graphics.text(font, Component.translatable("gui.archweaver.fakeplayer.look.direction"), x + 16, y + 115,
             0xFF606060, false);
-        graphics.text(font, Component.translatable("gui.fakeplayer.look_pitch"), x + 6, y + 197,
+        graphics.text(font, Component.translatable("gui.archweaver.fakeplayer.look_pitch"), x + 6, y + 197,
             0xFF404040, false);
-        graphics.text(font, Component.translatable("gui.fakeplayer.look_yaw"), x + 6, y + 217,
+        graphics.text(font, Component.translatable("gui.archweaver.fakeplayer.look_yaw"), x + 6, y + 217,
             0xFF404040, false);
     }
 

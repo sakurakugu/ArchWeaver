@@ -155,7 +155,7 @@ public final class RotationPad extends Button {
     private void updateTooltip() {
         if (mode == Mode.BODY) {
             setTooltip(Tooltip.create(Component.translatable(
-                "gui.fakeplayer.look.direction_tooltip",
+                "gui.archweaver.fakeplayer.look.direction_tooltip",
                 bodyYaw.getAsInt(),
                 Math.round(wrapDegrees(yaw.getAsInt() - bodyYaw.getAsInt())),
                 bodyBearing(bodyYaw.getAsInt())
@@ -163,7 +163,7 @@ public final class RotationPad extends Button {
             return;
         }
         setTooltip(Tooltip.create(Component.translatable(
-            "gui.fakeplayer.look.view_tooltip", pitch.getAsInt(), yaw.getAsInt())));
+            "gui.archweaver.fakeplayer.look.view_tooltip", pitch.getAsInt(), yaw.getAsInt())));
     }
 
     private static float wrapDegrees(float degrees) {
@@ -181,21 +181,21 @@ public final class RotationPad extends Button {
     private static Component bodyBearing(float bodyYaw) {
         int yaw = Math.round(wrapDegrees(bodyYaw));
         return switch (yaw) {
-            case 0 -> Component.translatable("gui.fakeplayer.look.bearing.south");
-            case -90 -> Component.translatable("gui.fakeplayer.look.bearing.east");
-            case 90 -> Component.translatable("gui.fakeplayer.look.bearing.west");
-            case -180 -> Component.translatable("gui.fakeplayer.look.bearing.north");
+            case 0 -> Component.translatable("gui.archweaver.fakeplayer.look.bearing.south");
+            case -90 -> Component.translatable("gui.archweaver.fakeplayer.look.bearing.east");
+            case 90 -> Component.translatable("gui.archweaver.fakeplayer.look.bearing.west");
+            case -180 -> Component.translatable("gui.archweaver.fakeplayer.look.bearing.north");
             default -> {
                 if (yaw < -90) {
-                    yield Component.translatable("gui.fakeplayer.look.bearing.east_north", -yaw - 90);
+                    yield Component.translatable("gui.archweaver.fakeplayer.look.bearing.east_north", -yaw - 90);
                 }
                 if (yaw < 0) {
-                    yield Component.translatable("gui.fakeplayer.look.bearing.east_south", yaw + 90);
+                    yield Component.translatable("gui.archweaver.fakeplayer.look.bearing.east_south", yaw + 90);
                 }
                 if (yaw < 90) {
-                    yield Component.translatable("gui.fakeplayer.look.bearing.west_south", 90 - yaw);
+                    yield Component.translatable("gui.archweaver.fakeplayer.look.bearing.west_south", 90 - yaw);
                 }
-                yield Component.translatable("gui.fakeplayer.look.bearing.west_north", yaw - 90);
+                yield Component.translatable("gui.archweaver.fakeplayer.look.bearing.west_north", yaw - 90);
             }
         };
     }

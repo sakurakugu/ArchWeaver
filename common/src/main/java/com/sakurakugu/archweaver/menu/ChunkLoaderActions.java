@@ -26,10 +26,10 @@ public final class ChunkLoaderActions {
         };
         if (!result.successful()) {
             viewer.sendSystemMessage(Component.translatable(
-                "commands.fakeplayer.chunkloader.failed", result.reason()).withColor(0xFF5555));
+                "commands.archweaver.chunkloader.failed", result.reason()).withColor(0xFF5555));
         } else {
             viewer.sendSystemMessage(Component.translatable(
-                "gui.fakeplayer.chunkloader.action_success." + payload.action().name().toLowerCase(java.util.Locale.ROOT)));
+                "gui.archweaver.chunkloader.action_success." + payload.action().name().toLowerCase(java.util.Locale.ROOT)));
         }
         PlatformNetworking.sendToPlayer(viewer, ChunkMapSnapshotPayload.create(viewer,
             ChunkLoaderManager.data(server(viewer)), ChunkMapOpenTarget.NONE));

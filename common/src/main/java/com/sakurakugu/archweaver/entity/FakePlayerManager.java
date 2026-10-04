@@ -121,7 +121,7 @@ public final class FakePlayerManager {
 
         // 先按原版退出流程保存并移除真玩家，释放其名称和 UUID 后再创建替身。
         server.getPlayerList().remove(player);
-        player.connection.disconnect(Component.translatable("commands.fakeplayer.shadow_kicked"));
+        player.connection.disconnect(Component.translatable("commands.archweaver.fakeplayer.shadow_kicked"));
 
         FakeServerPlayer fake = new FakeServerPlayer(server, level, profile, player.clientInformation());
         fake.snapTo(position.x, position.y, position.z, rotation.y, rotation.x);
@@ -165,18 +165,18 @@ public final class FakePlayerManager {
     public static RenameResult rename(FakeServerPlayer player, GameProfile profile) {
         MinecraftServer server = player.server();
         if (player.isPassenger() || !player.getPassengers().isEmpty()) {
-            return RenameResult.failure("commands.fakeplayer.rename_riding");
+            return RenameResult.failure("commands.archweaver.fakeplayer.rename_riding");
         }
         FakePlayerSavedData savedData = FakePlayerPersistence.data(server);
         if (server.getPlayerList().getPlayers().stream().anyMatch(other -> other != player
             && (other.getUUID().equals(profile.id())
                 || other.getGameProfile().name().equalsIgnoreCase(profile.name())))) {
-            return RenameResult.failure("commands.fakeplayer.duplicate");
+            return RenameResult.failure("commands.archweaver.fakeplayer.duplicate");
         }
         if (!profile.id().equals(player.getUUID())
             && (server.getPlayerList().loadPlayerData(new NameAndId(profile)).isPresent()
                 || FakePlayerPersistence.hasPlayerProgressData(server, profile.id()))) {
-            return RenameResult.failure("commands.fakeplayer.rename_existing_data");
+            return RenameResult.failure("commands.archweaver.fakeplayer.rename_existing_data");
         }
 
         String oldName = player.getGameProfile().name();
@@ -231,7 +231,7 @@ public final class FakePlayerManager {
             } catch (RuntimeException | IOException rollbackException) {
                 exception.addSuppressed(rollbackException);
             }
-            return RenameResult.failure("commands.fakeplayer.rename_failed");
+            return RenameResult.failure("commands.archweaver.fakeplayer.rename_failed");
         }
     }
 

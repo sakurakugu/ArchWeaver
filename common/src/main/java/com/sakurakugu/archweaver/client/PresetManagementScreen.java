@@ -60,12 +60,12 @@ public final class PresetManagementScreen extends ResponsiveContainerScreen<Pres
         clearWidgets();
         dropdowns.clear();
         addRenderableWidget(new SolidButton(leftPos + s(8), topPos + s(CONTENT_TOP), size(100), size(20),
-            Component.translatable("gui.fakeplayer.preset.presets"), button -> setTab(false)));
+            Component.translatable("gui.archweaver.preset.presets"), button -> setTab(false)));
         addRenderableWidget(new SolidButton(leftPos + s(112), topPos + s(CONTENT_TOP), size(100), size(20),
-            Component.translatable("gui.fakeplayer.preset.groups"), button -> setTab(true)));
+            Component.translatable("gui.archweaver.preset.groups"), button -> setTab(true)));
         TitlePanel titlePanel = titlePanel();
         addRenderableWidget(new SolidButton(titlePanel.leftButtonX(), titlePanel.buttonY(18), 18, 18, PixelGlyph.BACK,
-            Component.translatable("gui.fakeplayer.preset.back"), button ->
+            Component.translatable("gui.archweaver.preset.back"), button ->
                 ClientScreenNavigation.back(this)));
         if (showingGroups) {
             addGroupWidgets();
@@ -87,27 +87,27 @@ public final class PresetManagementScreen extends ResponsiveContainerScreen<Pres
         PresetSummary selected = selectedPreset();
         if (selected != null) {
             addRenderableWidget(new SolidButton(leftPos + s(156), topPos + s(DETAIL_ACTION_Y), size(100), size(22),
-                Component.translatable("gui.fakeplayer.preset.load"), button ->
+                Component.translatable("gui.archweaver.preset.load"), button ->
                     send(PresetActionPayload.Action.LOAD_PRESET, selected.id(), "", "")));
             addRenderableWidget(new SolidButton(leftPos + s(262), topPos + s(DETAIL_ACTION_Y), size(100), size(22),
                 Component.translatable(isConfirming(PresetActionPayload.Action.REMOVE_PRESET, selected.id())
-                    ? "gui.fakeplayer.preset.confirm_delete" : "gui.fakeplayer.preset.delete"),
+                    ? "gui.archweaver.preset.confirm_delete" : "gui.archweaver.preset.delete"),
                 button -> confirmOrSend(PresetActionPayload.Action.REMOVE_PRESET, selected.id(),
                     selected.id(), "", "")));
         }
 
         // 底部表单压在内容区下缘，距面板底边只剩 8px。
         EditBox id = addRenderableWidget(new EditBox(font, leftPos + s(8), topPos + s(CONTENT_BOTTOM - 20),
-            size(78), size(20), Component.translatable("gui.fakeplayer.preset.preset_id")));
+            size(78), size(20), Component.translatable("gui.archweaver.preset.preset_id")));
         id.setMaxLength(64);
-        id.setHint(Component.translatable("gui.fakeplayer.preset.preset_id"));
+        id.setHint(Component.translatable("gui.archweaver.preset.preset_id"));
         EditBox description = addRenderableWidget(new EditBox(font, leftPos + s(194), topPos + s(CONTENT_BOTTOM - 20),
-            size(121), size(20), Component.translatable("gui.fakeplayer.preset.description")));
+            size(121), size(20), Component.translatable("gui.archweaver.preset.description")));
         description.setMaxLength(256);
-        description.setHint(Component.translatable("gui.fakeplayer.preset.description"));
+        description.setHint(Component.translatable("gui.archweaver.preset.description"));
         addOnlinePlayerDropdown(leftPos + s(90), topPos + s(CONTENT_BOTTOM - 20), size(100), size(20));
         Button save = new SolidButton(leftPos + s(319), topPos + s(CONTENT_BOTTOM - 20), size(53), size(20),
-            Component.translatable("gui.fakeplayer.preset.save"), button -> {
+            Component.translatable("gui.archweaver.preset.save"), button -> {
             if (onlinePlayer != null) {
                 send(PresetActionPayload.Action.SAVE_PRESET, id.getValue(), onlinePlayer, description.getValue());
             }
@@ -122,7 +122,7 @@ public final class PresetManagementScreen extends ResponsiveContainerScreen<Pres
         for (int index = first; index < end; index++) {
             int selected = index;
             GroupSummary group = menu.groups().get(index);
-            Component label = Component.translatable("gui.fakeplayer.preset.group_entry",
+            Component label = Component.translatable("gui.archweaver.preset.group_entry",
                 group.id(), group.presetIds().size());
             addRenderableWidget(new SolidButton(leftPos + s(8), topPos + s(LIST_TOP + (index - first) * ROW_PITCH),
                 size(132), size(ROW_HEIGHT), label, button -> select(selected)));
@@ -130,20 +130,20 @@ public final class PresetManagementScreen extends ResponsiveContainerScreen<Pres
         GroupSummary selected = selectedGroup();
         if (selected != null) {
             addRenderableWidget(new SolidButton(leftPos + s(150), topPos + s(DETAIL_ACTION_Y), size(61), size(22),
-                Component.translatable("gui.fakeplayer.preset.load"), button ->
+                Component.translatable("gui.archweaver.preset.load"), button ->
                     send(PresetActionPayload.Action.LOAD_GROUP, selected.id(), "", "")));
             addRenderableWidget(new SolidButton(leftPos + s(215), topPos + s(DETAIL_ACTION_Y), size(61), size(22),
-                Component.translatable("gui.fakeplayer.preset.unload"), button ->
+                Component.translatable("gui.archweaver.preset.unload"), button ->
                     send(PresetActionPayload.Action.UNLOAD_GROUP, selected.id(), "", "")));
             addRenderableWidget(new SolidButton(leftPos + s(280), topPos + s(DETAIL_ACTION_Y), size(92), size(22),
                 Component.translatable(isConfirming(PresetActionPayload.Action.REMOVE_GROUP, selected.id())
-                    ? "gui.fakeplayer.preset.confirm_delete" : "gui.fakeplayer.preset.delete"),
+                    ? "gui.archweaver.preset.confirm_delete" : "gui.archweaver.preset.delete"),
                 button -> confirmOrSend(PresetActionPayload.Action.REMOVE_GROUP, selected.id(),
                     selected.id(), "", "")));
 
             addMemberDropdown(selected, leftPos + s(150), topPos + s(PAGER_Y), size(156), size(20));
             Button remove = new SolidButton(leftPos + s(310), topPos + s(PAGER_Y), size(62), size(20),
-                Component.translatable("gui.fakeplayer.preset.remove_member"), button -> {
+                Component.translatable("gui.archweaver.preset.remove_member"), button -> {
                 if (removePreset != null) {
                     send(PresetActionPayload.Action.REMOVE_FROM_GROUP, selected.id(), removePreset, "");
                 }
@@ -154,16 +154,16 @@ public final class PresetManagementScreen extends ResponsiveContainerScreen<Pres
 
         // 两个标签页的底部表单纯平，切换标签页时不会上下跳。
         EditBox groupId = addRenderableWidget(new EditBox(font, leftPos + s(8), topPos + s(CONTENT_BOTTOM - 20),
-            size(132), size(20), Component.translatable("gui.fakeplayer.preset.group_id")));
+            size(132), size(20), Component.translatable("gui.archweaver.preset.group_id")));
         groupId.setMaxLength(64);
-        groupId.setHint(Component.translatable("gui.fakeplayer.preset.group_id"));
+        groupId.setHint(Component.translatable("gui.archweaver.preset.group_id"));
         addRenderableWidget(new SolidButton(leftPos + s(144), topPos + s(CONTENT_BOTTOM - 20), size(72), size(20),
-            Component.translatable("gui.fakeplayer.preset.create"), button ->
+            Component.translatable("gui.archweaver.preset.create"), button ->
                 send(PresetActionPayload.Action.CREATE_GROUP, groupId.getValue(), "", "")));
 
         addPresetDropdown(leftPos + s(220), topPos + s(CONTENT_BOTTOM - 20), size(101), size(20));
         Button add = new SolidButton(leftPos + s(325), topPos + s(CONTENT_BOTTOM - 20), size(47), size(20),
-            Component.translatable("gui.fakeplayer.preset.add"), button -> {
+            Component.translatable("gui.archweaver.preset.add"), button -> {
             GroupSummary group = selectedGroup();
             if (group != null && addPreset != null) {
                 send(PresetActionPayload.Action.ADD_TO_GROUP, group.id(), addPreset, "");
@@ -178,7 +178,7 @@ public final class PresetManagementScreen extends ResponsiveContainerScreen<Pres
         List<String> options = menu.onlinePlayers();
         onlinePlayer = options.isEmpty() ? null : pick(options, onlinePlayer);
         addOptionSelector(x, y, width, height, options, onlinePlayer,
-            "gui.fakeplayer.preset.no_online", value -> onlinePlayer = value);
+            "gui.archweaver.preset.no_online", value -> onlinePlayer = value);
     }
 
     /** 供加入分组使用的预设下拉框；没有预设时退化成禁用的占位按钮。 */
@@ -186,7 +186,7 @@ public final class PresetManagementScreen extends ResponsiveContainerScreen<Pres
         List<String> options = menu.presets().stream().map(PresetSummary::id).toList();
         addPreset = options.isEmpty() ? null : pick(options, addPreset);
         addOptionSelector(x, y, width, height, options, addPreset,
-            "gui.fakeplayer.preset.no_presets", value -> addPreset = value);
+            "gui.archweaver.preset.no_presets", value -> addPreset = value);
     }
 
     /** 分组内成员下拉框；分组为空时退化成禁用的占位按钮。 */
@@ -194,7 +194,7 @@ public final class PresetManagementScreen extends ResponsiveContainerScreen<Pres
         List<String> options = group.presetIds();
         removePreset = options.isEmpty() ? null : pick(options, removePreset);
         addOptionSelector(x, y, width, height, options, removePreset,
-            "gui.fakeplayer.preset.no_members", value -> removePreset = value);
+            "gui.archweaver.preset.no_members", value -> removePreset = value);
     }
 
     /**
@@ -335,7 +335,7 @@ public final class PresetManagementScreen extends ResponsiveContainerScreen<Pres
      */
     @Override
     protected void extractLabels(GuiGraphicsExtractor graphics, int mouseX, int mouseY) {
-        graphics.centeredText(font, Component.translatable("gui.fakeplayer.preset.page", page + 1, pageCount()),
+        graphics.centeredText(font, Component.translatable("gui.archweaver.preset.page", page + 1, pageCount()),
             s(74), s(PAGER_Y + 5), 0xFFC6C6C6);
         if (showingGroups) {
             drawGroupDetails(graphics);
@@ -352,15 +352,15 @@ public final class PresetManagementScreen extends ResponsiveContainerScreen<Pres
         PresetSummary preset = selectedPreset();
         if (preset == null) {
             graphics.centeredText(font, Component.translatable(menu.presets().isEmpty()
-                ? "gui.fakeplayer.preset.no_presets" : "gui.fakeplayer.preset.select_preset"),
+                ? "gui.archweaver.preset.no_presets" : "gui.archweaver.preset.select_preset"),
                 s(260), s(124), 0xFFAAAAAA);
             return;
         }
         graphics.text(font, Component.literal(preset.id()), s(158), s(72), 0xFFFFFFFF, false);
-        graphics.text(font, Component.translatable("gui.fakeplayer.preset.player", preset.playerName()),
+        graphics.text(font, Component.translatable("gui.archweaver.preset.player", preset.playerName()),
             s(158), s(94), 0xFFC6C6C6, false);
         String description = preset.description().isBlank()
-            ? Component.translatable("gui.fakeplayer.preset.no_description").getString()
+            ? Component.translatable("gui.archweaver.preset.no_description").getString()
             : preset.description();
         graphics.text(font, Component.literal(shorten(description, 31)), s(158), s(116), 0xFFCCCCCC, false);
         if (description.length() > 31) {
@@ -373,15 +373,15 @@ public final class PresetManagementScreen extends ResponsiveContainerScreen<Pres
         GroupSummary group = selectedGroup();
         if (group == null) {
             graphics.centeredText(font, Component.translatable(menu.groups().isEmpty()
-                ? "gui.fakeplayer.preset.no_groups" : "gui.fakeplayer.preset.select_group"),
+                ? "gui.archweaver.preset.no_groups" : "gui.archweaver.preset.select_group"),
                 s(260), s(124), 0xFFAAAAAA);
             return;
         }
         graphics.text(font, Component.literal(group.id()), s(158), s(72), 0xFFFFFFFF, false);
-        graphics.text(font, Component.translatable("gui.fakeplayer.preset.members"),
+        graphics.text(font, Component.translatable("gui.archweaver.preset.members"),
             s(158), s(94), 0xFFC6C6C6, false);
         String members = group.presetIds().isEmpty()
-            ? Component.translatable("commands.fakeplayer.none").getString()
+            ? Component.translatable("commands.archweaver.fakeplayer.none").getString()
             : String.join(", ", group.presetIds());
         graphics.text(font, Component.literal(shorten(members, 31)), s(158), s(116), 0xFFCCCCCC, false);
         if (members.length() > 31) {

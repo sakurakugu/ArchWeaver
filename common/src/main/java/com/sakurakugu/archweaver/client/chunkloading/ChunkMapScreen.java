@@ -69,7 +69,7 @@ public final class ChunkMapScreen extends Screen implements ChunkLoadMapFrontend
     private Button undoButton; // 顶部工具条上的撤回按钮。
 
     public ChunkMapScreen(ChunkMapSnapshotPayload snapshot, ClientChunkLoadingState.MapReturnTarget returnTarget) {
-        super(Component.translatable("gui.fakeplayer.chunkloader.map_title"));
+        super(Component.translatable("gui.archweaver.chunkloader.map_title"));
         controller = new ChunkLoadMapController(snapshot);
         controller.setShowWeakLoading(ChunkMapClientConfig.weakLoadingVisible());
         this.returnTarget = returnTarget;
@@ -115,23 +115,23 @@ public final class ChunkMapScreen extends Screen implements ChunkLoadMapFrontend
         int x = 6;
         SegmentedSwitchButton modeSwitch = addRenderableWidget(new SegmentedSwitchButton(
             x, 6, modeSwitchWidth, 20,
-            Component.translatable("gui.fakeplayer.chunkloader.map_browse_mode"),
-            Component.translatable("gui.fakeplayer.chunkloader.map_edit_mode"),
+            Component.translatable("gui.archweaver.chunkloader.map_browse_mode"),
+            Component.translatable("gui.archweaver.chunkloader.map_edit_mode"),
             () -> controller.mode() == ChunkMapEditMode.EDIT,
             selectedRight -> setEditMode(selectedRight ? ChunkMapEditMode.EDIT : ChunkMapEditMode.BROWSE)));
         modeSwitch.setTooltip(Tooltip.create(
-            Component.translatable("gui.fakeplayer.chunkloader.map_edit_mode_tooltip")));
+            Component.translatable("gui.archweaver.chunkloader.map_edit_mode_tooltip")));
         x += modeSwitchWidth;
         addWeakLoadingSwitch(x + 6);
 
         undoButton = addRenderableWidget(new SolidButton(width - 82, 7, 18, 18, PixelGlyph.UNDO,
-            Component.translatable("gui.fakeplayer.chunkloader.map_undo"), button -> controller.undo()));
+            Component.translatable("gui.archweaver.chunkloader.map_undo"), button -> controller.undo()));
         undoButton.active = controller.mode() == ChunkMapEditMode.EDIT && controller.canUndo();
         saveButton = addRenderableWidget(new SolidButton(width - 62, 7, 18, 18, PixelGlyph.SAVE,
-            Component.translatable("gui.fakeplayer.chunkloader.map_save"), button -> controller.apply()));
+            Component.translatable("gui.archweaver.chunkloader.map_save"), button -> controller.apply()));
         saveButton.active = controller.dirty();
         addRenderableWidget(new SolidButton(width - 42, 7, 18, 18, PixelGlyph.SETTING,
-            Component.translatable("gui.fakeplayer.chunkloader.map_settings"),
+            Component.translatable("gui.archweaver.chunkloader.map_settings"),
             button -> openPanel(controller.snapshot(), ChunkMapOpenTarget.SETTINGS)));
         addRenderableWidget(new SolidButton(width - 22, 7, 18, 18, PixelGlyph.CLOSE,
             Component.translatable("gui.close"), button -> minecraft.setScreen(null)));
@@ -147,13 +147,13 @@ public final class ChunkMapScreen extends Screen implements ChunkLoadMapFrontend
 
         MutableComponent heading = title.copy().append("  [").append(label(controller.mode()));
         if (controller.mode() == ChunkMapEditMode.EDIT) {
-            heading.append(" ").append(Component.translatable("gui.fakeplayer.chunkloader.map_edit_hint"));
+            heading.append(" ").append(Component.translatable("gui.archweaver.chunkloader.map_edit_hint"));
         }
         heading.append("]");
         drawFloatingText(graphics, heading, width / 2, 32, 0xFFFFFFFF);
         int centerChunkX = Mth.floor(centerBlockX) >> 4;
         int centerChunkZ = Mth.floor(centerBlockZ) >> 4;
-        Component status = Component.translatable("gui.fakeplayer.chunkloader.map_position",
+        Component status = Component.translatable("gui.archweaver.chunkloader.map_position",
             centerChunkX, centerChunkZ, controller.snapshot().dimension()).copy()
             .append("  ").append(Math.round(pixelsPerBlock * 100.0D) + "%");
         drawFloatingText(graphics, status, width / 2, height - 38, 0xFFC8D6CF);
@@ -384,13 +384,13 @@ public final class ChunkMapScreen extends Screen implements ChunkLoadMapFrontend
         int x = (width - totalWidth) / 2;
         int y = height - 26;
         addRenderableWidget(new SolidButton(x, y, BOTTOM_BUTTON_WIDTH, 20,
-            Component.translatable("gui.fakeplayer.chunkloader.bottom_management"),
+            Component.translatable("gui.archweaver.chunkloader.bottom_management"),
             button -> openPanel(controller.snapshot(), ChunkMapOpenTarget.MANAGEMENT)));
     }
 
     /** 顶部开关：是否显示弱加载区块。窗口很窄时只留开关本身，标签自己滚动。 */
     private void addWeakLoadingSwitch(int x) {
-        Component label = Component.translatable("gui.fakeplayer.chunkloader.map_weak_range");
+        Component label = Component.translatable("gui.archweaver.chunkloader.map_weak_range");
         int preferredWidth = ToggleSwitchButton.preferredBoxedWidth(font, label);
         // 右边留出撤回、保存、设置、关闭四个按钮的位置。
         int switchWidth = Math.max(31, Math.min(preferredWidth, Math.min(96, width - 88 - x)));
@@ -427,23 +427,23 @@ public final class ChunkMapScreen extends Screen implements ChunkLoadMapFrontend
             .filter(region -> region.contains(chunk[0], chunk[1]))
             .map(region -> region.name() + ":" + loadLevelLabel(ChunkMapLoadLevel.STRONG).getString())
             .reduce((a, b) -> a + ", " + b);
-        Component chunkLine = Component.translatable("gui.fakeplayer.chunkloader.map_hover.chunk", chunk[0], chunk[1]);
-        Component blockLine = Component.translatable("gui.fakeplayer.chunkloader.map_hover.block", blockX, blockZ);
+        Component chunkLine = Component.translatable("gui.archweaver.chunkloader.map_hover.chunk", chunk[0], chunk[1]);
+        Component blockLine = Component.translatable("gui.archweaver.chunkloader.map_hover.block", blockX, blockZ);
         boolean loadedByFakePlayer = controller.snapshot().fakePlayers().stream()
             .anyMatch(fake -> fake.loadsChunk(controller.snapshot().dimension(), chunk[0], chunk[1]));
         ChunkMapLoadLevel loadLevel = controller.levels().get(ChunkKey.pack(chunk[0], chunk[1]));
         Component names = regionNames.<Component>map(Component::literal).orElseGet(() -> loadLevel == null
             ? Component.translatable(loadedByFakePlayer
-                ? "fakeplayer.chunkloader.fake_label"
-                : "gui.fakeplayer.chunkloader.map_hover.none")
+                ? "archweaver.chunkloader.fake_label"
+                : "gui.archweaver.chunkloader.map_hover.none")
             : loadLevelLabel(loadLevel));
         if (loadedByFakePlayer && regionNames.isPresent()) {
-            names = names.copy().append(" | ").append(Component.translatable("fakeplayer.chunkloader.fake_label"));
+            names = names.copy().append(" | ").append(Component.translatable("archweaver.chunkloader.fake_label"));
         }
-        Component regionsLine = Component.translatable("gui.fakeplayer.chunkloader.map_hover.regions", names);
+        Component regionsLine = Component.translatable("gui.archweaver.chunkloader.map_hover.regions", names);
         Component playerLine = hoveredPlayer == null ? Component.empty() : Component.literal(hoveredPlayer.name());
         if (hoveredPlayer != null && hoveredPlayer.fake()) {
-            playerLine = playerLine.copy().append(Component.translatable("gui.fakeplayer.tab_marker")
+            playerLine = playerLine.copy().append(Component.translatable("gui.archweaver.fakeplayer.tab_marker")
                 .withStyle(ChatFormatting.DARK_GRAY));
         }
         int textWidth = Math.max(font.width(chunkLine), Math.max(font.width(blockLine), font.width(regionsLine)));
@@ -570,15 +570,15 @@ public final class ChunkMapScreen extends Screen implements ChunkLoadMapFrontend
 
     private static Component loadLevelLabel(ChunkMapLoadLevel level) {
         return Component.translatable(switch (level) {
-            case WEAK -> "gui.fakeplayer.chunkloader.level_weak";
-            case STRONG -> "gui.fakeplayer.chunkloader.level_strong";
+            case WEAK -> "gui.archweaver.chunkloader.level_weak";
+            case STRONG -> "gui.archweaver.chunkloader.level_strong";
         });
     }
 
     /** 按钮和标题共用短标签，保证标题也能随语言切换。 */
     private static Component label(ChunkMapEditMode mode) { return Component.translatable(switch (mode) {
-        case BROWSE -> "gui.fakeplayer.chunkloader.map_browse_mode";
-        case EDIT -> "gui.fakeplayer.chunkloader.map_edit_mode";
+        case BROWSE -> "gui.archweaver.chunkloader.map_browse_mode";
+        case EDIT -> "gui.archweaver.chunkloader.map_edit_mode";
     }); }
 
     @Override

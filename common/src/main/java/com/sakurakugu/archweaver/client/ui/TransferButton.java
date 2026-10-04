@@ -101,20 +101,20 @@ public final class TransferButton extends Button {
     private void updateTooltip(boolean transferAll, boolean includeHotbar) {
         showingAll = transferAll;
         showingHotbar = includeHotbar;
-        Component message = Component.translatable("gui.fakeplayer.transfer_" + direction.translationPart
+        Component message = Component.translatable("gui.archweaver.fakeplayer.transfer_" + direction.translationPart
             + (transferAll ? "_all" : "_matching"));
         if (includeHotbar) {
-            message = message.copy().append(Component.translatable("gui.fakeplayer.transfer_hotbar_suffix"));
+            message = message.copy().append(Component.translatable("gui.archweaver.fakeplayer.transfer_hotbar_suffix"));
         }
         setMessage(message);
         Component tooltip = getMessage().copy();
         if (!includeHotbar) {
             tooltip = tooltip.copy().append(Component.literal("\n"))
-                .append(Component.translatable("gui.fakeplayer.transfer_hotbar_hint").withColor(0x555555));
+                .append(Component.translatable("gui.archweaver.fakeplayer.transfer_hotbar_hint").withColor(0x555555));
         }
         if (!transferAll) {
             tooltip = tooltip.copy().append(Component.literal("\n"))
-                .append(Component.translatable("gui.fakeplayer.transfer_all_hint").withColor(0x555555));
+                .append(Component.translatable("gui.archweaver.fakeplayer.transfer_all_hint").withColor(0x555555));
         }
         setTooltip(Tooltip.create(tooltip));
     }

@@ -156,9 +156,9 @@ public final class FakePlayerCommand {
         boolean enabled = next;
         fake.automation().setSettings(withAutomationValue(state, index, enabled));
         context.getSource().sendSuccess(() -> Component.translatable(
-            "commands.fakeplayer.automation_set", fake.getGameProfile().name(), indexName(index),
-            enabled ? Component.translatable("gui.fakeplayer.automation.enabled")
-                : Component.translatable("gui.fakeplayer.automation.disabled")), true);
+            "commands.archweaver.fakeplayer.automation_set", fake.getGameProfile().name(), indexName(index),
+            enabled ? Component.translatable("gui.archweaver.fakeplayer.automation.enabled")
+                : Component.translatable("gui.archweaver.fakeplayer.automation.disabled")), true);
         return 1;
     }
 
@@ -352,21 +352,21 @@ public final class FakePlayerCommand {
             return 0;
         }
         if (FakePlayerPossession.isPossessed(fake)) {
-            context.getSource().sendFailure(Component.translatable("gui.fakeplayer.possess_locked"));
+            context.getSource().sendFailure(Component.translatable("gui.archweaver.fakeplayer.possess_locked"));
             return 0;
         }
         // 旁观模式禁止关闭飞行，不具备飞行能力时禁止开启，由动作层统一守卫。
         if (!fake.actions().setFlying(target)) {
             context.getSource().sendFailure(Component.translatable(
-                "commands.fakeplayer.flight_locked", fake.getGameProfile().name()));
+                "commands.archweaver.fakeplayer.flight_locked", fake.getGameProfile().name()));
             return 0;
         }
         FakePlayerPersistence.track(fake);
         context.getSource().sendSuccess(() -> Component.translatable(
-            "commands.fakeplayer.flight_set", fake.getGameProfile().name(),
+            "commands.archweaver.fakeplayer.flight_set", fake.getGameProfile().name(),
             Component.translatable(target
-                ? "gui.fakeplayer.automation.enabled"
-                : "gui.fakeplayer.automation.disabled")), true);
+                ? "gui.archweaver.fakeplayer.automation.enabled"
+                : "gui.archweaver.fakeplayer.automation.disabled")), true);
         return 1;
     }
 
@@ -420,13 +420,13 @@ public final class FakePlayerCommand {
             return 0;
         }
         if (FakePlayerPossession.isPossessed(fake)) {
-            context.getSource().sendFailure(Component.translatable("gui.fakeplayer.possess_locked"));
+            context.getSource().sendFailure(Component.translatable("gui.archweaver.fakeplayer.possess_locked"));
             return 0;
         }
         if (fake.actions().mountNearest(anything)) {
             return success(context);
         }
-        context.getSource().sendFailure(Component.translatable("commands.fakeplayer.no_mount"));
+        context.getSource().sendFailure(Component.translatable("commands.archweaver.fakeplayer.no_mount"));
         return 0;
     }
 
@@ -439,7 +439,7 @@ public final class FakePlayerCommand {
             return 0;
         }
         if (FakePlayerPossession.isPossessed(fake)) {
-            context.getSource().sendFailure(Component.translatable("gui.fakeplayer.possess_locked"));
+            context.getSource().sendFailure(Component.translatable("gui.archweaver.fakeplayer.possess_locked"));
             return 0;
         }
         action.accept(fake);
@@ -451,14 +451,14 @@ public final class FakePlayerCommand {
         String name = name(context);
         FakeServerPlayer fake = FakePlayerManager.find(context.getSource().getServer(), name);
         if (fake == null) {
-            context.getSource().sendFailure(Component.translatable("commands.fakeplayer.not_found", name));
+            context.getSource().sendFailure(Component.translatable("commands.archweaver.fakeplayer.not_found", name));
         }
         return fake;
     }
 
     private static int success(CommandContext<CommandSourceStack> context) {
         context.getSource().sendSuccess(
-            () -> Component.translatable("commands.fakeplayer.action_done", name(context)), false);
+            () -> Component.translatable("commands.archweaver.fakeplayer.action_done", name(context)), false);
         return 1;
     }
 
@@ -468,13 +468,13 @@ public final class FakePlayerCommand {
             return 0;
         }
         if (FakePlayerPossession.isPossessed(fake)) {
-            context.getSource().sendFailure(Component.translatable("gui.fakeplayer.possess_locked"));
+            context.getSource().sendFailure(Component.translatable("gui.archweaver.fakeplayer.possess_locked"));
             return 0;
         }
         fake.actions().restore(FakePlayerActions.State.EMPTY);
         FakePlayerPersistence.track(fake);
         context.getSource().sendSuccess(
-            () -> Component.translatable("commands.fakeplayer.settings_reset", name(context)), false);
+            () -> Component.translatable("commands.archweaver.fakeplayer.settings_reset", name(context)), false);
         return 1;
     }
 
@@ -524,7 +524,7 @@ public final class FakePlayerCommand {
         // 旁观模式的假人无法执行常规交互，统一以创造模式生成。
         GameType effectiveGameType = gameType == GameType.SPECTATOR ? GameType.CREATIVE : gameType;
         if (!name.matches("[A-Za-z0-9_-]{1,16}")) {
-            source.sendFailure(Component.translatable("commands.fakeplayer.invalid_name"));
+            source.sendFailure(Component.translatable("commands.archweaver.fakeplayer.invalid_name"));
             return 0;
         }
         if (!validateSpawnPosition(source, level, position)) {
@@ -532,16 +532,16 @@ public final class FakePlayerCommand {
         }
         MinecraftServer server = source.getServer();
         if (server.getPlayerList().getPlayerByName(name) != null) {
-            source.sendFailure(Component.translatable("commands.fakeplayer.duplicate", name));
+            source.sendFailure(Component.translatable("commands.archweaver.fakeplayer.duplicate", name));
             return 0;
         }
 
         boolean requestedFlying = flying;
-        source.sendSuccess(() -> Component.translatable("commands.fakeplayer.resolving_profile", name), false);
+        source.sendSuccess(() -> Component.translatable("commands.archweaver.fakeplayer.resolving_profile", name), false);
         ProfileResolver.resolve(server, name).whenCompleteAsync((result, throwable) -> {
             if (throwable != null) {
                 ArchWeaverMod.LOGGER.error("解析假玩家 {} 的档案时发生异常", name, throwable);
-                source.sendFailure(Component.translatable("commands.fakeplayer.profile_service_unavailable", name));
+                source.sendFailure(Component.translatable("commands.archweaver.fakeplayer.profile_service_unavailable", name));
                 return;
             }
             if (!result.successful()) {
@@ -556,13 +556,13 @@ public final class FakePlayerCommand {
     private static boolean validateSpawnPosition(CommandSourceStack source, ServerLevel level, Vec3 position) {
         if (!Double.isFinite(position.x) || !Double.isFinite(position.y) || !Double.isFinite(position.z)
             || !Level.isInSpawnableBounds(BlockPos.containing(position))) {
-            source.sendFailure(Component.translatable("commands.fakeplayer.position_outside_world"));
+            source.sendFailure(Component.translatable("commands.archweaver.fakeplayer.position_outside_world"));
             return false;
         }
 
         AABB bounds = EntityType.PLAYER.getDimensions().makeBoundingBox(position);
         if (!level.getWorldBorder().isWithinBounds(bounds)) {
-            source.sendFailure(Component.translatable("commands.fakeplayer.position_outside_border"));
+            source.sendFailure(Component.translatable("commands.archweaver.fakeplayer.position_outside_border"));
             return false;
         }
         return true;
@@ -582,17 +582,17 @@ public final class FakePlayerCommand {
         if (server.getPlayerList().getPlayers().stream().anyMatch(player ->
             player.getUUID().equals(profile.id())
                 || player.getGameProfile().name().equalsIgnoreCase(profile.name()))) {
-            source.sendFailure(Component.translatable("commands.fakeplayer.duplicate", profile.name()));
+            source.sendFailure(Component.translatable("commands.archweaver.fakeplayer.duplicate", profile.name()));
             return;
         }
         if (server.getPlayerList().getBans().isBanned(identity)) {
-            source.sendFailure(Component.translatable("commands.fakeplayer.profile_banned", profile.name()));
+            source.sendFailure(Component.translatable("commands.archweaver.fakeplayer.profile_banned", profile.name()));
             return;
         }
         if (server.getPlayerList().isUsingWhitelist()
             && !server.getPlayerList().isWhiteListed(identity)
             && !server.getPlayerList().isOp(identity)) {
-            source.sendFailure(Component.translatable("commands.fakeplayer.profile_not_whitelisted", profile.name()));
+            source.sendFailure(Component.translatable("commands.archweaver.fakeplayer.profile_not_whitelisted", profile.name()));
             return;
         }
         // 档案查询期间世界边界可能变化，因此创建前再检查一次位置。
@@ -604,12 +604,12 @@ public final class FakePlayerCommand {
             FakeServerPlayer fake = FakePlayerManager.spawn(
                 server, level, profile, position, rotation, gameType, flying);
             source.sendSuccess(() -> Component.translatable(
-                "commands.fakeplayer.spawned", fake.getGameProfile().name()), true);
+                "commands.archweaver.fakeplayer.spawned", fake.getGameProfile().name()), true);
         } catch (IllegalArgumentException exception) {
-            source.sendFailure(Component.translatable("commands.fakeplayer.duplicate", profile.name()));
+            source.sendFailure(Component.translatable("commands.archweaver.fakeplayer.duplicate", profile.name()));
         } catch (RuntimeException exception) {
             ArchWeaverMod.LOGGER.error("生成假玩家 {} 时发生异常", profile.name(), exception);
-            source.sendFailure(Component.translatable("commands.fakeplayer.spawn_failed", profile.name()));
+            source.sendFailure(Component.translatable("commands.archweaver.fakeplayer.spawn_failed", profile.name()));
         }
     }
 
@@ -619,9 +619,9 @@ public final class FakePlayerCommand {
         ProfileResolver.Status status
     ) {
         String key = switch (status) {
-            case BUSY -> "commands.fakeplayer.profile_busy";
-            case SERVICE_UNAVAILABLE -> "commands.fakeplayer.profile_service_unavailable";
-            default -> "commands.fakeplayer.profile_not_found";
+            case BUSY -> "commands.archweaver.fakeplayer.profile_busy";
+            case SERVICE_UNAVAILABLE -> "commands.archweaver.fakeplayer.profile_service_unavailable";
+            default -> "commands.archweaver.fakeplayer.profile_not_found";
         };
         source.sendFailure(Component.translatable(key, name));
     }
@@ -641,7 +641,7 @@ public final class FakePlayerCommand {
         }
         String name = fake.getGameProfile().name();
         FakePlayerManager.kill(fake);
-        context.getSource().sendSuccess(() -> Component.translatable("commands.fakeplayer.killed", name), true);
+        context.getSource().sendSuccess(() -> Component.translatable("commands.archweaver.fakeplayer.killed", name), true);
         return 1;
     }
 
@@ -650,29 +650,29 @@ public final class FakePlayerCommand {
         CommandSourceStack source = context.getSource();
         ServerPlayer player = source.getServer().getPlayerList().getPlayerByName(name);
         if (player == null) {
-            source.sendFailure(Component.translatable("commands.fakeplayer.player_not_found", name));
+            source.sendFailure(Component.translatable("commands.archweaver.fakeplayer.player_not_found", name));
             return 0;
         }
         if (player instanceof FakeServerPlayer) {
-            source.sendFailure(Component.translatable("commands.fakeplayer.cannot_shadow_fake", name));
+            source.sendFailure(Component.translatable("commands.archweaver.fakeplayer.cannot_shadow_fake", name));
             return 0;
         }
         ServerPlayer sender = source.getPlayer();
         if (!Commands.hasPermission(Commands.LEVEL_GAMEMASTERS).test(source) && sender != player) {
-            source.sendFailure(Component.translatable("commands.fakeplayer.cannot_shadow_other"));
+            source.sendFailure(Component.translatable("commands.archweaver.fakeplayer.cannot_shadow_other"));
             return 0;
         }
         if (source.getServer().isSingleplayerOwner(player.nameAndId())) {
-            source.sendFailure(Component.translatable("commands.fakeplayer.cannot_shadow_owner"));
+            source.sendFailure(Component.translatable("commands.archweaver.fakeplayer.cannot_shadow_owner"));
             return 0;
         }
         try {
             FakePlayerManager.shadow(player);
-            source.sendSuccess(() -> Component.translatable("commands.fakeplayer.shadowed", name), true);
+            source.sendSuccess(() -> Component.translatable("commands.archweaver.fakeplayer.shadowed", name), true);
             return 1;
         } catch (RuntimeException exception) {
             ArchWeaverMod.LOGGER.error("为真玩家 {} 创建替身时发生异常", name, exception);
-            source.sendFailure(Component.translatable("commands.fakeplayer.shadow_failed", name));
+            source.sendFailure(Component.translatable("commands.archweaver.fakeplayer.shadow_failed", name));
             return 0;
         }
     }
@@ -682,8 +682,8 @@ public final class FakePlayerCommand {
             .map(player -> player.getGameProfile().name())
             .sorted(String.CASE_INSENSITIVE_ORDER)
             .reduce((left, right) -> left + ", " + right)
-            .orElse(Component.translatable("commands.fakeplayer.none").getString());
-        context.getSource().sendSuccess(() -> Component.translatable("commands.fakeplayer.list", names), false);
+            .orElse(Component.translatable("commands.archweaver.fakeplayer.none").getString());
+        context.getSource().sendSuccess(() -> Component.translatable("commands.archweaver.fakeplayer.list", names), false);
         return 1;
     }
 
@@ -704,7 +704,7 @@ public final class FakePlayerCommand {
     private static int openGui(CommandContext<CommandSourceStack> context) {
         ServerPlayer viewer = context.getSource().getPlayer();
         if (viewer == null) {
-            context.getSource().sendFailure(Component.translatable("commands.fakeplayer.player_only"));
+            context.getSource().sendFailure(Component.translatable("commands.archweaver.fakeplayer.player_only"));
             return 0;
         }
         PlatformNetworking.sendToPlayer(viewer, new OpenMainPagePayload());
@@ -716,7 +716,7 @@ public final class FakePlayerCommand {
         FakeServerPlayer fake = getFake(context);
         if (viewer == null || fake == null) {
             if (viewer == null) {
-                context.getSource().sendFailure(Component.translatable("commands.fakeplayer.player_only"));
+                context.getSource().sendFailure(Component.translatable("commands.archweaver.fakeplayer.player_only"));
             }
             return 0;
         }
@@ -729,7 +729,7 @@ public final class FakePlayerCommand {
         FakeServerPlayer fake = getFake(context);
         if (viewer == null || fake == null) {
             if (viewer == null) {
-                context.getSource().sendFailure(Component.translatable("commands.fakeplayer.player_only"));
+                context.getSource().sendFailure(Component.translatable("commands.archweaver.fakeplayer.player_only"));
             }
             return 0;
         }
@@ -742,7 +742,7 @@ public final class FakePlayerCommand {
         FakeServerPlayer fake = getFake(context);
         if (viewer == null || fake == null) {
             if (viewer == null) {
-                context.getSource().sendFailure(Component.translatable("commands.fakeplayer.player_only"));
+                context.getSource().sendFailure(Component.translatable("commands.archweaver.fakeplayer.player_only"));
             }
             return 0;
         }
@@ -750,21 +750,21 @@ public final class FakePlayerCommand {
             return 0;
         }
         context.getSource().sendSuccess(
-            () -> Component.translatable("commands.fakeplayer.possessed", fake.getGameProfile().name()), false);
+            () -> Component.translatable("commands.archweaver.fakeplayer.possessed", fake.getGameProfile().name()), false);
         return 1;
     }
 
     private static int unpossess(CommandContext<CommandSourceStack> context) {
         ServerPlayer viewer = context.getSource().getPlayer();
         if (viewer == null) {
-            context.getSource().sendFailure(Component.translatable("commands.fakeplayer.player_only"));
+            context.getSource().sendFailure(Component.translatable("commands.archweaver.fakeplayer.player_only"));
             return 0;
         }
         if (!FakePlayerPossession.stop(viewer)) {
-            context.getSource().sendFailure(Component.translatable("commands.fakeplayer.not_possessing"));
+            context.getSource().sendFailure(Component.translatable("commands.archweaver.fakeplayer.not_possessing"));
             return 0;
         }
-        context.getSource().sendSuccess(() -> Component.translatable("commands.fakeplayer.unpossessed"), false);
+        context.getSource().sendSuccess(() -> Component.translatable("commands.archweaver.fakeplayer.unpossessed"), false);
         return 1;
     }
 
@@ -773,12 +773,12 @@ public final class FakePlayerCommand {
         FakeServerPlayer fake = getFake(context);
         if (viewer == null || fake == null) {
             if (viewer == null) {
-                context.getSource().sendFailure(Component.translatable("commands.fakeplayer.player_only"));
+                context.getSource().sendFailure(Component.translatable("commands.archweaver.fakeplayer.player_only"));
             }
             return 0;
         }
         if (!FakePlayerPossession.isControlling(viewer, fake)) {
-            context.getSource().sendFailure(Component.translatable("commands.fakeplayer.not_possessing_target",
+            context.getSource().sendFailure(Component.translatable("commands.archweaver.fakeplayer.not_possessing_target",
                 fake.getGameProfile().name()));
             return 0;
         }

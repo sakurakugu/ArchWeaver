@@ -52,7 +52,7 @@ public final class ArchWeaverClientMod {
         "key.archweaver.open_main_page", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_G, CATEGORY
     );
     private static final KeyMapping STOP_POSSESSION = new KeyMapping(
-        "key.fakeplayer.stop_possession", InputConstants.Type.KEYSYM, InputConstants.UNKNOWN.getValue(), CATEGORY
+        "key.archweaver.stop_possession", InputConstants.Type.KEYSYM, InputConstants.UNKNOWN.getValue(), CATEGORY
     );
     private static int refreshTicks;
     private static CreativeModeInventoryScreen creativeInventoryScreen;
@@ -174,7 +174,7 @@ public final class ArchWeaverClientMod {
             buttonX,
             buttonY,
             FakePlayerInventoryScreen.POSSESSION_EXIT_ICON,
-            Component.translatable("gui.fakeplayer.stop_possessing"),
+            Component.translatable("gui.archweaver.fakeplayer.stop_possessing"),
             clicked -> PlatformNetworking.sendToServer(new StopPossessionPayload())
         );
         if (screen instanceof CreativeModeInventoryScreen creativeScreen) {

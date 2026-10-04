@@ -22,7 +22,7 @@ public final class ChunkMapSettingsScreen extends Screen {
     private int layoutHeight = PANEL_HEIGHT; // 当前面板实际高度。
 
     public ChunkMapSettingsScreen(ChunkMapSnapshotPayload snapshot) {
-        super(Component.translatable("gui.fakeplayer.chunkloader.map_settings_title"));
+        super(Component.translatable("gui.archweaver.chunkloader.map_settings_title"));
         this.snapshot = snapshot;
     }
 
@@ -40,7 +40,7 @@ public final class ChunkMapSettingsScreen extends Screen {
         addRenderableWidget(new MarkerNameScaleSlider(left + halfWidth + s(8), top + s(44),
             size(halfWidth - s(24)), size(20)));
         TitlePanel titlePanel = new TitlePanel(left, top, panelWidth, layoutHeight,
-            Component.translatable("gui.fakeplayer.chunkloader.map_settings_title"));
+            Component.translatable("gui.archweaver.chunkloader.map_settings_title"));
         addRenderableWidget(new SolidButton(titlePanel.leftButtonX(), titlePanel.buttonY(size(18)), size(18), size(18),
             PixelGlyph.BACK, Component.translatable("gui.back"), button -> onClose()));
     }
@@ -56,8 +56,8 @@ public final class ChunkMapSettingsScreen extends Screen {
         int top = panelTop();
         int halfWidth = panelWidth / 2;
         new TitlePanel(left, top, panelWidth, layoutHeight,
-            Component.translatable("gui.fakeplayer.chunkloader.map_settings_title")).draw(graphics, font);
-        graphics.centeredText(font, Component.translatable("gui.fakeplayer.chunkloader.marker_name_preview"),
+            Component.translatable("gui.archweaver.chunkloader.map_settings_title")).draw(graphics, font);
+        graphics.centeredText(font, Component.translatable("gui.archweaver.chunkloader.marker_name_preview"),
             left + halfWidth / 2, top + s(34), 0xFFB8C1BD);
         String name = minecraft.player == null ? "Player" : minecraft.player.getGameProfile().name();
         drawScaledPreview(graphics, Component.literal(name), left + halfWidth / 2, top + s(52));
@@ -116,7 +116,7 @@ public final class ChunkMapSettingsScreen extends Screen {
 
         @Override
         protected void updateMessage() {
-            setMessage(Component.translatable("gui.fakeplayer.chunkloader.marker_name_scale",
+            setMessage(Component.translatable("gui.archweaver.chunkloader.marker_name_scale",
                 Math.round((0.5D + value * 1.5D) * 100.0D)));
         }
 
