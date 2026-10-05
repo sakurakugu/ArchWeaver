@@ -9,6 +9,18 @@ import com.sakurakugu.archweaver.entity.FakePlayerActions;
 import com.sakurakugu.archweaver.entity.FakePlayerManager;
 import com.sakurakugu.archweaver.entity.FakePlayerPossession;
 import com.sakurakugu.archweaver.entity.FakeServerPlayer;
+import com.sakurakugu.archweaver.menu.FakePlayerMenuAction.Automation;
+import com.sakurakugu.archweaver.menu.FakePlayerMenuAction.ContinuousInterval;
+import com.sakurakugu.archweaver.menu.FakePlayerMenuAction.Control;
+import com.sakurakugu.archweaver.menu.FakePlayerMenuAction.Drop;
+import com.sakurakugu.archweaver.menu.FakePlayerMenuAction.Held;
+import com.sakurakugu.archweaver.menu.FakePlayerMenuAction.HotbarSelect;
+import com.sakurakugu.archweaver.menu.FakePlayerMenuAction.SetBodyYaw;
+import com.sakurakugu.archweaver.menu.FakePlayerMenuAction.SetGameMode;
+import com.sakurakugu.archweaver.menu.FakePlayerMenuAction.Simple;
+import com.sakurakugu.archweaver.menu.FakePlayerMenuAction.ToggleContinuous;
+import com.sakurakugu.archweaver.menu.FakePlayerMenuAction.ToggleMove;
+import com.sakurakugu.archweaver.menu.FakePlayerMenuAction.Transfer;
 import com.sakurakugu.archweaver.persistence.FakePlayerPersistence;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.protocol.game.ClientboundContainerSetSlotPacket;
@@ -53,80 +65,13 @@ public final class FakePlayerInventoryMenu extends AbstractContainerMenu {
     private static final int CRAFTING_RESULT_SLOT = INVENTORY_TARGET_SLOTS;
     private static final int CRAFTING_INPUT_START = CRAFTING_RESULT_SLOT + 1;
     private static final int CRAFTING_INPUT_END = CRAFTING_INPUT_START + 4;
-    private static final int HOTBAR_SLOT_COUNT = 9;
-    public static final int ACTION_ENDER_CHEST = HOTBAR_SLOT_COUNT;
-    public static final int ACTION_REMOVE = HOTBAR_SLOT_COUNT + 1;
-    public static final int ACTION_POSSESS = HOTBAR_SLOT_COUNT + 2;
-    public static final int MAX_DROP_AMOUNT = 64;
-    public static final int MAX_DROP_PERCENTAGE = 100;
-    private static final int ACTION_DROP_AMOUNT_BASE = ACTION_POSSESS + 1;
-    private static final int ACTION_DROP_AMOUNT_CONTINUOUS_BASE = ACTION_DROP_AMOUNT_BASE + MAX_DROP_AMOUNT;
-    private static final int ACTION_DROP_PERCENTAGE_BASE = ACTION_DROP_AMOUNT_CONTINUOUS_BASE + MAX_DROP_AMOUNT;
-    private static final int ACTION_DROP_PERCENTAGE_CONTINUOUS_BASE =
-        ACTION_DROP_PERCENTAGE_BASE + MAX_DROP_PERCENTAGE;
-    private static final int ACTION_DROP_END = ACTION_DROP_PERCENTAGE_CONTINUOUS_BASE + MAX_DROP_PERCENTAGE;
-    public static final int ACTION_TRANSFER_TO_TARGET_MATCHING = ACTION_DROP_END;
-    public static final int ACTION_TRANSFER_TO_TARGET_ALL = ACTION_TRANSFER_TO_TARGET_MATCHING + 1;
-    public static final int ACTION_TRANSFER_TO_VIEWER_MATCHING = ACTION_TRANSFER_TO_TARGET_ALL + 1;
-    public static final int ACTION_TRANSFER_TO_VIEWER_ALL = ACTION_TRANSFER_TO_VIEWER_MATCHING + 1;
-    public static final int ACTION_TRANSFER_TO_TARGET_MATCHING_WITH_HOTBAR = ACTION_TRANSFER_TO_VIEWER_ALL + 1;
-    public static final int ACTION_TRANSFER_TO_TARGET_ALL_WITH_HOTBAR = ACTION_TRANSFER_TO_TARGET_MATCHING_WITH_HOTBAR + 1;
-    public static final int ACTION_TRANSFER_TO_VIEWER_MATCHING_WITH_HOTBAR = ACTION_TRANSFER_TO_TARGET_ALL_WITH_HOTBAR + 1;
-    public static final int ACTION_TRANSFER_TO_VIEWER_ALL_WITH_HOTBAR = ACTION_TRANSFER_TO_VIEWER_MATCHING_WITH_HOTBAR + 1;
-    public static final int ACTION_AUTO_REPLENISHMENT = ACTION_TRANSFER_TO_VIEWER_ALL_WITH_HOTBAR + 1;
-    public static final int ACTION_AUTO_REPLENISHMENT_FROM_SHULKER_BOXES = ACTION_AUTO_REPLENISHMENT + 1;
-    public static final int ACTION_AUTO_REPLACE_TOOLS = ACTION_AUTO_REPLENISHMENT_FROM_SHULKER_BOXES + 1;
-    public static final int ACTION_AUTO_FISHING = ACTION_AUTO_REPLACE_TOOLS + 1;
-    public static final int ACTION_MOUNT = ACTION_AUTO_FISHING + 1;
-    public static final int ACTION_MOUNT_ANYTHING = ACTION_MOUNT + 1;
-    public static final int ACTION_DISMOUNT = ACTION_MOUNT_ANYTHING + 1;
-    public static final int ACTION_MOVE_FORWARD = ACTION_DISMOUNT + 1;
-    public static final int ACTION_MOVE_BACKWARD = ACTION_MOVE_FORWARD + 1;
-    public static final int ACTION_MOVE_LEFT = ACTION_MOVE_BACKWARD + 1;
-    public static final int ACTION_MOVE_RIGHT = ACTION_MOVE_LEFT + 1;
-    public static final int ACTION_JUMP = ACTION_MOVE_RIGHT + 1;
-    public static final int ACTION_ATTACK_ONCE = ACTION_JUMP + 1;
-    public static final int ACTION_USE_ONCE = ACTION_ATTACK_ONCE + 1;
-    public static final int ACTION_TURN_LEFT = ACTION_USE_ONCE + 1;
-    public static final int ACTION_TURN_RIGHT = ACTION_TURN_LEFT + 1;
-    public static final int ACTION_SNEAK = ACTION_TURN_RIGHT + 1;
-    public static final int ACTION_MOVE_FORWARD_HELD = ACTION_SNEAK + 1;
-    public static final int ACTION_MOVE_BACKWARD_HELD = ACTION_MOVE_FORWARD_HELD + 1;
-    public static final int ACTION_MOVE_LEFT_HELD = ACTION_MOVE_BACKWARD_HELD + 1;
-    public static final int ACTION_MOVE_RIGHT_HELD = ACTION_MOVE_LEFT_HELD + 1;
-    public static final int ACTION_TURN_LEFT_HELD = ACTION_MOVE_RIGHT_HELD + 1;
-    public static final int ACTION_TURN_RIGHT_HELD = ACTION_TURN_LEFT_HELD + 1;
-    public static final int ACTION_STOP_HELD = ACTION_TURN_RIGHT_HELD + 1;
-    public static final int ACTION_ATTACK_HELD = ACTION_STOP_HELD + 1;
-    public static final int ACTION_USE_HELD = ACTION_ATTACK_HELD + 1;
-    public static final int ACTION_JUMP_HELD = ACTION_USE_HELD + 1;
-    public static final int ACTION_FLY_UP = ACTION_JUMP_HELD + 1;
-    public static final int ACTION_FLY_DOWN = ACTION_FLY_UP + 1;
-    public static final int ACTION_FLY_UP_HELD = ACTION_FLY_DOWN + 1;
-    public static final int ACTION_FLY_DOWN_HELD = ACTION_FLY_UP_HELD + 1;
-    public static final int ACTION_TOGGLE_FLIGHT = ACTION_FLY_DOWN_HELD + 1;
-    public static final int ACTION_TOGGLE_MOVE_FORWARD = ACTION_TOGGLE_FLIGHT + 1;
-    public static final int ACTION_TOGGLE_MOVE_BACKWARD = ACTION_TOGGLE_MOVE_FORWARD + 1;
-    public static final int ACTION_TOGGLE_MOVE_LEFT = ACTION_TOGGLE_MOVE_BACKWARD + 1;
-    public static final int ACTION_TOGGLE_MOVE_RIGHT = ACTION_TOGGLE_MOVE_LEFT + 1;
-    public static final int ACTION_TOGGLE_ATTACK = ACTION_TOGGLE_MOVE_RIGHT + 1;
-    public static final int ACTION_TOGGLE_USE = ACTION_TOGGLE_ATTACK + 1;
-    public static final int ACTION_TOGGLE_JUMP = ACTION_TOGGLE_USE + 1;
-    public static final int ACTION_STOP_ALL = ACTION_TOGGLE_JUMP + 1;
-    public static final int MAX_CONTINUOUS_INTERVAL = 100;
-    private static final int ACTION_CONTINUOUS_INTERVAL_BASE = ACTION_STOP_ALL + 1;
-    private static final int CONTINUOUS_INTERVAL_ACTION_COUNT = 3;
-    private static final int ACTION_CONTINUOUS_INTERVAL_END = ACTION_CONTINUOUS_INTERVAL_BASE
-        + MAX_CONTINUOUS_INTERVAL * CONTINUOUS_INTERVAL_ACTION_COUNT;
-    private static final int ACTION_SET_BODY_YAW_BASE = ACTION_CONTINUOUS_INTERVAL_END;
-    public static final int ACTION_SET_END = ACTION_SET_BODY_YAW_BASE + 360;
-    public static final int ACTION_TOGGLE_BODY_FOLLOWS_HEAD = ACTION_SET_END;
-    public static final int ACTION_SET_GAME_MODE_BASE = ACTION_TOGGLE_BODY_FOLLOWS_HEAD + 1;
-    private static final int ACTION_SET_GAME_MODE_END = ACTION_SET_GAME_MODE_BASE + 4;
-    public static int bodyYawAction(int yaw) { return angleAction(ACTION_SET_BODY_YAW_BASE, yaw); }
-    private static int angleAction(int base, int yaw) {
-        return base + Math.floorMod(yaw + 180, 360);
-    }
+    /** 可设置间隔的持续动作，顺序与菜单外发的间隔索引一致。 */
+    private static final FakePlayerActions.ScheduledAction[] CONTINUOUS_CONTROLS = {
+        FakePlayerActions.ScheduledAction.ATTACK,
+        FakePlayerActions.ScheduledAction.USE,
+        FakePlayerActions.ScheduledAction.JUMP
+    };
+    private static final int CONTINUOUS_INTERVAL_ACTION_COUNT = CONTINUOUS_CONTROLS.length;
     private static final EquipmentSlot[] ARMOR_SLOTS = {
         EquipmentSlot.HEAD, EquipmentSlot.CHEST, EquipmentSlot.LEGS, EquipmentSlot.FEET
     };
@@ -152,7 +97,8 @@ public final class FakePlayerInventoryMenu extends AbstractContainerMenu {
     private final DataSlot continuousControlMask;
     private final int[] continuousIntervals = new int[CONTINUOUS_INTERVAL_ACTION_COUNT];
     private final DataSlot[] continuousIntervalData = new DataSlot[CONTINUOUS_INTERVAL_ACTION_COUNT];
-    private int heldControlAction = -1;
+    /** 当前被长按的控制项，null 表示没有按下的控制。 */
+    private Control heldControl;
     private int pitchSnapshot;
     private int yawSnapshot;
     private int bodyYawSnapshot;
@@ -432,7 +378,7 @@ public final class FakePlayerInventoryMenu extends AbstractContainerMenu {
                 public int get() {
                     if (target != null) {
                         continuousIntervals[intervalIndex] = target.actions().repeatInterval(
-                            continuousAction(intervalIndex));
+                            CONTINUOUS_CONTROLS[intervalIndex]);
                     }
                     return continuousIntervals[intervalIndex];
                 }
@@ -523,144 +469,50 @@ public final class FakePlayerInventoryMenu extends AbstractContainerMenu {
 
     @Override
     public boolean clickMenuButton(Player player, int actionId) {
+        FakePlayerMenuAction action;
+        try {
+            action = FakePlayerMenuActionCodec.decode(actionId);
+        } catch (IllegalArgumentException exception) {
+            // 编号不在动作表内，直接忽略，不做任何状态变更。
+            return false;
+        }
         if (view == View.ENDER_CHEST || !canAccess(player)) {
             return false;
         }
-        if (view == View.POSSESSED_INVENTORY && actionId != ACTION_POSSESS) {
+        if (view == View.POSSESSED_INVENTORY && action != Simple.POSSESS) {
             return false;
         }
-        if (actionId >= 0 && actionId < HOTBAR_SLOT_COUNT) {
-            target.getInventory().setSelectedSlot(actionId);
+        if (action instanceof HotbarSelect(int hotbarSlot)) {
+            target.getInventory().setSelectedSlot(hotbarSlot);
             broadcastChanges();
             return true;
         }
         if (!(player instanceof ServerPlayer viewer) || target == null) {
             return false;
         }
-        if (actionId >= ACTION_DROP_AMOUNT_BASE && actionId < ACTION_DROP_END) {
-            boolean percentage = actionId >= ACTION_DROP_PERCENTAGE_BASE;
-            int continuousBase = percentage
-                ? ACTION_DROP_PERCENTAGE_CONTINUOUS_BASE
-                : ACTION_DROP_AMOUNT_CONTINUOUS_BASE;
-            boolean continuous = actionId >= continuousBase;
-            int base = percentage
-                ? continuous ? ACTION_DROP_PERCENTAGE_CONTINUOUS_BASE : ACTION_DROP_PERCENTAGE_BASE
-                : continuous ? ACTION_DROP_AMOUNT_CONTINUOUS_BASE : ACTION_DROP_AMOUNT_BASE;
-            int value = actionId - base + 1;
-            FakePlayerActions.RepeatMode mode = continuous
-                ? FakePlayerActions.RepeatMode.CONTINUOUS
-                : FakePlayerActions.RepeatMode.ONCE;
-            if (percentage) {
-                target.actions().dropPercentage(target.getInventory().getSelectedSlot(), value, mode, 1);
-            } else {
-                target.actions().dropAmount(target.getInventory().getSelectedSlot(), value, mode, 1);
+        switch (action) {
+            case Simple simple -> handleSimple(simple, viewer, player);
+            case HotbarSelect ignored -> {
+                // 快捷栏选中已经在解码后的分支里处理掉。
             }
-            return true;
-        }
-        if (actionId >= ACTION_CONTINUOUS_INTERVAL_BASE && actionId < ACTION_CONTINUOUS_INTERVAL_END) {
-            int encoded = actionId - ACTION_CONTINUOUS_INTERVAL_BASE;
-            int controlIndex = encoded / MAX_CONTINUOUS_INTERVAL;
-            int interval = encoded % MAX_CONTINUOUS_INTERVAL + 1;
-            target.actions().setRepeatInterval(continuousAction(controlIndex), interval);
-            continuousIntervals[controlIndex] = interval;
-            broadcastChanges();
-            return true;
-        }
-        if (actionId >= ACTION_SET_BODY_YAW_BASE && actionId < ACTION_SET_END) {
-            target.actions().setBodyRotation(actionId - ACTION_SET_BODY_YAW_BASE - 180);
-            broadcastChanges();
-            return true;
-        }
-        if (actionId >= ACTION_SET_GAME_MODE_BASE && actionId < ACTION_SET_GAME_MODE_END) {
-            GameType gameType = GameType.byId(actionId - ACTION_SET_GAME_MODE_BASE);
-            target.gameMode.changeGameModeForPlayer(gameType);
-            target.getAbilities().flying = target.getAbilities().flying && target.getAbilities().mayfly;
-            FakePlayerPersistence.track(target);
-            broadcastChanges();
-            return true;
-        }
-        switch (actionId) {
-            case ACTION_ENDER_CHEST -> FakePlayerMenuOpener.openEnderChest(viewer, target);
-            case ACTION_REMOVE -> {
-                player.closeContainer();
-                FakePlayerManager.remove(target);
-            }
-            case ACTION_POSSESS -> {
-                if (FakePlayerPossession.isControlling(viewer, target)) {
-                    FakePlayerPossession.stop(viewer);
-                    viewer.closeContainer();
+            case Drop(int value, boolean percentage, boolean continuous) -> {
+                FakePlayerActions.RepeatMode mode = continuous
+                    ? FakePlayerActions.RepeatMode.CONTINUOUS
+                    : FakePlayerActions.RepeatMode.ONCE;
+                if (percentage) {
+                    target.actions().dropPercentage(target.getInventory().getSelectedSlot(), value, mode, 1);
                 } else {
-                    FakePlayerPossession.start(viewer, target);
+                    target.actions().dropAmount(target.getInventory().getSelectedSlot(), value, mode, 1);
                 }
             }
-            case ACTION_TRANSFER_TO_TARGET_MATCHING -> transferItems(player, true, true, false);
-            case ACTION_TRANSFER_TO_TARGET_ALL -> transferItems(player, true, false, false);
-            case ACTION_TRANSFER_TO_VIEWER_MATCHING -> transferItems(player, false, true, false);
-            case ACTION_TRANSFER_TO_VIEWER_ALL -> transferItems(player, false, false, false);
-            case ACTION_TRANSFER_TO_TARGET_MATCHING_WITH_HOTBAR -> transferItems(player, true, true, true);
-            case ACTION_TRANSFER_TO_TARGET_ALL_WITH_HOTBAR -> transferItems(player, true, false, true);
-            case ACTION_TRANSFER_TO_VIEWER_MATCHING_WITH_HOTBAR -> transferItems(player, false, true, true);
-            case ACTION_TRANSFER_TO_VIEWER_ALL_WITH_HOTBAR -> transferItems(player, false, false, true);
-            case ACTION_AUTO_REPLENISHMENT,
-                ACTION_AUTO_REPLENISHMENT_FROM_SHULKER_BOXES,
-                ACTION_AUTO_REPLACE_TOOLS,
-                ACTION_AUTO_FISHING -> {
-                int index = actionId - ACTION_AUTO_REPLENISHMENT;
+            case Transfer(boolean toTarget, boolean all, boolean includeHotbar) ->
+                transferItems(player, toTarget, !all, includeHotbar);
+            case Automation(int index) -> {
                 target.automation().toggleSetting(index);
                 // 只同步数据槽，保留客户端展开状态。
                 broadcastChanges();
             }
-            case ACTION_MOUNT -> target.actions().mountNearest(false);
-            case ACTION_MOUNT_ANYTHING -> target.actions().mountNearest(true);
-            case ACTION_DISMOUNT -> target.actions().dismount();
-            case ACTION_MOVE_FORWARD -> target.actions().moveOnce(FakePlayerActions.MoveDirection.FORWARD);
-            case ACTION_MOVE_BACKWARD -> target.actions().moveOnce(FakePlayerActions.MoveDirection.BACKWARD);
-            case ACTION_MOVE_LEFT -> target.actions().moveOnce(FakePlayerActions.MoveDirection.LEFT);
-            case ACTION_MOVE_RIGHT -> target.actions().moveOnce(FakePlayerActions.MoveDirection.RIGHT);
-            case ACTION_JUMP -> target.actions().jump();
-            case ACTION_ATTACK_ONCE -> target.actions().attackOnce();
-            case ACTION_USE_ONCE -> target.actions().useOnce();
-            case ACTION_TURN_LEFT -> target.actions().turn(-1.0F);
-            case ACTION_TURN_RIGHT -> target.actions().turn(1.0F);
-            case ACTION_SNEAK -> target.actions().toggleSneak();
-            case ACTION_TOGGLE_BODY_FOLLOWS_HEAD -> {
-                target.actions().toggleBodyFollowsHead();
-                broadcastChanges();
-            }
-            case ACTION_MOVE_FORWARD_HELD -> startHeldMove(FakePlayerActions.MoveDirection.FORWARD);
-            case ACTION_MOVE_BACKWARD_HELD -> startHeldMove(FakePlayerActions.MoveDirection.BACKWARD);
-            case ACTION_MOVE_LEFT_HELD -> startHeldMove(FakePlayerActions.MoveDirection.LEFT);
-            case ACTION_MOVE_RIGHT_HELD -> startHeldMove(FakePlayerActions.MoveDirection.RIGHT);
-            case ACTION_TURN_LEFT_HELD -> startHeldTurn(-1.0F);
-            case ACTION_TURN_RIGHT_HELD -> startHeldTurn(1.0F);
-            case ACTION_STOP_HELD -> {
-                stopHeldControl();
-            }
-            case ACTION_ATTACK_HELD -> {
-                target.actions().startAttack();
-                heldControlAction = ACTION_ATTACK_HELD;
-            }
-            case ACTION_USE_HELD -> {
-                target.actions().startUse();
-                heldControlAction = ACTION_USE_HELD;
-            }
-            case ACTION_JUMP_HELD -> {
-                target.actions().startJump();
-                heldControlAction = ACTION_JUMP_HELD;
-            }
-            case ACTION_FLY_UP -> target.actions().flyVertical(true);
-            case ACTION_FLY_DOWN -> target.actions().flyVertical(false);
-            case ACTION_FLY_UP_HELD -> startHeldFly(true);
-            case ACTION_FLY_DOWN_HELD -> startHeldFly(false);
-            case ACTION_TOGGLE_FLIGHT -> target.actions().toggleFlight();
-            case ACTION_TOGGLE_MOVE_FORWARD, ACTION_TOGGLE_MOVE_BACKWARD,
-                ACTION_TOGGLE_MOVE_LEFT, ACTION_TOGGLE_MOVE_RIGHT -> {
-                FakePlayerActions.MoveDirection direction = switch (actionId) {
-                    case ACTION_TOGGLE_MOVE_FORWARD -> FakePlayerActions.MoveDirection.FORWARD;
-                    case ACTION_TOGGLE_MOVE_BACKWARD -> FakePlayerActions.MoveDirection.BACKWARD;
-                    case ACTION_TOGGLE_MOVE_LEFT -> FakePlayerActions.MoveDirection.LEFT;
-                    default -> FakePlayerActions.MoveDirection.RIGHT;
-                };
+            case ToggleMove(FakePlayerActions.MoveDirection direction) -> {
                 if (target.actions().isMoving(direction)) {
                     target.actions().stopMove();
                 } else {
@@ -668,42 +520,123 @@ public final class FakePlayerInventoryMenu extends AbstractContainerMenu {
                 }
                 broadcastChanges();
             }
-            case ACTION_TOGGLE_ATTACK -> {
-                toggleContinuousAction(0);
+            case ToggleContinuous(FakePlayerActions.ScheduledAction scheduled) -> {
+                toggleContinuousAction(scheduled);
                 broadcastChanges();
             }
-            case ACTION_TOGGLE_USE -> {
-                toggleContinuousAction(1);
+            case Held(Control control, boolean pressed) -> applyHeldControl(control, pressed);
+            case ContinuousInterval(FakePlayerActions.ScheduledAction scheduled, int interval) -> {
+                target.actions().setRepeatInterval(scheduled, interval);
+                continuousIntervals[continuousIntervalIndex(scheduled)] = interval;
                 broadcastChanges();
             }
-            case ACTION_TOGGLE_JUMP -> {
-                toggleContinuousAction(2);
+            case SetBodyYaw(int yaw) -> {
+                target.actions().setBodyRotation(yaw);
                 broadcastChanges();
             }
-            case ACTION_STOP_ALL -> {
-                target.actions().stop();
-                heldControlAction = -1;
+            case SetGameMode(GameType gameType) -> {
+                target.gameMode.changeGameModeForPlayer(gameType);
+                target.getAbilities().flying = target.getAbilities().flying && target.getAbilities().mayfly;
+                FakePlayerPersistence.track(target);
                 broadcastChanges();
-            }
-            default -> {
-                return false;
             }
         }
         return true;
     }
 
-    private void startHeldMove(FakePlayerActions.MoveDirection direction) {
-        target.actions().startMove(direction);
-        heldControlAction = switch (direction) {
-            case FORWARD -> ACTION_MOVE_FORWARD_HELD;
-            case BACKWARD -> ACTION_MOVE_BACKWARD_HELD;
-            case LEFT -> ACTION_MOVE_LEFT_HELD;
-            case RIGHT -> ACTION_MOVE_RIGHT_HELD;
-        };
+    /** 处理不带参数的动作。 */
+    private void handleSimple(Simple simple, ServerPlayer viewer, Player player) {
+        switch (simple) {
+            case ENDER_CHEST -> FakePlayerMenuOpener.openEnderChest(viewer, target);
+            case REMOVE -> {
+                player.closeContainer();
+                FakePlayerManager.remove(target);
+            }
+            case POSSESS -> {
+                if (FakePlayerPossession.isControlling(viewer, target)) {
+                    FakePlayerPossession.stop(viewer);
+                    viewer.closeContainer();
+                } else {
+                    FakePlayerPossession.start(viewer, target);
+                }
+            }
+            case MOUNT -> target.actions().mountNearest(false);
+            case MOUNT_ANYTHING -> target.actions().mountNearest(true);
+            case DISMOUNT -> target.actions().dismount();
+            case MOVE_FORWARD -> target.actions().moveOnce(FakePlayerActions.MoveDirection.FORWARD);
+            case MOVE_BACKWARD -> target.actions().moveOnce(FakePlayerActions.MoveDirection.BACKWARD);
+            case MOVE_LEFT -> target.actions().moveOnce(FakePlayerActions.MoveDirection.LEFT);
+            case MOVE_RIGHT -> target.actions().moveOnce(FakePlayerActions.MoveDirection.RIGHT);
+            case JUMP -> target.actions().jump();
+            case ATTACK_ONCE -> target.actions().attackOnce();
+            case USE_ONCE -> target.actions().useOnce();
+            case TURN_LEFT -> target.actions().turn(-1.0F);
+            case TURN_RIGHT -> target.actions().turn(1.0F);
+            case SNEAK -> target.actions().toggleSneak();
+            case FLY_UP -> target.actions().flyVertical(true);
+            case FLY_DOWN -> target.actions().flyVertical(false);
+            case TOGGLE_FLIGHT -> target.actions().toggleFlight();
+            case TOGGLE_BODY_FOLLOWS_HEAD -> {
+                target.actions().toggleBodyFollowsHead();
+                broadcastChanges();
+            }
+            case STOP_ALL -> {
+                target.actions().stop();
+                heldControl = null;
+                broadcastChanges();
+            }
+        }
     }
 
-    private void toggleContinuousAction(int controlIndex) {
-        FakePlayerActions.ScheduledAction action = continuousAction(controlIndex);
+    /** 按下或松开一个可长按的控制项。 */
+    private void applyHeldControl(Control control, boolean pressed) {
+        if (!pressed) {
+            // 只停掉真正按下的那一项，避免误停其他正在进行的长按动作。
+            if (control == heldControl) {
+                stopControl(control);
+                heldControl = null;
+            }
+            return;
+        }
+        switch (control) {
+            case MOVE_FORWARD -> target.actions().startMove(FakePlayerActions.MoveDirection.FORWARD);
+            case MOVE_BACKWARD -> target.actions().startMove(FakePlayerActions.MoveDirection.BACKWARD);
+            case MOVE_LEFT -> target.actions().startMove(FakePlayerActions.MoveDirection.LEFT);
+            case MOVE_RIGHT -> target.actions().startMove(FakePlayerActions.MoveDirection.RIGHT);
+            case TURN_LEFT -> target.actions().startTurn(-1.0F);
+            case TURN_RIGHT -> target.actions().startTurn(1.0F);
+            case ATTACK -> target.actions().startAttack();
+            case USE -> target.actions().startUse();
+            case JUMP -> target.actions().startJump();
+            case FLY_UP -> target.actions().startFlyVertical(true);
+            case FLY_DOWN -> target.actions().startFlyVertical(false);
+        }
+        heldControl = control;
+    }
+
+    /** 停止一个可长按的控制项。 */
+    private void stopControl(Control control) {
+        switch (control) {
+            case MOVE_FORWARD, MOVE_BACKWARD, MOVE_LEFT, MOVE_RIGHT -> target.actions().stopMove();
+            case TURN_LEFT, TURN_RIGHT -> target.actions().stopTurn();
+            case ATTACK -> target.actions().stopAttack();
+            case USE -> target.actions().stopUse();
+            case JUMP -> target.actions().stopJump();
+            case FLY_UP, FLY_DOWN -> target.actions().stopFlyVertical();
+        }
+    }
+
+    /** 停掉当前按下的长按控制项，用于“全部停止”和界面关闭。 */
+    private void stopHeldControl() {
+        if (heldControl == null) {
+            return;
+        }
+        stopControl(heldControl);
+        heldControl = null;
+    }
+
+    /** 切换攻击、使用或跳跃的持续执行。 */
+    private void toggleContinuousAction(FakePlayerActions.ScheduledAction action) {
         boolean enabled = target.actions().isRepeating(action);
         int interval = target.actions().repeatInterval(action);
         switch (action) {
@@ -728,42 +661,18 @@ public final class FakePlayerInventoryMenu extends AbstractContainerMenu {
                     target.actions().jump(FakePlayerActions.RepeatMode.INTERVAL, interval);
                 }
             }
-            default -> throw new IllegalArgumentException("不支持切换该持续动作: " + action);
+            case DROP -> throw new IllegalArgumentException("不支持切换该持续动作: " + action);
         }
     }
 
-    private static FakePlayerActions.ScheduledAction continuousAction(int index) {
-        return switch (index) {
-            case 0 -> FakePlayerActions.ScheduledAction.ATTACK;
-            case 1 -> FakePlayerActions.ScheduledAction.USE;
-            case 2 -> FakePlayerActions.ScheduledAction.JUMP;
-            default -> throw new IllegalArgumentException("无效的持续动作索引: " + index);
-        };
-    }
-
-    private void startHeldTurn(float yawDelta) {
-        target.actions().startTurn(yawDelta);
-        heldControlAction = yawDelta < 0.0F ? ACTION_TURN_LEFT_HELD : ACTION_TURN_RIGHT_HELD;
-    }
-
-    private void startHeldFly(boolean upward) {
-        target.actions().startFlyVertical(upward);
-        heldControlAction = upward ? ACTION_FLY_UP_HELD : ACTION_FLY_DOWN_HELD;
-    }
-
-    private void stopHeldControl() {
-        switch (heldControlAction) {
-            case ACTION_MOVE_FORWARD_HELD, ACTION_MOVE_BACKWARD_HELD,
-                ACTION_MOVE_LEFT_HELD, ACTION_MOVE_RIGHT_HELD -> target.actions().stopMove();
-            case ACTION_TURN_LEFT_HELD, ACTION_TURN_RIGHT_HELD -> target.actions().stopTurn();
-            case ACTION_FLY_UP_HELD, ACTION_FLY_DOWN_HELD -> target.actions().stopFlyVertical();
-            case ACTION_ATTACK_HELD -> target.actions().stopAttack();
-            case ACTION_USE_HELD -> target.actions().stopUse();
-            case ACTION_JUMP_HELD -> target.actions().stopJump();
-            default -> {
+    /** 持续动作在间隔数组中的下标，与 {@link #CONTINUOUS_CONTROLS} 的顺序一致。 */
+    private static int continuousIntervalIndex(FakePlayerActions.ScheduledAction action) {
+        for (int index = 0; index < CONTINUOUS_CONTROLS.length; index++) {
+            if (CONTINUOUS_CONTROLS[index] == action) {
+                return index;
             }
         }
-        heldControlAction = -1;
+        throw new IllegalArgumentException("不支持设置间隔的动作: " + action);
     }
 
     /** 默认只处理双方的 27 格主背包；按住 Ctrl 才包含快捷栏，装备槽始终保持原样。 */
@@ -813,18 +722,6 @@ public final class FakePlayerInventoryMenu extends AbstractContainerMenu {
             }
         }
         return contents;
-    }
-
-    /** 将丢弃数值、计量模式和连续模式编码为原版菜单按钮协议可传输的动作编号。 */
-    public static int dropActionId(int value, boolean percentage, boolean continuous) {
-        int maximum = percentage ? MAX_DROP_PERCENTAGE : MAX_DROP_AMOUNT;
-        if (value < 1 || value > maximum) {
-            throw new IllegalArgumentException("Drop value must be between 1 and " + maximum);
-        }
-        int base = percentage
-            ? continuous ? ACTION_DROP_PERCENTAGE_CONTINUOUS_BASE : ACTION_DROP_PERCENTAGE_BASE
-            : continuous ? ACTION_DROP_AMOUNT_CONTINUOUS_BASE : ACTION_DROP_AMOUNT_BASE;
-        return base + value - 1;
     }
 
     @Override
@@ -911,7 +808,7 @@ public final class FakePlayerInventoryMenu extends AbstractContainerMenu {
 
     @Override
     public void removed(Player player) {
-        if (heldControlAction >= 0 && target != null) {
+        if (target != null) {
             stopHeldControl();
         }
         // 附身界面没有操作者背包，关闭时鼠标携带物也必须回到假人。
@@ -1062,12 +959,12 @@ public final class FakePlayerInventoryMenu extends AbstractContainerMenu {
         return continuousIntervalData[index].get();
     }
 
-    public static int continuousIntervalActionId(int index, int interval) {
+    /** 间隔索引对应的持续动作，索引与客户端界面上的一行一一对应。 */
+    public static FakePlayerActions.ScheduledAction continuousControl(int index) {
         if (index < 0 || index >= CONTINUOUS_INTERVAL_ACTION_COUNT) {
             throw new IllegalArgumentException("无效的持续动作索引: " + index);
         }
-        int value = Math.clamp(interval, 1, MAX_CONTINUOUS_INTERVAL);
-        return ACTION_CONTINUOUS_INTERVAL_BASE + index * MAX_CONTINUOUS_INTERVAL + value - 1;
+        return CONTINUOUS_CONTROLS[index];
     }
 
     public static int continuousControlMask(FakeServerPlayer fake) {

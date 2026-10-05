@@ -2,7 +2,22 @@ package com.sakurakugu.archweaver.client;
 
 import com.sakurakugu.archweaver.ArchWeaverMod;
 import com.sakurakugu.archweaver.menu.FakePlayerInventoryMenu;
+import com.sakurakugu.archweaver.menu.FakePlayerMenuAction;
+import com.sakurakugu.archweaver.menu.FakePlayerMenuAction.Automation;
+import com.sakurakugu.archweaver.menu.FakePlayerMenuAction.ContinuousInterval;
+import com.sakurakugu.archweaver.menu.FakePlayerMenuAction.Control;
+import com.sakurakugu.archweaver.menu.FakePlayerMenuAction.Drop;
+import com.sakurakugu.archweaver.menu.FakePlayerMenuAction.Held;
+import com.sakurakugu.archweaver.menu.FakePlayerMenuAction.HotbarSelect;
+import com.sakurakugu.archweaver.menu.FakePlayerMenuAction.SetBodyYaw;
+import com.sakurakugu.archweaver.menu.FakePlayerMenuAction.SetGameMode;
+import com.sakurakugu.archweaver.menu.FakePlayerMenuAction.Simple;
+import com.sakurakugu.archweaver.menu.FakePlayerMenuAction.ToggleContinuous;
+import com.sakurakugu.archweaver.menu.FakePlayerMenuAction.ToggleMove;
+import com.sakurakugu.archweaver.menu.FakePlayerMenuAction.Transfer;
+import com.sakurakugu.archweaver.menu.FakePlayerMenuActionCodec;
 import com.sakurakugu.archweaver.chunkloading.FakePlayerLoadMode;
+import com.sakurakugu.archweaver.entity.FakePlayerActions;
 import com.sakurakugu.archweaver.network.RenameFakePlayerPayload;
 import com.sakurakugu.archweaver.network.FakePlayerSimulationPayload;
 import com.sakurakugu.archweaver.network.FakePlayerViewRotationPayload;
@@ -138,19 +153,19 @@ public final class FakePlayerInventoryScreen extends AbstractContainerScreen<Fak
     private static final String SIMULATION_PANEL_ID = "simulation"; // 模拟面板的唯一标识。
     private static final String[] AUTOMATION_KEYS = {
         "auto_replenishment", "shulker_replenishment", "auto_replace_tools", "auto_fishing"
-    }; // 自动化开关的语言键后缀，顺序与 ACTION_AUTO_REPLENISHMENT 起的动作 ID 一一对应。
+    }; // 自动化开关的语言键后缀，顺序与服务端的自动化设置序号一一对应。
     private static final String[] CONTINUOUS_KEYS = {
         "move_forward", "move_backward", "move_left", "move_right", "attack", "use", "jump"
     }; // 持续控制开关的语言键后缀，前 4 项为移动，后 3 项各附带一个间隔滑条。
-    private static final int[] CONTINUOUS_ACTIONS = {
-        FakePlayerInventoryMenu.ACTION_TOGGLE_MOVE_FORWARD,
-        FakePlayerInventoryMenu.ACTION_TOGGLE_MOVE_BACKWARD,
-        FakePlayerInventoryMenu.ACTION_TOGGLE_MOVE_LEFT,
-        FakePlayerInventoryMenu.ACTION_TOGGLE_MOVE_RIGHT,
-        FakePlayerInventoryMenu.ACTION_TOGGLE_ATTACK,
-        FakePlayerInventoryMenu.ACTION_TOGGLE_USE,
-        FakePlayerInventoryMenu.ACTION_TOGGLE_JUMP
-    }; // 与 CONTINUOUS_KEYS 一一对应的持续控制切换动作 ID。
+    private static final FakePlayerMenuAction[] CONTINUOUS_ACTIONS = {
+        new ToggleMove(FakePlayerActions.MoveDirection.FORWARD),
+        new ToggleMove(FakePlayerActions.MoveDirection.BACKWARD),
+        new ToggleMove(FakePlayerActions.MoveDirection.LEFT),
+        new ToggleMove(FakePlayerActions.MoveDirection.RIGHT),
+        new ToggleContinuous(FakePlayerActions.ScheduledAction.ATTACK),
+        new ToggleContinuous(FakePlayerActions.ScheduledAction.USE),
+        new ToggleContinuous(FakePlayerActions.ScheduledAction.JUMP)
+    }; // 与 CONTINUOUS_KEYS 一一对应的持续控制切换动作。
 
     private OverlayPanelManager panelManager; // 侧栏浮层面板管理器，负责面板的展开与遮挡顺序。
     // 按界面从上到下注册，展开的面板会遮挡并禁用其下方的标签。
@@ -163,9 +178,9 @@ public final class FakePlayerInventoryScreen extends AbstractContainerScreen<Fak
     private OverlayPanelManager.Panel simulationPanel; // 模拟面板，控制假人的区块加载模式与距离。
     private boolean continuousDrop; // 是否开启连续丢弃，为 true 时持续执行丢弃动作。
     private boolean percentageDrop; // 丢弃模式是否为百分比，false 表示按数量。
-    private int dropAmount = 1; // 按数量丢弃时使用的数量，取值范围为 1 到 MAX_DROP_AMOUNT。
-    private int dropPercentage = 100; // 按百分比丢弃时使用的百分比，取值范围为 1 到 MAX_DROP_PERCENTAGE。
-    private int heldAction = -1; // 当前按下的操控按钮动作 ID，-1 表示没有按下的按钮。
+    private int dropAmount = 1; // 按数量丢弃时使用的数量，取值范围为 1 到 Drop.MAX_AMOUNT。
+    private int dropPercentage = 100; // 按百分比丢弃时使用的百分比，取值范围为 1 到 Drop.MAX_PERCENTAGE。
+    private Control heldControl; // 当前按下的操控按钮对应的长按控制项，null 表示没有按下。
     private int heldTicks; // 操控按钮已按住的游戏刻数，达到阈值后触发长按连续动作。
     private boolean heldStarted; // 长按是否已转为连续动作，避免重复发送。
     private IntegerSliderButton dropAmountSlider; // 丢弃数量或百分比的滑条。
@@ -228,7 +243,7 @@ public final class FakePlayerInventoryScreen extends AbstractContainerScreen<Fak
                     topPos + ACTION_BUTTON_TOP + (ACTION_BUTTON_HEIGHT + ACTION_BUTTON_GAP) * 2,
                     POSSESSION_EXIT_ICON,
                     Component.translatable("gui.archweaver.fakeplayer.stop_possessing"),
-                    button -> sendAction(FakePlayerInventoryMenu.ACTION_POSSESS)
+                    button -> sendAction(Simple.POSSESS)
                 )
             );
             return;
@@ -239,7 +254,7 @@ public final class FakePlayerInventoryScreen extends AbstractContainerScreen<Fak
                 topPos + ACTION_BUTTON_TOP,
                 new ItemStack(Items.BARRIER),
                 Component.translatable("gui.archweaver.fakeplayer.remove"),
-                button -> sendAction(FakePlayerInventoryMenu.ACTION_REMOVE)
+                button -> sendAction(Simple.REMOVE)
             )
         );
         InventorySlotButton possessButton = addRenderableWidget(
@@ -251,7 +266,7 @@ public final class FakePlayerInventoryScreen extends AbstractContainerScreen<Fak
                 Component.translatable(menu.possessedByViewer()
                     ? "gui.archweaver.fakeplayer.stop_possessing"
                     : menu.targetOccupied() ? "gui.archweaver.fakeplayer.possess_disabled" : "gui.archweaver.fakeplayer.possess"),
-                button -> sendAction(FakePlayerInventoryMenu.ACTION_POSSESS)
+                button -> sendAction(Simple.POSSESS)
             )
         );
         if (menu.targetOccupied() && !menu.possessedByViewer()) {
@@ -263,7 +278,7 @@ public final class FakePlayerInventoryScreen extends AbstractContainerScreen<Fak
                 topPos + ACTION_BUTTON_TOP + ACTION_BUTTON_HEIGHT + ACTION_BUTTON_GAP,
                 new ItemStack(Items.ENDER_CHEST),
                 Component.translatable("gui.archweaver.fakeplayer.open_ender_chest"),
-                button -> sendAction(FakePlayerInventoryMenu.ACTION_ENDER_CHEST)
+                button -> sendAction(Simple.ENDER_CHEST)
             )
         );
         addTransferButtons(TRANSFER_BUTTON_TOP);
@@ -272,11 +287,7 @@ public final class FakePlayerInventoryScreen extends AbstractContainerScreen<Fak
             topPos + HOTBAR_SELECTOR_TOP,
             HOTBAR_SELECTOR_HEIGHT,
             menu::selectedHotbarSlot,
-            slot -> {
-                if (minecraft.gameMode != null) {
-                    minecraft.gameMode.handleInventoryButtonClick(menu.containerId, slot);
-                }
-            }
+            slot -> sendAction(new HotbarSelect(slot))
         ));
         addControlButtons();
         createPanels();
@@ -315,7 +326,6 @@ public final class FakePlayerInventoryScreen extends AbstractContainerScreen<Fak
         int automationTop = automationPanel.getY() + 21;
         ToggleSwitchButton[] automationButtons = new ToggleSwitchButton[AUTOMATION_KEYS.length];
         for (int index = 0; index < AUTOMATION_KEYS.length; index++) {
-            int actionId = FakePlayerInventoryMenu.ACTION_AUTO_REPLENISHMENT + index;
             int automationIndex = index;
             automationButtons[index] = addRenderableWidget(new ToggleSwitchButton(
                 panelLeft + 6,
@@ -324,7 +334,7 @@ public final class FakePlayerInventoryScreen extends AbstractContainerScreen<Fak
                 AUTOMATION_BUTTON_HEIGHT,
                 Component.translatable("gui.archweaver.fakeplayer.automation." + AUTOMATION_KEYS[index]),
                 () -> menu.automationEnabled(automationIndex),
-                button -> sendAction(actionId)
+                button -> sendAction(new Automation(automationIndex))
             ));
         }
         addRenderableWidget(automationPanel.createTab(new ItemStack(Items.REPEATER)));
@@ -338,17 +348,17 @@ public final class FakePlayerInventoryScreen extends AbstractContainerScreen<Fak
         Button mountButton = addRenderableWidget(new SolidButton(
             panelLeft + 6, mountTop + 21, mountPanel.contentWidth() - 12, MOUNT_BUTTON_HEIGHT,
             Component.translatable("gui.archweaver.fakeplayer.mount.mount"),
-            button -> sendAction(FakePlayerInventoryMenu.ACTION_MOUNT)
+            button -> sendAction(Simple.MOUNT)
         ));
         Button mountAnythingButton = addRenderableWidget(new SolidButton(
             panelLeft + 6, mountTop + 39, mountPanel.contentWidth() - 12, MOUNT_BUTTON_HEIGHT,
             Component.translatable("gui.archweaver.fakeplayer.mount.mount_anything"),
-            button -> sendAction(FakePlayerInventoryMenu.ACTION_MOUNT_ANYTHING)
+            button -> sendAction(Simple.MOUNT_ANYTHING)
         ));
         Button dismountButton = addRenderableWidget(new SolidButton(
             panelLeft + 6, mountTop + 57, mountPanel.contentWidth() - 12, MOUNT_BUTTON_HEIGHT,
             Component.translatable("gui.archweaver.fakeplayer.mount.dismount"),
-            button -> sendAction(FakePlayerInventoryMenu.ACTION_DISMOUNT)
+            button -> sendAction(Simple.DISMOUNT)
         ));
         // 马鞍贴图的视觉重心偏下，单独向左上修正 1 像素。
         addRenderableWidget(mountPanel.createTab(new ItemStack(Items.SADDLE), -1, -1));
@@ -387,10 +397,11 @@ public final class FakePlayerInventoryScreen extends AbstractContainerScreen<Fak
                 continuousPanel.contentWidth() - 12,
                 CONTINUOUS_SLIDER_HEIGHT,
                 1,
-                FakePlayerInventoryMenu.MAX_CONTINUOUS_INTERVAL,
+                ContinuousInterval.MAX_INTERVAL,
                 menu.continuousInterval(controlIndex),
                 value -> Component.translatable("gui.archweaver.fakeplayer.continuous.interval", value),
-                value -> sendAction(FakePlayerInventoryMenu.continuousIntervalActionId(controlIndex, value))
+                value -> sendAction(new ContinuousInterval(
+                    FakePlayerInventoryMenu.continuousControl(controlIndex), value))
             ));
             intervalSliders[index].setTooltip(Tooltip.create(
                 Component.translatable("gui.archweaver.fakeplayer.continuous.interval_tooltip")));
@@ -402,7 +413,7 @@ public final class FakePlayerInventoryScreen extends AbstractContainerScreen<Fak
             continuousPanel.contentWidth() - 12,
             CONTINUOUS_BUTTON_HEIGHT,
             Component.translatable("gui.archweaver.fakeplayer.stop"),
-            button -> sendAction(FakePlayerInventoryMenu.ACTION_STOP_ALL)
+            button -> sendAction(Simple.STOP_ALL)
         ));
         addRenderableWidget(continuousPanel.createTab(new ItemStack(Items.CLOCK)));
         AbstractWidget[] continuousContents =
@@ -433,7 +444,7 @@ public final class FakePlayerInventoryScreen extends AbstractContainerScreen<Fak
             dropPanel.contentWidth() - 12,
             16,
             1,
-            FakePlayerInventoryMenu.MAX_DROP_AMOUNT,
+            Drop.MAX_AMOUNT,
             dropAmount,
             value -> Component.literal(value + (percentageDrop ? "%" : "")),
             value -> {
@@ -457,8 +468,7 @@ public final class FakePlayerInventoryScreen extends AbstractContainerScreen<Fak
                 dropPanel.contentWidth() - 12,
                 16,
                 Component.translatable("gui.archweaver.fakeplayer.drop_execute"),
-                button -> sendAction(FakePlayerInventoryMenu.dropActionId(
-                    currentDropValue(), percentageDrop, continuousDrop))
+                button -> sendAction(new Drop(currentDropValue(), percentageDrop, continuousDrop))
             )
         );
         dropPanel.bindContents(dropModeButton, dropAmountSlider,
@@ -485,7 +495,7 @@ public final class FakePlayerInventoryScreen extends AbstractContainerScreen<Fak
             left + 68, top + 47, 56, 16,
             java.util.List.of(GameType.SURVIVAL, GameType.CREATIVE, GameType.ADVENTURE, GameType.SPECTATOR),
             gameType(), this::gameModeName,
-            gameType -> sendAction(FakePlayerInventoryMenu.ACTION_SET_GAME_MODE_BASE + gameType.getId())
+            gameType -> sendAction(new SetGameMode(gameType))
         ));
         ExperienceDisplay experienceDisplay = addRenderableWidget(new ExperienceDisplay(
             left + 7, top + 122, 117, 16
@@ -584,15 +594,16 @@ public final class FakePlayerInventoryScreen extends AbstractContainerScreen<Fak
 
     /** 在假人物品栏的空白区域添加移动和即时动作操控杆。 */
     private void addControlButtons() {
-        addControlButton(0, 0, "↶", FakePlayerInventoryMenu.ACTION_TURN_LEFT);
-        addControlButton(1, 0, "↑", FakePlayerInventoryMenu.ACTION_MOVE_FORWARD);
-        addControlButton(2, 0, "↷", FakePlayerInventoryMenu.ACTION_TURN_RIGHT);
-        addControlButton(0, 1, "←", FakePlayerInventoryMenu.ACTION_MOVE_LEFT);
-        addControlButton(1, 1, "S", FakePlayerInventoryMenu.ACTION_SNEAK);
-        addControlButton(2, 1, "→", FakePlayerInventoryMenu.ACTION_MOVE_RIGHT);
-        addControlButton(0, 2, "L", FakePlayerInventoryMenu.ACTION_ATTACK_ONCE);
-        addControlButton(1, 2, "↓", FakePlayerInventoryMenu.ACTION_MOVE_BACKWARD);
-        addControlButton(2, 2, "R", FakePlayerInventoryMenu.ACTION_USE_ONCE);
+        addControlButton(0, 0, "↶", Simple.TURN_LEFT, Control.TURN_LEFT);
+        addControlButton(1, 0, "↑", Simple.MOVE_FORWARD, Control.MOVE_FORWARD);
+        addControlButton(2, 0, "↷", Simple.TURN_RIGHT, Control.TURN_RIGHT);
+        addControlButton(0, 1, "←", Simple.MOVE_LEFT, Control.MOVE_LEFT);
+        // 潜行没有长按形态，按下即切换。
+        addControlButton(1, 1, "S", Simple.SNEAK, null);
+        addControlButton(2, 1, "→", Simple.MOVE_RIGHT, Control.MOVE_RIGHT);
+        addControlButton(0, 2, "L", Simple.ATTACK_ONCE, Control.ATTACK);
+        addControlButton(1, 2, "↓", Simple.MOVE_BACKWARD, Control.MOVE_BACKWARD);
+        addControlButton(2, 2, "R", Simple.USE_ONCE, Control.USE);
 
         jumpButton = addRenderableWidget(new SolidButton(
             leftPos + SNEAK_BUTTON_LEFT,
@@ -607,14 +618,16 @@ public final class FakePlayerInventoryScreen extends AbstractContainerScreen<Fak
             leftPos + SNEAK_BUTTON_LEFT,
             topPos + CONTROL_TOP,
             "↑",
-            FakePlayerInventoryMenu.ACTION_FLY_UP
+            Simple.FLY_UP,
+            Control.FLY_UP
         );
         flyUpButton.setTooltip(Tooltip.create(Component.translatable("gui.archweaver.fakeplayer.fly_up")));
         flyDownButton = addControlButtonAt(
             leftPos + SNEAK_BUTTON_LEFT,
             topPos + CONTROL_TOP + CONTROL_SIZE * 2,
             "↓",
-            FakePlayerInventoryMenu.ACTION_FLY_DOWN
+            Simple.FLY_DOWN,
+            Control.FLY_DOWN
         );
         flyDownButton.setTooltip(Tooltip.create(Component.translatable("gui.archweaver.fakeplayer.fly_down")));
         updateFlyingButtons();
@@ -629,19 +642,19 @@ public final class FakePlayerInventoryScreen extends AbstractContainerScreen<Fak
             x + 6, y + 20, aimPanel.contentWidth() - 12, 16,
             Component.translatable("gui.archweaver.fakeplayer.look.body_follows_head"),
             menu::bodyFollowsHead,
-            button -> sendAction(FakePlayerInventoryMenu.ACTION_TOGGLE_BODY_FOLLOWS_HEAD)
+            button -> sendAction(Simple.TOGGLE_BODY_FOLLOWS_HEAD)
         ));
         bodyFollowsHeadButton.setTooltip(Tooltip.create(
             Component.translatable("gui.archweaver.fakeplayer.look.body_follows_head_tooltip")));
         aimPad = addRenderableWidget(new RotationPad(
             x + 16, y + 50, AIM_PAD_SIZE, RotationPad.Mode.VIEW,
             menu::pitch, menu::yaw, menu::bodyYaw, menu::bodyFollowsHead,
-            selectedYaw -> sendAction(FakePlayerInventoryMenu.bodyYawAction(selectedYaw)),
+            selectedYaw -> sendAction(new SetBodyYaw(selectedYaw)),
             this::sendViewRotation));
         directionPad = addRenderableWidget(new RotationPad(
             x + 16, y + 124, AIM_PAD_SIZE, RotationPad.Mode.BODY,
             menu::pitch, menu::yaw, menu::bodyYaw, menu::bodyFollowsHead,
-            selectedYaw -> sendAction(FakePlayerInventoryMenu.bodyYawAction(selectedYaw)),
+            selectedYaw -> sendAction(new SetBodyYaw(selectedYaw)),
             this::sendViewRotation));
         pitchInput = addRenderableWidget(new EditBox(font, x + 36, y + 192, 52, 16,
             Component.translatable("gui.archweaver.fakeplayer.look_pitch")));
@@ -682,16 +695,18 @@ public final class FakePlayerInventoryScreen extends AbstractContainerScreen<Fak
         }
     }
 
-    private void addControlButton(int column, int row, String label, int actionId) {
+    private void addControlButton(int column, int row, String label, Simple press, Control held) {
         addControlButtonAt(
             leftPos + CONTROL_LEFT + column * CONTROL_SIZE,
             topPos + CONTROL_TOP + row * CONTROL_SIZE,
             label,
-            actionId
+            press,
+            held
         );
     }
 
-    private Button addControlButtonAt(int x, int y, String label, int actionId) {
+    /** {@code held} 为 null 表示该按钮不支持长按。 */
+    private Button addControlButtonAt(int x, int y, String label, Simple press, Control held) {
         return addRenderableWidget(new SolidButton(
             x,
             y,
@@ -699,8 +714,8 @@ public final class FakePlayerInventoryScreen extends AbstractContainerScreen<Fak
             CONTROL_SIZE,
             Component.literal(label),
             ignored -> {
-                sendAction(actionId);
-                heldAction = actionId;
+                sendAction(press);
+                heldControl = held;
                 heldTicks = 0;
                 heldStarted = false;
             }
@@ -710,11 +725,11 @@ public final class FakePlayerInventoryScreen extends AbstractContainerScreen<Fak
     /** 中间的操控按钮：平时跳跃，飞行状态下改为关闭飞行；长按跳跃沿用连续动作。 */
     private void pressJumpButton() {
         if (menu.isFlying()) {
-            sendAction(FakePlayerInventoryMenu.ACTION_TOGGLE_FLIGHT);
+            sendAction(Simple.TOGGLE_FLIGHT);
             return;
         }
-        sendAction(FakePlayerInventoryMenu.ACTION_JUMP);
-        heldAction = FakePlayerInventoryMenu.ACTION_JUMP;
+        sendAction(Simple.JUMP);
+        heldControl = Control.JUMP;
         heldTicks = 0;
         heldStarted = false;
     }
@@ -743,14 +758,14 @@ public final class FakePlayerInventoryScreen extends AbstractContainerScreen<Fak
             topPos + buttonTop,
             TransferButton.Direction.TO_CONTAINER,
             (transferAll, includeHotbar) -> sendAction(
-                transferActionId(true, transferAll, includeHotbar))
+                new Transfer(true, transferAll, includeHotbar))
         ));
         addRenderableWidget(new TransferButton(
             leftPos + TRANSFER_BUTTON_LEFT + TransferButton.SIZE,
             topPos + buttonTop,
             TransferButton.Direction.TO_INVENTORY,
             (transferAll, includeHotbar) -> sendAction(
-                transferActionId(false, transferAll, includeHotbar))
+                new Transfer(false, transferAll, includeHotbar))
         ));
     }
 
@@ -763,8 +778,8 @@ public final class FakePlayerInventoryScreen extends AbstractContainerScreen<Fak
         dropModeButton.setMessage(dropModeMessage());
         updateDropModeTooltip();
         int maximum = percentageDrop
-            ? FakePlayerInventoryMenu.MAX_DROP_PERCENTAGE
-            : FakePlayerInventoryMenu.MAX_DROP_AMOUNT;
+            ? Drop.MAX_PERCENTAGE
+            : Drop.MAX_AMOUNT;
         dropAmountSlider.setRange(1, maximum, currentDropValue());
     }
 
@@ -778,9 +793,15 @@ public final class FakePlayerInventoryScreen extends AbstractContainerScreen<Fak
         return percentageDrop ? dropPercentage : dropAmount;
     }
 
-    private void sendAction(int actionId) {
+    /**
+     * 把动作编码为原版按钮编号后发出，是动作链路的起点。
+     *
+     * <p>从这里到服务端执行要经过编解码和穷尽 switch 分派，完整路径见 {@link FakePlayerMenuAction}。
+     */
+    private void sendAction(FakePlayerMenuAction action) {
         if (minecraft.gameMode != null) {
-            minecraft.gameMode.handleInventoryButtonClick(menu.containerId, actionId);
+            minecraft.gameMode.handleInventoryButtonClick(
+                menu.containerId, FakePlayerMenuActionCodec.encode(action));
         }
     }
 
@@ -794,25 +815,6 @@ public final class FakePlayerInventoryScreen extends AbstractContainerScreen<Fak
         lastSentYaw = wrappedYaw;
         PlatformNetworking.sendToServer(new FakePlayerViewRotationPayload(
             menu.containerId, clampedPitch, wrappedYaw));
-    }
-
-    private static int transferActionId(boolean toTarget, boolean transferAll, boolean includeHotbar) {
-        if (toTarget) {
-            return includeHotbar
-                ? transferAll
-                    ? FakePlayerInventoryMenu.ACTION_TRANSFER_TO_TARGET_ALL_WITH_HOTBAR
-                    : FakePlayerInventoryMenu.ACTION_TRANSFER_TO_TARGET_MATCHING_WITH_HOTBAR
-                : transferAll
-                    ? FakePlayerInventoryMenu.ACTION_TRANSFER_TO_TARGET_ALL
-                    : FakePlayerInventoryMenu.ACTION_TRANSFER_TO_TARGET_MATCHING;
-        }
-        return includeHotbar
-            ? transferAll
-                ? FakePlayerInventoryMenu.ACTION_TRANSFER_TO_VIEWER_ALL_WITH_HOTBAR
-                : FakePlayerInventoryMenu.ACTION_TRANSFER_TO_VIEWER_MATCHING_WITH_HOTBAR
-            : transferAll
-                ? FakePlayerInventoryMenu.ACTION_TRANSFER_TO_VIEWER_ALL
-                : FakePlayerInventoryMenu.ACTION_TRANSFER_TO_VIEWER_MATCHING;
     }
 
     /** 标签保持固定，仅在空间不足时滚动坐标值。 */
@@ -871,34 +873,14 @@ public final class FakePlayerInventoryScreen extends AbstractContainerScreen<Fak
         updateFlyingButtons();
         syncAimInputs();
         updateSimulationApplyColor();
-        if (heldAction < 0) {
+        if (heldControl == null) {
             return;
         }
         heldTicks++;
         if (!heldStarted && heldTicks >= 5) {
-            int continuous = continuousAction(heldAction);
-            if (continuous >= 0) {
-                sendAction(continuous);
-                heldStarted = true;
-            }
+            sendAction(new Held(heldControl, true));
+            heldStarted = true;
         }
-    }
-
-    private static int continuousAction(int action) {
-        return switch (action) {
-            case FakePlayerInventoryMenu.ACTION_TURN_LEFT -> FakePlayerInventoryMenu.ACTION_TURN_LEFT_HELD;
-            case FakePlayerInventoryMenu.ACTION_MOVE_FORWARD -> FakePlayerInventoryMenu.ACTION_MOVE_FORWARD_HELD;
-            case FakePlayerInventoryMenu.ACTION_TURN_RIGHT -> FakePlayerInventoryMenu.ACTION_TURN_RIGHT_HELD;
-            case FakePlayerInventoryMenu.ACTION_MOVE_LEFT -> FakePlayerInventoryMenu.ACTION_MOVE_LEFT_HELD;
-            case FakePlayerInventoryMenu.ACTION_JUMP -> FakePlayerInventoryMenu.ACTION_JUMP_HELD;
-            case FakePlayerInventoryMenu.ACTION_MOVE_RIGHT -> FakePlayerInventoryMenu.ACTION_MOVE_RIGHT_HELD;
-            case FakePlayerInventoryMenu.ACTION_ATTACK_ONCE -> FakePlayerInventoryMenu.ACTION_ATTACK_HELD;
-            case FakePlayerInventoryMenu.ACTION_MOVE_BACKWARD -> FakePlayerInventoryMenu.ACTION_MOVE_BACKWARD_HELD;
-            case FakePlayerInventoryMenu.ACTION_USE_ONCE -> FakePlayerInventoryMenu.ACTION_USE_HELD;
-            case FakePlayerInventoryMenu.ACTION_FLY_UP -> FakePlayerInventoryMenu.ACTION_FLY_UP_HELD;
-            case FakePlayerInventoryMenu.ACTION_FLY_DOWN -> FakePlayerInventoryMenu.ACTION_FLY_DOWN_HELD;
-            default -> -1;
-        };
     }
 
     @Override
@@ -1202,26 +1184,24 @@ public final class FakePlayerInventoryScreen extends AbstractContainerScreen<Fak
 
     @Override
     public boolean mouseReleased(MouseButtonEvent event) {
-        if (event.button() == 0 && heldAction >= 0) {
-            if (heldStarted) {
-                sendAction(FakePlayerInventoryMenu.ACTION_STOP_HELD);
-            }
-            resetHeldAction();
+        if (event.button() == 0) {
+            releaseHeldControl();
         }
         return super.mouseReleased(event);
     }
 
     @Override
     public void removed() {
-        if (heldStarted) {
-            sendAction(FakePlayerInventoryMenu.ACTION_STOP_HELD);
-        }
-        resetHeldAction();
+        releaseHeldControl();
         super.removed();
     }
 
-    private void resetHeldAction() {
-        heldAction = -1;
+    /** 松开长按中的控制项并复位长按计时。 */
+    private void releaseHeldControl() {
+        if (heldControl != null && heldStarted) {
+            sendAction(new Held(heldControl, false));
+        }
+        heldControl = null;
         heldStarted = false;
         heldTicks = 0;
     }
