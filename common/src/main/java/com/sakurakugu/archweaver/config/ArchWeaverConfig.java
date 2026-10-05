@@ -3,6 +3,7 @@ package com.sakurakugu.archweaver.config;
 import com.sakurakugu.archweaver.platform.PlatformConfig;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
+import org.jetbrains.annotations.ApiStatus;
 
 /** 服务端假玩家规则，具体配置文件由加载器模块提供。 */
 public final class ArchWeaverConfig {
@@ -11,6 +12,7 @@ public final class ArchWeaverConfig {
     private ArchWeaverConfig() {
     }
 
+    @ApiStatus.Internal
     public static void install(PlatformConfig value) { backend = value; }
 
     public static boolean canUseCommands(CommandSourceStack source) {

@@ -12,6 +12,17 @@ Recent NeoForge versions lack a Carpet-like fake player mod, and keeping chunks 
 
 Future ideas include connecting fake players to AI and adding world editing tools such as a building wand. The name ArchWeaver suggests weaving architecture and brings "Architect" to mind.
 
+## Two Mods
+
+This project produces two separate JARs:
+
+| Mod                      | Mod ID                | Scope                                                                                                     | Dependency          |
+| ------------------------ | --------------------- | --------------------------------------------------------------------------------------------------------- | ------------------- |
+| **ArchWeaver**           | `archweaver`          | Fake players, chunk loading, and other utility features. Registers no blocks, items, or entities.         | None                |
+| **ArchWeaver: Artifice** | `archweaver_artifice` | Content add-on for planned blocks and items, such as summoning blocks, chunk loader blocks, and effigies. | Requires ArchWeaver |
+
+> ArchWeaver can be installed or removed without leaving registered content in a world save. Content that requires registry entries belongs in Artifice. The two mods have independent version numbers; Artifice declares a compatible range of ArchWeaver versions.
+
 ## Overview
 
 - Press `G` by default to open the control center, including the fake player list, chunk map, presets, and groups.
@@ -52,13 +63,16 @@ Future ideas include connecting fake players to AI and adding world editing tool
 .\gradlew.bat build
 ```
 
-The built JAR is automatically copied into the root `build` directory and renamed to:
+The built JARs are automatically copied into the root `build` directory and renamed to:
 
 - `build/v<mod-version>/archweaver-v<mod-version>-mc<minecraft-version>-<loader>.jar`
+- `build/v<mod-version>/archweaver_artifice-v<artifice-version>-mc<minecraft-version>-<loader>.jar`
 
-Run the development client with:
+Run the development client with both mods, or with ArchWeaver alone:
 
 ```powershell
+.\gradlew.bat :artifice:neoforge:runClient
+
 .\gradlew.bat :neoforge:runClient
 ```
 
@@ -121,7 +135,7 @@ Profile strategies:
 | `CACHE_ONLY`       | Use only the server cache without online queries. Cache misses fall back according to `allowOfflineProfiles`.                                        |
 | `OFFLINE_ONLY`     | Always generate a stable offline UUID from the name.                                                                                                 |
 
-local names such as `robot-1` use offline profiles directly.
+Local names such as `robot-1` use offline profiles directly.
 
 ### Client Configuration
 

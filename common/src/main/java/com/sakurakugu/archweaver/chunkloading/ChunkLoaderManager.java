@@ -7,12 +7,16 @@ import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import net.minecraft.core.BlockPos;
+import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.Level;
+import org.jetbrains.annotations.ApiStatus;
 
 /**
  * 区块加载配置的唯一提交入口：把编辑折叠成内存终态、校验一次、一次性落地。
@@ -29,6 +33,7 @@ public final class ChunkLoaderManager {
     private ChunkLoaderManager() {
     }
 
+    @ApiStatus.Internal
     public static void installTicketService(ChunkTicketService service) {
         tickets = java.util.Objects.requireNonNull(service);
     }
@@ -185,6 +190,42 @@ public final class ChunkLoaderManager {
             ManualLoadRegion region = plan.region(name).orElse(null);
             return region == null ? ChunkLoadPlan.MISSING_REGION : plan.remove(region.id());
         }));
+    }
+
+    /**
+     * 按调用方自带的 UUID 创建加载区域，区块集合任意，不限于方形。
+     *
+     * <p>供 API 层使用：方块一类的持有者有自己稳定的身份，按名称索引不够用。
+     * 校验、预算、备份和回滚全部沿用 {@link #submit} 的既有管线，不另开旁路。
+     */
+    public static Result createRegion(MinecraftServer server, UUID id, String name, Identifier dimension,
+                                      Set<Long> chunks, boolean enabled) {
+        ManualLoadRegion region = new ManualLoadRegion(id, name, dimension, chunks, enabled);
+        return submit(server, List.of(plan -> plan.create(region)));
+    }
+
+    /** 替换区域的区块集合；名称、维度和启停状态不变。 */
+    public static Result updateRegionChunks(MinecraftServer server, UUID id, Set<Long> chunks) {
+        return submit(server, List.of(plan -> {
+            ManualLoadRegion region = plan.region(id).orElse(null);
+            return region == null ? ChunkLoadPlan.MISSING_REGION : plan.replace(region.withChunks(chunks));
+        }));
+    }
+
+    public static Result setEnabled(MinecraftServer server, UUID id, boolean enabled) {
+        return submit(server, List.of(plan -> {
+            ManualLoadRegion region = plan.region(id).orElse(null);
+            return region == null ? ChunkLoadPlan.MISSING_REGION : plan.replace(region.withEnabled(enabled));
+        }));
+    }
+
+    public static Result remove(MinecraftServer server, UUID id) {
+        return submit(server, List.of(plan -> plan.remove(id)));
+    }
+
+    /** 按 UUID 查当前已落地的区域。 */
+    public static Optional<ManualLoadRegion> region(MinecraftServer server, UUID id) {
+        return data(server).regions().stream().filter(region -> region.id().equals(id)).findFirst();
     }
 
     public static boolean backup(MinecraftServer server) { return ChunkLoaderBackupStore.save(server, data(server)); }

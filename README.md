@@ -12,6 +12,18 @@ Neoforge 高版本没有类似 Carpet 的假人 mod，还有做生电机器时�
 之后打算顺下去扩展，比如让假人接入AI，添加类似建筑之杖等世界编辑功能，
 因此模组名使用 ArchWeaver（上层编织者？/架构编织者？）。主要是听起来很有逼格，而且可以联想到 Architect（建筑师）。
 
+## 两个模组
+
+本项目发布两个独立的包：
+
+| 包                               | 模组 ID               | 内容                                                   | 依赖              |
+| -------------------------------- | --------------------- | ------------------------------------------------------ | ----------------- |
+| **ArchWeaver**                   | `archweaver`          | 假人、区块加载等纯功能，**不注册任何方块、物品、实体** | 无                |
+| **ArchWeaver: Artifice（造物）** | `archweaver_artifice` | 召唤方块、区块加载方块、稻草人等内容                   | 必须装 ArchWeaver |
+
+> 分开发布是为了：**ArchWeaver 可以随时装上或卸载，不会损坏存档**。
+> 需要注册的内容也因此只在 Artifice 里。两个包版本号独立，Artifice 对核心的依赖范围写得较宽，
+
 ## 简介
 
 - 默认按 `G` 打开控制中心，包括假人列表、区块地图、预设和分组管理等
@@ -54,10 +66,15 @@ Neoforge 高版本没有类似 Carpet 的假人 mod，还有做生电机器时�
 生成的 JAR 会自动复制到根目录的 `build` 中并重命名为：
 
 - `build/v<模组版本>/archweaver-v<模组版本>-mc<MC版本>-<加载器类型>.jar`
+- `build/v<模组版本>/archweaver_artifice-v<内容版版本>-mc<MC版本>-<加载器类型>.jar`
 
-运行开发客户端分别使用：
+运行开发客户端：
 
 ```powershell
+# 同时加载核心与内容版（日常开发用这个）
+.\gradlew.bat :artifice:neoforge:runClient
+
+# 只加载核心
 .\gradlew.bat :neoforge:runClient
 ```
 

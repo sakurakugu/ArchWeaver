@@ -10,6 +10,8 @@ on:
     paths:
       - ".github/workflows/**"
       - "common/**"
+      - "api/**"
+      - "artifice/**"
       - "fabric/**"
       - "forge/**"
       - "neoforge/**"
@@ -24,6 +26,8 @@ on:
     paths:
       - ".github/workflows/**"
       - "common/**"
+      - "api/**"
+      - "artifice/**"
       - "fabric/**"
       - "forge/**"
       - "neoforge/**"

@@ -1,0 +1,33 @@
+license="${mod_license}"
+
+[[mods]]
+modId="${artifice_mod_id}"
+version="${artifice_mod_version}"
+displayName="${artifice_mod_name}"
+logoFile="icon.png"
+authors="sakurakugu"
+description='''
+Blocks and items built on ArchWeaver: summoning blocks, chunk loader blocks and effigies.
+'''
+
+[[dependencies.${artifice_mod_id}]]
+modId="neoforge"
+type="required"
+versionRange="[${neo_version},)"
+ordering="NONE"
+side="BOTH"
+
+[[dependencies.${artifice_mod_id}]]
+modId="minecraft"
+type="required"
+versionRange="${minecraft_version_range}"
+ordering="NONE"
+side="BOTH"
+
+# AFTER 保证 core 先完成票据服务、配置后端等注入，内容版才开始初始化。
+[[dependencies.${artifice_mod_id}]]
+modId="${archweaver_mod_id}"
+type="required"
+versionRange="${archweaver_dependency_range}"
+ordering="AFTER"
+side="BOTH"

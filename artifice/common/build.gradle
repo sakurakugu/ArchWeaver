@@ -1,0 +1,24 @@
+plugins {
+    id 'java-library'
+    id 'net.neoforged.moddev'
+}
+
+// 内容版独立版本，不跟随 core 的 mod_version。
+version = artifice_mod_version
+
+base {
+    archivesName = "${artifice_mod_id}-common"
+}
+
+neoForge {
+    version = project.neo_version
+    mods {
+        "${artifice_mod_id}" {
+            sourceSet(sourceSets.main)
+        }
+    }
+}
+
+dependencies {
+    compileOnly project(':api')
+}

@@ -3,7 +3,9 @@ param(
     [string[]]$Arguments
 )
 
-$task = "runClient"
+# 必须带项目前缀：内容版模块也声明了 runs，裸 runClient 会同时启动两个客户端。
+# 从内容版模块启动会把 core 一起带上，是日常开发想要的那个。
+$task = ":artifice:neoforge:runClient"
 $launchBoth = $false
 $neoforgeRequested = $false
 $javaPath = $null
@@ -12,7 +14,7 @@ for ($index = 0; $index -lt $Arguments.Count; $index++) {
     switch ($Arguments[$index]) {
         "--build" { $task = "build" }
         "--neoforge" {
-            $task = "runClient"
+            $task = ":artifice:neoforge:runClient"
             $neoforgeRequested = $true
         }
         "--both" { $launchBoth = $true }
@@ -104,10 +106,11 @@ if ($task -eq "build") {
         # 启动离线专用服务端，再启动两个自动连接的客户端。
         $rootPath = (Get-Location).Path
         Set-DevelopmentServerProperties -PropertiesPath (Join-Path $rootPath 'run\server.properties')
-        $serverArguments = "/c `"$rootPath\gradlew.bat`" runServer"
+        $serverArguments = "/c `"$rootPath\gradlew.bat`" :artifice:neoforge:runServer"
         Start-Process -FilePath $env:ComSpec -ArgumentList $serverArguments -WorkingDirectory $rootPath
         # 首次启动需要解析 NeoForge 依赖，给服务端足够时间监听 25565。
         Start-Sleep -Seconds 20
+        # 注意：runClientServer1/2 在任何 build 脚本里都不存在，是历史遗留的失效引用。
         $clientArguments = "/c `"$rootPath\gradlew.bat`" runClientServer1"
         $client2Arguments = "/c `"$rootPath\gradlew.bat`" runClientServer2"
         Start-Process -FilePath $env:ComSpec -ArgumentList $clientArguments -WorkingDirectory $rootPath

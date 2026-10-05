@@ -207,9 +207,15 @@ jobs:
             exit 1
           }
 
+          # 内容版是独立模组，老分支上可能还不存在这两个键，缺失时留空即可。
+          artifice_mod_id="$(sed -n 's/^artifice_mod_id=//p' gradle.properties | tr -d '\r')"
+          artifice_mod_version="$(sed -n 's/^artifice_mod_version=//p' gradle.properties | tr -d '\r')"
+
           echo "mod_id=$mod_id" >> "$GITHUB_OUTPUT"
           echo "mod_version=$mod_version" >> "$GITHUB_OUTPUT"
           echo "minecraft_version=$minecraft_version" >> "$GITHUB_OUTPUT"
+          echo "artifice_mod_id=$artifice_mod_id" >> "$GITHUB_OUTPUT"
+          echo "artifice_mod_version=$artifice_mod_version" >> "$GITHUB_OUTPUT"
 
       - name: Build and test ${{ matrix.target.branch }}
         run: ./gradlew clean build --no-parallel --max-workers=1 --console=plain
@@ -221,6 +227,8 @@ jobs:
           MOD_VERSION: ${{ steps.versions.outputs.mod_version }}
           MINECRAFT_VERSION: ${{ steps.versions.outputs.minecraft_version }}
           REQUESTED_LOADER: ${{ inputs.loader || 'all' }}
+          ARTIFICE_MOD_ID: ${{ steps.versions.outputs.artifice_mod_id }}
+          ARTIFICE_MOD_VERSION: ${{ steps.versions.outputs.artifice_mod_version }}
         run: |
           mkdir release
           # 标签发布收集全部可用产物；手动补发时只收集用户指定的加载器。
@@ -232,6 +240,15 @@ jobs:
             target_file="release/$MOD_ID-v$MOD_VERSION-mc$MINECRAFT_VERSION-$loader.jar"
             test -f "$source_file" || continue
             cp "$source_file" "$target_file"
+
+            # 内容版是独立模组，版本号也独立；没有添加环境变量时就跳过。
+            if test -n "$ARTIFICE_MOD_ID" && test -n "$ARTIFICE_MOD_VERSION"; then
+              artifice_source="artifice/$loader/build/libs/$ARTIFICE_MOD_ID-$MINECRAFT_VERSION-$loader-$ARTIFICE_MOD_VERSION.jar"
+              artifice_target="release/$ARTIFICE_MOD_ID-v$ARTIFICE_MOD_VERSION-mc$MINECRAFT_VERSION-$loader.jar"
+              if test -f "$artifice_source"; then
+                cp "$artifice_source" "$artifice_target"
+              fi
+            fi
           done
 
       - name: Store ${{ matrix.target.branch }} artifacts

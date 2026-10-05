@@ -1,0 +1,24 @@
+plugins {
+    id 'java-library'
+    id 'net.neoforged.moddev'
+}
+
+base {
+    archivesName = "${mod_id}-api"
+}
+
+neoForge {
+    version = project.neo_version
+    mods {
+        "${mod_id}" {
+            sourceSet(sourceSets.main)
+        }
+    }
+}
+
+// API 实现要调 common 的内部服务，所以 api 在 common 之上；
+// 但 api 的方法签名只能用原版类型和自己的 record，不得泄漏 common 类型。
+dependencies {
+    compileOnly project(':common')
+    compileOnly "org.jetbrains:annotations:${jetbrains_annotations_version}"
+}

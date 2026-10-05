@@ -1,6 +1,7 @@
 package com.sakurakugu.archweaver.client.chunkloading;
 
 import com.sakurakugu.archweaver.platform.PlatformClientConfig;
+import org.jetbrains.annotations.ApiStatus;
 
 /** 客户端显示与界面偏好设置，具体存储由加载器模块提供。 */
 public final class ChunkMapClientConfig {
@@ -9,6 +10,7 @@ public final class ChunkMapClientConfig {
     private ChunkMapClientConfig() {
     }
 
+    @ApiStatus.Internal
     public static void install(PlatformClientConfig value) { backend = value; }
     public static double markerNameScale() { return backend.markerNameScale(); }
     public static void setMarkerNameScale(double value) { backend.setMarkerNameScale(value); }

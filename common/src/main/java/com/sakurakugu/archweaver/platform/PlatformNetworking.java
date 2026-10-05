@@ -5,6 +5,7 @@ import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.server.level.ServerPlayer;
+import org.jetbrains.annotations.ApiStatus;
 
 /** 加载器无关的网络发送边界，由平台入口在初始化时注入实现。 */
 public final class PlatformNetworking {
@@ -18,10 +19,12 @@ public final class PlatformNetworking {
     private PlatformNetworking() {
     }
 
+    @ApiStatus.Internal
     public static void installClientSender(Consumer<CustomPacketPayload> sender) {
         clientSender = Objects.requireNonNull(sender);
     }
 
+    @ApiStatus.Internal
     public static void installPlayerSender(BiConsumer<ServerPlayer, CustomPacketPayload> sender) {
         playerSender = Objects.requireNonNull(sender);
     }

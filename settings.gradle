@@ -9,4 +9,4 @@ plugins {
 }
 
 rootProject.name = 'archweaver'
-include 'common', 'neoforge'
+include 'common', 'api', 'neoforge', 'artifice:common', 'artifice:neoforge'

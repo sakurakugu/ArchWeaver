@@ -1,0 +1,74 @@
+plugins {
+    id 'java-library'
+    id 'net.neoforged.moddev'
+}
+
+// 内容版独立版本，不跟随 core 的 mod_version。
+version = artifice_mod_version
+
+base {
+    archivesName = "${artifice_mod_id}-${minecraft_version}-neoforge"
+}
+
+// 只嫁接内容版自己的 common，绝不嫁接 core 的 common/src：
+// 否则两个 jar 各带一份同 FQCN 的 PlatformHooks 等类，静态注入跨 jar 静默失效。
+sourceSets.main {
+    java.srcDir project(':artifice:common').file('src/main/java')
+    java.srcDir file('src/main/java')
+    resources.srcDir project(':artifice:common').file('src/main/resources')
+}
+
+dependencies {
+    // 编译期只看得见 API，看不见 core 内部——边界由 classpath 强制。
+    compileOnly project(':api')
+    // 开发运行时需要 core 的实际实现；FML 的识别由下面 mods 块负责。
+    runtimeOnly project(':neoforge')
+}
+
+neoForge {
+    version = project.neo_version
+
+    runs {
+        client {
+            client()
+            programArgument '--username'
+            programArgument 'Player1'
+        }
+        server {
+            server()
+            programArgument '--nogui'
+        }
+    }
+
+    // 开发运行时必须同时声明两个 mod：仅靠 runtimeOnly 依赖，FML 的
+    // InDevFolderLocator 只会拿到内容版的坐标，core 会被判定为"未安装"。
+    mods {
+        "${artifice_mod_id}" {
+            sourceSet(sourceSets.main)
+        }
+        "${mod_id}" {
+            sourceSet(project(':neoforge').sourceSets.main)
+        }
+    }
+}
+
+def generateModMetadata = tasks.register('generateModMetadata', ProcessResources) {
+    def values = [
+            minecraft_version: minecraft_version,
+            minecraft_version_range: minecraft_version_range,
+            neo_version: neo_version,
+            mod_license: mod_license,
+            artifice_mod_id: artifice_mod_id,
+            artifice_mod_name: artifice_mod_name,
+            artifice_mod_version: artifice_mod_version,
+            archweaver_mod_id: mod_id,
+            archweaver_dependency_range: archweaver_dependency_range
+    ]
+    inputs.properties values
+    expand values
+    from 'src/main/templates'
+    into layout.buildDirectory.dir('generated/sources/modMetadata')
+}
+
+sourceSets.main.resources.srcDir generateModMetadata
+neoForge.ideSyncTask generateModMetadata

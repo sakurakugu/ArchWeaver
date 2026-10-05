@@ -20,30 +20,39 @@ subprojects {
     }
 }
 
-def artifactModId = rootProject.property('mod_id')
 def artifactMinecraftVersion = rootProject.property('minecraft_version')
-def artifactVersion = rootProject.property('mod_version')
+def releaseVersion = rootProject.property('mod_version')
+
+// 每个发布包一项：core 和内容版各自独立版本号。
+def artifactSpecs = [
+        [path: ':neoforge', id: rootProject.property('mod_id'),
+         version: rootProject.property('mod_version')],
+        [path: ':artifice:neoforge', id: rootProject.property('artifice_mod_id'),
+         version: rootProject.property('artifice_mod_version')],
+]
 
 // 复制并重命名发布包
 def copyBuildArtifacts = tasks.register('copyBuildArtifacts', Copy) {
     group = 'build'
     description = '复制并重命名 NeoForge 发布包到根目录 build/v<版本>。'
-    dependsOn ':neoforge:build'
-    into layout.buildDirectory.dir("v${artifactVersion}")
-    from(project(':neoforge').layout.buildDirectory.dir('libs')) {
-        include "${artifactModId}-${artifactMinecraftVersion}-neoforge-${artifactVersion}.jar"
-        rename { "${artifactModId}-v${artifactVersion}-mc${artifactMinecraftVersion}-neoforge.jar" }
+    into layout.buildDirectory.dir("v${releaseVersion}")
+    artifactSpecs.each { spec ->
+        dependsOn "${spec.path}:build"
+        from(project(spec.path).layout.buildDirectory.dir('libs')) {
+            include "${spec.id}-${artifactMinecraftVersion}-neoforge-${spec.version}.jar"
+            rename { "${spec.id}-v${spec.version}-mc${artifactMinecraftVersion}-neoforge.jar" }
+        }
     }
 }
 
 tasks.register('buildAll') {
     group = 'build'
-    description = '构建 NeoForge 模组。'
+    description = '构建 NeoForge 模组与内容版。'
     dependsOn copyBuildArtifacts
 }
 
 tasks.register('build') {
     group = 'build'
-    description = '构建并测试通用代码与 NeoForge 模组。'
+    description = '构建并测试通用代码、NeoForge 模组与内容版。'
     dependsOn ':common:test', copyBuildArtifacts
 }
