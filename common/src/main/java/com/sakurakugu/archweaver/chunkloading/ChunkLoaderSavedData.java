@@ -149,10 +149,20 @@ public final class ChunkLoaderSavedData extends SavedData {
     }
 
     public void replaceAll(ChunkLoaderSavedData replacement) {
+        replaceAll(replacement.regions(), replacement.policies());
+    }
+
+    /**
+     * 用整批编辑算好的终态替换当前配置，并把 revision 前进一步。
+     *
+     * <p>整批只走这一次，所以不管批次里有几条编辑，客户端看到的版本号都只涨一格。
+     */
+    public void replaceAll(Collection<ManualLoadRegion> newRegions,
+                           Collection<FakePlayerLoadPolicy> newPolicies) {
         regions.clear();
         policies.clear();
-        replacement.regions().forEach(region -> regions.put(region.id(), region));
-        replacement.policies().forEach(policy -> policies.put(policy.fakePlayerId(), policy));
+        newRegions.forEach(region -> regions.put(region.id(), region));
+        newPolicies.forEach(policy -> policies.put(policy.fakePlayerId(), policy));
         changed();
     }
 

@@ -83,36 +83,33 @@ public final class FakePlayerSimulationService {
 
     public static int dollSimulationDistance(FakeServerPlayer fake) {
         return ChunkLoaderManager.data(fake.server()).policy(fake.getUUID())
-            .filter(FakePlayerLoadPolicy::usesCustomSimulation)
-            .map(policy -> effectiveSimulationDistance(fake.server(), policy)).orElse(-1);
+            .map(policy -> customDistance(fake.server(), policy)).orElse(-1);
+    }
+
+    /** 策略实际生效的模拟距离；没有策略或不是自定义模拟时返回 -1。 */
+    static int customDistance(MinecraftServer server, FakePlayerLoadPolicy policy) {
+        return policy == null || !policy.usesCustomSimulation() ? -1
+            : effectiveSimulationDistance(server, policy);
+    }
+
+    /**
+     * 模拟距离是请求自身的属性，与终态无关，所以逐条校验；玩家加载预算依赖终态，由终态校验统一算。
+     */
+    static String validateDistance(MinecraftServer server, FakePlayerLoadMode mode, int distance) {
+        int maxDistance = maxSimulationDistance(server);
+        return distance < 0 || (mode == FakePlayerLoadMode.DOLL && distance > maxDistance)
+            ? "模拟距离必须在 0-" + maxDistance + " 之间"
+            : null;
     }
 
     public static ChunkLoaderManager.Result setPolicy(MinecraftServer server, UUID fakePlayerId,
-                                                       FakePlayerLoadMode mode, int distance) {
-        int maxDistance = maxSimulationDistance(server);
-        if (distance < 0 || (mode == FakePlayerLoadMode.DOLL && distance > maxDistance)) {
-            return ChunkLoaderManager.Result.failure("模拟距离必须在 0-" + maxDistance + " 之间");
-        }
-        FakePlayerLoadPolicy policy = new FakePlayerLoadPolicy(fakePlayerId, mode, distance);
-        int budget = ArchWeaverConfig.maxPlayerLoadingChunks();
-        if (mode == FakePlayerLoadMode.DOLL && budget >= 0
-            && uniquePlayerChunks(server, fakePlayerId, policy) > budget) {
-            return ChunkLoaderManager.Result.failure("玩家加载预算超限");
-        }
-        ChunkLoaderSavedData data = ChunkLoaderManager.data(server);
-        ChunkLoaderSavedData.State before = data.snapshot();
-        data.putPolicy(policy);
-        FakeServerPlayer fake = FakePlayerManager.all(server).stream()
-            .filter(value -> value.getUUID().equals(fakePlayerId)).findFirst().orElse(null);
-        if (!(fake != null ? update(fake) : removeActive(server, fakePlayerId))) {
-            data.restore(before);
-            return ChunkLoaderManager.Result.failure("更新假玩家区块票据失败，请查看服务端日志");
-        }
-        if (fake != null) {
-            fake.level().getChunkSource().move(fake);
-        }
-        ChunkLoaderBackupStore.save(server, data);
-        return ChunkLoaderManager.Result.success();
+                                                      FakePlayerLoadMode mode, int distance) {
+        String rejected = validateDistance(server, mode, distance);
+        if (rejected != null) return ChunkLoaderManager.Result.failure(rejected);
+        return ChunkLoaderManager.submit(server, List.of(plan -> {
+            plan.setPolicy(new FakePlayerLoadPolicy(fakePlayerId, mode, distance));
+            return null;
+        }));
     }
 
     public static void removePolicy(MinecraftServer server, UUID fakePlayerId) {
@@ -219,25 +216,6 @@ public final class FakePlayerSimulationService {
     public static int maxSimulationDistance(MinecraftServer server) {
         return Math.min(ChunkLoaderSavedData.MAX_SIMULATION_DISTANCE,
             Math.max(0, server.getPlayerList().getSimulationDistance()));
-    }
-
-    /** 用候选策略和在线假人位置计算实际覆盖区块并集。 */
-    private static long uniquePlayerChunks(MinecraftServer server, UUID replacementId,
-                                           FakePlayerLoadPolicy replacement) {
-        Map<UUID, FakePlayerLoadPolicy> policies = new HashMap<>();
-        ChunkLoaderManager.data(server).policies().forEach(policy -> policies.put(policy.fakePlayerId(), policy));
-        policies.put(replacementId, replacement);
-        List<ChunkLoadPlanner.SimulationRange> ranges = new ArrayList<>();
-        for (FakeServerPlayer fake : FakePlayerManager.all(server)) {
-            FakePlayerLoadPolicy policy = policies.get(fake.getUUID());
-            if (policy == null || !policy.usesCustomSimulation()) continue;
-            int distance = effectiveSimulationDistance(server, policy);
-            ranges.add(new ChunkLoadPlanner.SimulationRange(fake.getUUID(),
-                fake.level().dimension().identifier(),
-                ChunkLoadPlanner.square(fake.chunkPosition().x(), fake.chunkPosition().z(),
-                    distance)));
-        }
-        return ChunkLoadPlanner.uniquePlayerChunks(ranges);
     }
 
     /** 检查移动后的范围是否仍在同一服务端实例的总预算内。 */

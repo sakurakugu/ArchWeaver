@@ -4,22 +4,25 @@ import com.sakurakugu.archweaver.ArchWeaverMod;
 import com.sakurakugu.archweaver.config.ArchWeaverConfig;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Optional;
-import java.util.Set;
+import java.util.Map;
 import java.util.UUID;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.Level;
 
-/** 区块加载应用服务门面，统一负责校验、预算、票据事务和持久化。 */
+/**
+ * 区块加载配置的唯一提交入口：把编辑折叠成内存终态、校验一次、一次性落地。
+ *
+ * <p>不逐条应用是有原因的。逐条应用时每条编辑都要对着"当前状态"校验，而当前状态里
+ * 还带着这一批前面的编辑留下的中间态，于是"中间态非法但终态合法"的批次会被误拒；
+ * 逐条落地还会让一次批量编辑写出上百份备份、把票据下发拆成几百次。
+ */
 public final class ChunkLoaderManager {
     public static final int ABSOLUTE_MAX_RADIUS = 32;
-    private static final String INVALID_NAME_MESSAGE =
-        "名称只能包含 1-32 个字母、数字、下划线或连字符（支持中文）";
     private static final ChunkLoadRepository REPOSITORY = new ChunkLoadRepository();
     private static ChunkTicketService tickets = new UnavailableChunkTicketService();
 
@@ -38,130 +41,150 @@ public final class ChunkLoaderManager {
         return REPOSITORY.get(server);
     }
 
+    /**
+     * 一条纯内存编辑：把变更写进终态，或返回拒绝原因。
+     *
+     * <p>折叠阶段不产生副作用，所以任何一条被拒绝时，世界、存档和票据都还没有动过。
+     */
+    @FunctionalInterface
+    interface Change {
+        String applyTo(ChunkLoadPlan plan);
+    }
+
+    /**
+     * 折叠整批编辑、校验终态、一次性提交。
+     *
+     * <p>终态与原状态完全一致时直接返回：不动版本号，也不写备份。
+     */
+    static Result submit(MinecraftServer server, List<Change> changes) {
+        ChunkLoaderSavedData data = data(server);
+        ChunkLoaderSavedData.State before = data.snapshot();
+        ChunkLoadPlan plan = ChunkLoadPlan.of(before);
+        for (Change change : changes) {
+            String rejection = change.applyTo(plan);
+            if (rejection != null) {
+                return Result.failure(rejection);
+            }
+        }
+        if (!plan.modified()) {
+            return Result.success();
+        }
+        String invalid = ChunkLoadStateValidator.validate(server, plan, before.policies());
+        if (invalid != null) {
+            return Result.failure(invalid);
+        }
+        return commit(server, data, before, plan);
+    }
+
+    /**
+     * 一次性落地：按票据差集下发、替换配置、重建假人票据，最后只落盘一次。
+     *
+     * <p>失败时按账本撤销本批次下发过的票据并恢复配置，不把全服票据推倒重建。
+     */
+    private static Result commit(MinecraftServer server, ChunkLoaderSavedData data,
+                                 ChunkLoaderSavedData.State before, ChunkLoadPlan plan) {
+        ChunkLoadPlanner.ClaimDiff diff = ChunkLoadPlanner.diff(
+            ChunkLoadPlanner.manualClaims(before.regions()),
+            ChunkLoadPlanner.manualClaims(plan.regions()));
+        ChunkLoadTransaction transaction = ChunkLoadTransaction.create();
+        int mark = transaction.mark();
+        try {
+            apply(server, diff.removed(), false, transaction);
+            apply(server, diff.added(), true, transaction);
+            data.replaceAll(plan.regions(), plan.policies());
+            if (!FakePlayerSimulationService.reconcile(server)) {
+                throw new IllegalStateException("更新假玩家区块票据失败，请查看服务端日志");
+            }
+            ChunkLoaderBackupStore.save(server, data);
+            return Result.success();
+        } catch (RuntimeException exception) {
+            rollback(server, data, before, transaction, mark);
+            return Result.failure(exception.getMessage());
+        }
+    }
+
+    /** 票据自带维度，按维度分组后分别下发。 */
+    private static void apply(MinecraftServer server, Collection<ChunkLoadClaim> claims, boolean add,
+                              ChunkLoadTransaction transaction) {
+        Map<ResourceKey<Level>, List<ChunkLoadClaim>> byDimension = new LinkedHashMap<>();
+        for (ChunkLoadClaim claim : claims) {
+            byDimension.computeIfAbsent(claim.dimension(), ignored -> new ArrayList<>()).add(claim);
+        }
+        for (Map.Entry<ResourceKey<Level>, List<ChunkLoadClaim>> entry : byDimension.entrySet()) {
+            ServerLevel level = server.getLevel(entry.getKey());
+            if (level == null) throw new IllegalStateException("目标维度不存在");
+            transaction.apply(level, entry.getValue(), add);
+        }
+    }
+
+    /** 失败回滚：撤销本批次下发过的票据、恢复配置、按恢复后的配置重建假人票据，最后落盘一次。 */
+    private static void rollback(MinecraftServer server, ChunkLoaderSavedData data,
+                                 ChunkLoaderSavedData.State before, ChunkLoadTransaction transaction, int mark) {
+        transaction.rollbackTo(mark);
+        data.restore(before);
+        try {
+            FakePlayerSimulationService.reconcile(server);
+        } catch (RuntimeException exception) {
+            ArchWeaverMod.LOGGER.error("回滚后重建假玩家票据失败", exception);
+        }
+        ChunkLoaderBackupStore.save(server, data);
+    }
+
+    /** 启动和恢复备份后按配置重建票据，逐个禁用已经落不了地的区域。 */
     public static void reconcile(MinecraftServer server) {
-        for (ManualLoadRegion region : data(server).regions()) {
+        ChunkLoaderSavedData data = data(server);
+        ChunkLoadTransaction transaction = ChunkLoadTransaction.create();
+        for (ManualLoadRegion region : data.regions()) {
             if (!region.enabled()) {
                 continue;
             }
-            String invalid = validate(server, data(server), region);
+            String invalid = ChunkLoadStateValidator.validateRegion(server, data.regions(), data.policies(), region);
             if (invalid != null) {
-                data(server).putRegion(region.withEnabled(false));
+                data.putRegion(region.withEnabled(false));
                 ArchWeaverMod.LOGGER.warn("区块加载区域 {} 已禁用：{}", region.name(), invalid);
                 continue;
             }
-            ServerLevel level = level(server, region);
+            ServerLevel level = ChunkLoadStateValidator.level(server, region.dimension());
             if (level != null) {
-                applyAll(level, claims(region), true);
+                transaction.apply(level, ChunkLoadPlanner.manualClaims(List.of(region)), true);
             }
         }
-        ChunkLoaderBackupStore.save(server, data(server));
+        ChunkLoaderBackupStore.save(server, data);
     }
 
     /** 以指定位置为中心创建方形加载区域，供 {@code /chunkloader add} 使用。 */
     public static Result add(MinecraftServer server, String name, ServerLevel level, BlockPos position,
                              int radius) {
-        if (!ChunkLoaderSavedData.isValidName(name)) {
-            return Result.failure(INVALID_NAME_MESSAGE);
-        }
         if (radius < 0 || radius > ArchWeaverConfig.maxChunkLoadingRadius()) {
             return Result.failure("半径必须在 0-" + ArchWeaverConfig.maxChunkLoadingRadius() + " 之间");
         }
         ManualLoadRegion region = new ManualLoadRegion(UUID.randomUUID(), name, level.dimension().identifier(),
             ChunkLoadPlanner.square(position.getX() >> 4, position.getZ() >> 4, radius), true);
-        return createRegion(server, region);
+        return submit(server, List.of(plan -> plan.create(region)));
     }
 
     /** 重命名加载区域：形状、维度、启停状态和已提交的票据都不变。 */
     public static Result rename(MinecraftServer server, String name, String newName) {
-        ManualLoadRegion region = data(server).region(name).orElse(null);
-        if (region == null) return Result.failure("找不到加载区域");
-        if (!ChunkLoaderSavedData.isValidName(newName)) {
-            return Result.failure(INVALID_NAME_MESSAGE);
-        }
-        if (newName.equals(region.name())) return Result.success(region);
-        ManualLoadRegion existing = data(server).region(newName).orElse(null);
-        if (existing != null && !existing.id().equals(region.id())) return Result.failure("同名加载区域已存在");
-        return replace(server, region, new ManualLoadRegion(
-            region.id(), newName, region.dimension(), region.chunks(), region.enabled()));
-    }
-
-    public static Result createRegion(MinecraftServer server, ManualLoadRegion region) {
-        ChunkLoaderSavedData data = data(server);
-        ChunkLoaderSavedData.State before = data.snapshot();
-        String invalid = validate(server, data, region);
-        if (invalid != null) {
-            return Result.failure(invalid);
-        }
-        if (!data.addRegion(region)) {
-            return Result.failure("同名加载区域已存在");
-        }
-        try {
-            ServerLevel target = level(server, region);
-            if (region.enabled() && target != null) applyAll(target, claims(region), true);
-            ChunkLoaderBackupStore.save(server, data);
-            return Result.success(region);
-        } catch (RuntimeException exception) {
-            ServerLevel target = level(server, region);
-            if (target != null) rollback(target, claims(region), false);
-            data.restore(before);
-            return Result.failure(exception.getMessage());
-        }
+        return submit(server, List.of(plan -> {
+            ManualLoadRegion region = plan.region(name).orElse(null);
+            if (region == null) return ChunkLoadPlan.MISSING_REGION;
+            return plan.replace(new ManualLoadRegion(
+                region.id(), newName, region.dimension(), region.chunks(), region.enabled()));
+        }));
     }
 
     public static Result setEnabled(MinecraftServer server, String name, boolean enabled) {
-        ManualLoadRegion region = data(server).region(name).orElse(null);
-        if (region == null) return Result.failure("找不到加载区域");
-        if (region.enabled() == enabled) return Result.success(region);
-        ManualLoadRegion changed = region.withEnabled(enabled);
-        String invalid = enabled ? validate(server, data(server), changed) : null;
-        if (invalid != null) return Result.failure(invalid);
-        ServerLevel level = level(server, region);
-        if (level == null) return Result.failure("目标维度不存在");
-        try {
-            applyAll(level, claims(region), enabled);
-            data(server).putRegion(changed);
-            ChunkLoaderBackupStore.save(server, data(server));
-            return Result.success(changed);
-        } catch (RuntimeException exception) {
-            rollback(level, claims(region), !enabled);
-            return Result.failure(exception.getMessage());
-        }
-    }
-
-    public static Result replace(MinecraftServer server, ManualLoadRegion oldRegion, ManualLoadRegion changed) {
-        String invalid = validate(server, data(server), changed);
-        if (invalid != null) return Result.failure(invalid);
-        ServerLevel level = level(server, oldRegion);
-        if (level == null || !oldRegion.dimension().equals(changed.dimension())) return Result.failure("不支持跨维度修改区域");
-        List<ChunkLoadClaim> oldClaims = oldRegion.enabled() ? claims(oldRegion) : List.of();
-        List<ChunkLoadClaim> newClaims = changed.enabled() ? claims(changed) : List.of();
-        ChunkLoadPlanner.ClaimDiff diff = ChunkLoadPlanner.diff(oldClaims, newClaims);
-        try {
-            applyAll(level, diff.removed(), false);
-            applyAll(level, diff.added(), true);
-            data(server).putRegion(changed);
-            ChunkLoaderBackupStore.save(server, data(server));
-            return Result.success(changed);
-        } catch (RuntimeException exception) {
-            rollback(level, diff.added(), false);
-            rollback(level, diff.removed(), true);
-            return Result.failure(exception.getMessage());
-        }
+        return submit(server, List.of(plan -> {
+            ManualLoadRegion region = plan.region(name).orElse(null);
+            return region == null ? ChunkLoadPlan.MISSING_REGION : plan.replace(region.withEnabled(enabled));
+        }));
     }
 
     public static Result remove(MinecraftServer server, String name) {
-        ManualLoadRegion region = data(server).region(name).orElse(null);
-        if (region == null) return Result.failure("找不到加载区域");
-        ServerLevel level = level(server, region);
-        try {
-            if (region.enabled() && level != null) applyAll(level, claims(region), false);
-            data(server).removeRegion(region.id());
-            ChunkLoaderBackupStore.save(server, data(server));
-            return Result.success(region);
-        } catch (RuntimeException exception) {
-            if (level != null) rollback(level, claims(region), true);
-            return Result.failure(exception.getMessage());
-        }
+        return submit(server, List.of(plan -> {
+            ManualLoadRegion region = plan.region(name).orElse(null);
+            return region == null ? ChunkLoadPlan.MISSING_REGION : plan.remove(region.id());
+        }));
     }
 
     public static boolean backup(MinecraftServer server) { return ChunkLoaderBackupStore.save(server, data(server)); }
@@ -169,78 +192,22 @@ public final class ChunkLoaderManager {
     public static Result restoreLatestBackup(MinecraftServer server) {
         ChunkLoaderSavedData restored = ChunkLoaderBackupStore.loadLatest(server).orElse(null);
         if (restored == null) return Result.failure("没有可用的备份");
-        for (ManualLoadRegion region : data(server).regions()) {
-            ServerLevel level = level(server, region);
-            if (region.enabled() && level != null) rollback(level, claims(region), false);
+        ChunkLoaderSavedData data = data(server);
+        ChunkLoadTransaction transaction = ChunkLoadTransaction.create();
+        for (ManualLoadRegion region : data.regions()) {
+            ServerLevel level = ChunkLoadStateValidator.level(server, region.dimension());
+            if (region.enabled() && level != null) {
+                transaction.applyLenient(level, ChunkLoadPlanner.manualClaims(List.of(region)), false);
+            }
         }
-        data(server).replaceAll(restored);
+        data.replaceAll(restored);
         reconcile(server);
         return Result.success();
     }
 
-    /** 批量编辑失败时恢复整包操作前的配置与票据。 */
-    public static void restoreState(MinecraftServer server, ChunkLoaderSavedData.State state) {
-        ChunkLoaderSavedData current = data(server);
-        for (ManualLoadRegion region : current.regions()) {
-            ServerLevel level = level(server, region);
-            if (region.enabled() && level != null) rollback(level, claims(region), false);
-        }
-        current.restore(state);
-        for (ManualLoadRegion region : state.regions()) {
-            ServerLevel level = level(server, region);
-            if (region.enabled() && level != null) {
-                rollback(level, claims(region), true);
-            }
-        }
-        FakePlayerSimulationService.reconcile(server);
-        ChunkLoaderBackupStore.save(server, current);
-    }
-
-    private static String validate(MinecraftServer server, ChunkLoaderSavedData current, ManualLoadRegion replacement) {
-        if (replacement.chunks().isEmpty() || replacement.chunks().size() > ChunkLoaderSavedData.MAX_REGION_CHUNKS) return "区域区块数量非法";
-        if (!ChunkLoaderSavedData.isValidName(replacement.name())) return "区域名称非法";
-        if (level(server, replacement) == null) return "目标维度不存在";
-        Collection<ManualLoadRegion> candidates = new ArrayList<>(current.regions());
-        candidates.removeIf(region -> region.id().equals(replacement.id()));
-        candidates.add(replacement);
-        var usage = ChunkLoadPlanner.budget(candidates, current.policies());
-        if (usage.manualTotal() > ArchWeaverConfig.maxForcedChunks()) return "手动加载总预算超限";
-        if (usage.manualTotal() > ArchWeaverConfig.maxTickingChunks()) return "模拟区块预算超限";
-        return null;
-    }
-
-    private static List<ChunkLoadClaim> claims(ManualLoadRegion region) {
-        return ChunkLoadPlanner.manualClaims(List.of(region));
-    }
-
-    private static ServerLevel level(MinecraftServer server, ManualLoadRegion region) {
-        return server.getLevel(ResourceKey.create(Registries.DIMENSION, region.dimension()));
-    }
-
-    private static void applyAll(ServerLevel level, Collection<ChunkLoadClaim> claims, boolean add) {
-        List<ChunkLoadClaim> completed = new ArrayList<>();
-        try {
-            for (ChunkLoadClaim claim : claims) {
-                if (add) tickets.add(level, claim); else tickets.remove(level, claim);
-                completed.add(claim);
-            }
-        } catch (RuntimeException exception) {
-            rollback(level, completed, !add);
-            throw exception;
-        }
-    }
-
-    private static void rollback(ServerLevel level, Collection<ChunkLoadClaim> claims, boolean add) {
-        for (ChunkLoadClaim claim : claims) {
-            try { if (add) tickets.add(level, claim); else tickets.remove(level, claim); }
-            catch (RuntimeException exception) { ArchWeaverMod.LOGGER.error("回滚区块票据失败", exception); }
-        }
-    }
-
-    public record Result(boolean successful, Optional<ManualLoadRegion> region, String reason) {
-        public static Result success(ManualLoadRegion region) { return new Result(true, Optional.of(region), ""); }
-        public static Result success() { return new Result(true, Optional.empty(), ""); }
-        public static Result failure(String reason) { return new Result(false, Optional.empty(), reason == null ? "未知错误" : reason); }
+    public record Result(boolean successful, String reason) {
+        public static Result success() { return new Result(true, ""); }
+        public static Result failure(String reason) { return new Result(false, reason == null ? "未知错误" : reason); }
     }
 
     private static final class UnavailableChunkTicketService implements ChunkTicketService {

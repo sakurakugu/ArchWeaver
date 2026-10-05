@@ -19,6 +19,7 @@ import net.minecraft.commands.Commands;
 import net.minecraft.commands.SharedSuggestionProvider;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
 import com.sakurakugu.archweaver.platform.PlatformNetworking;
 
@@ -104,14 +105,14 @@ public final class ChunkLoaderCommand {
         }
         String name = StringArgumentType.getString(context, "anchor");
         BlockPos position = BlockPos.containing(context.getSource().getPosition());
+        Identifier dimension = context.getSource().getLevel().dimension().identifier();
         var result = ChunkLoaderManager.add(context.getSource().getServer(), name,
             context.getSource().getLevel(), position, radius);
         if (!result.successful()) {
             return failure(context, Component.translatable("commands.archweaver.chunkloader.failed", result.reason()));
         }
-        ManualLoadRegion anchor = result.region().orElseThrow();
         context.getSource().sendSuccess(() -> Component.translatable("commands.archweaver.chunkloader.added",
-            anchor.name(), position.toShortString(), anchor.dimension(), radius), true);
+            name, position.toShortString(), dimension, radius), true);
         return 1;
     }
 
