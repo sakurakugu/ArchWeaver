@@ -17,7 +17,8 @@ import net.minecraft.world.level.ChunkPos;
 
 /** 维护逐假人模拟范围；玩家刷怪语义仍由在线 FakeServerPlayer 自身提供。 */
 public final class FakePlayerSimulationService {
-    private static final Map<UUID, ActiveRange> ACTIVE = new HashMap<>();
+    /** 运行时票据状态按服务端实例隔离，避免切换世界后仍持有旧实例的 ServerLevel。 */
+    private static final Map<MinecraftServer, Map<UUID, ActiveRange>> ACTIVE = new HashMap<>();
 
     private FakePlayerSimulationService() {
     }
@@ -36,16 +37,40 @@ public final class FakePlayerSimulationService {
         for (FakeServerPlayer fake : online) {
             if (!update(fake)) successful = false;
         }
+        Map<UUID, ActiveRange> active = ACTIVE.get(server);
+        if (active == null) return successful;
         Set<UUID> onlineIds = online.stream().map(FakeServerPlayer::getUUID).collect(java.util.stream.Collectors.toSet());
-        for (UUID id : ACTIVE.keySet().stream().filter(id -> !onlineIds.contains(id)).toList()) {
-            if (!removeActive(id)) successful = false;
+        for (UUID id : active.keySet().stream().filter(id -> !onlineIds.contains(id)).toList()) {
+            if (!removeActive(server, id)) successful = false;
         }
         return successful;
     }
 
+    /** 服务端停止时撤销该实例已提交的全部模拟票据，并释放对应的运行时状态。 */
+    public static void revokeAll(MinecraftServer server) {
+        Map<UUID, ActiveRange> active = ACTIVE.remove(server);
+        if (active == null) return;
+        for (Map.Entry<UUID, ActiveRange> entry : active.entrySet()) {
+            for (long chunk : entry.getValue().chunks()) {
+                try {
+                    set(entry.getValue().level(), entry.getKey(), chunk, false);
+                } catch (RuntimeException exception) {
+                    // 服务器正在关闭，单个票据撤销失败不能阻断其余清理。
+                    ArchWeaverMod.LOGGER.error("撤销假玩家 {} 的模拟票据失败", entry.getKey(), exception);
+                }
+            }
+        }
+    }
+
+    /** 丢弃其它服务端实例残留的状态；同一 JVM 同时只会存在一个服务端。 */
+    public static void discardStale(MinecraftServer server) {
+        ACTIVE.keySet().removeIf(key -> key != server);
+    }
+
     /** 返回已实际提交区块票的假人加载范围。 */
-    public static Optional<ActiveRangeView> activeRange(UUID fakePlayerId) {
-        ActiveRange range = ACTIVE.get(fakePlayerId);
+    public static Optional<ActiveRangeView> activeRange(FakeServerPlayer fake) {
+        Map<UUID, ActiveRange> active = ACTIVE.get(fake.server());
+        ActiveRange range = active == null ? null : active.get(fake.getUUID());
         if (range == null) return Optional.empty();
         return Optional.of(new ActiveRangeView(range.level().dimension().identifier().toString(),
             range.chunkX(), range.chunkZ(), range.distance()));
@@ -79,7 +104,7 @@ public final class FakePlayerSimulationService {
         data.putPolicy(policy);
         FakeServerPlayer fake = FakePlayerManager.all(server).stream()
             .filter(value -> value.getUUID().equals(fakePlayerId)).findFirst().orElse(null);
-        if (!(fake != null ? update(fake) : removeActive(fakePlayerId))) {
+        if (!(fake != null ? update(fake) : removeActive(server, fakePlayerId))) {
             data.restore(before);
             return ChunkLoaderManager.Result.failure("更新假玩家区块票据失败，请查看服务端日志");
         }
@@ -91,32 +116,34 @@ public final class FakePlayerSimulationService {
     }
 
     public static void removePolicy(MinecraftServer server, UUID fakePlayerId) {
-        removeActive(fakePlayerId);
+        removeActive(server, fakePlayerId);
         ChunkLoaderManager.data(server).removePolicy(fakePlayerId);
         ChunkLoaderBackupStore.save(server, ChunkLoaderManager.data(server));
     }
 
     private static boolean update(FakeServerPlayer fake) {
-        FakePlayerLoadPolicy policy = ChunkLoaderManager.data(fake.server()).policy(fake.getUUID()).orElse(null);
+        MinecraftServer server = fake.server();
+        FakePlayerLoadPolicy policy = ChunkLoaderManager.data(server).policy(fake.getUUID()).orElse(null);
         if (policy == null || !policy.usesCustomSimulation()) {
-            return removeActive(fake.getUUID());
+            return removeActive(server, fake.getUUID());
         }
-        int distance = effectiveSimulationDistance(fake.server(), policy);
-        ActiveRange previous = ACTIVE.get(fake.getUUID());
+        int distance = effectiveSimulationDistance(server, policy);
+        Map<UUID, ActiveRange> active = ACTIVE.get(server);
+        ActiveRange previous = active == null ? null : active.get(fake.getUUID());
         int chunkX = fake.chunkPosition().x();
         int chunkZ = fake.chunkPosition().z();
         if (previous != null && previous.sameLocation(fake.level(), chunkX, chunkZ, distance)) return true;
         ActiveRange next = new ActiveRange(fake.level(), chunkX, chunkZ, distance,
             ChunkLoadPlanner.square(chunkX, chunkZ, distance));
         if (!withinBudget(fake, next)) {
-            return removeActive(fake.getUUID());
+            return removeActive(server, fake.getUUID());
         }
         try {
             List<TicketChange> changes = new ArrayList<>();
             appendDifference(changes, previous, next, false);
             appendDifference(changes, next, previous, true);
             applyChanges(fake.getUUID(), changes, FakePlayerSimulationService::set);
-            ACTIVE.put(fake.getUUID(), next);
+            ACTIVE.computeIfAbsent(server, key -> new HashMap<>()).put(fake.getUUID(), next);
             return true;
         } catch (RuntimeException exception) {
             ArchWeaverMod.LOGGER.error("更新假玩家 {} 的模拟范围失败", fake.getGameProfile().name(), exception);
@@ -124,14 +151,15 @@ public final class FakePlayerSimulationService {
         }
     }
 
-    private static boolean removeActive(UUID id) {
-        ActiveRange previous = ACTIVE.get(id);
+    private static boolean removeActive(MinecraftServer server, UUID id) {
+        Map<UUID, ActiveRange> active = ACTIVE.get(server);
+        ActiveRange previous = active == null ? null : active.get(id);
         if (previous == null) return true;
         try {
             List<TicketChange> changes = new ArrayList<>();
             appendDifference(changes, previous, null, false);
             applyChanges(id, changes, FakePlayerSimulationService::set);
-            ACTIVE.remove(id);
+            active.remove(id);
             return true;
         } catch (RuntimeException exception) {
             ArchWeaverMod.LOGGER.error("移除假玩家 {} 的模拟范围失败", id, exception);
@@ -212,16 +240,19 @@ public final class FakePlayerSimulationService {
         return ChunkLoadPlanner.uniquePlayerChunks(ranges);
     }
 
-    /** 检查移动后的范围是否仍在总预算内。 */
+    /** 检查移动后的范围是否仍在同一服务端实例的总预算内。 */
     private static boolean withinBudget(FakeServerPlayer fake, ActiveRange next) {
         int budget = ArchWeaverConfig.maxPlayerLoadingChunks();
         if (budget < 0) return true;
+        Map<UUID, ActiveRange> active = ACTIVE.get(fake.server());
         List<ChunkLoadPlanner.SimulationRange> ranges = new ArrayList<>();
-        for (Map.Entry<UUID, ActiveRange> entry : ACTIVE.entrySet()) {
-            if (entry.getKey().equals(fake.getUUID())) continue;
-            ActiveRange range = entry.getValue();
-            ranges.add(new ChunkLoadPlanner.SimulationRange(entry.getKey(),
-                range.level().dimension().identifier(), range.chunks()));
+        if (active != null) {
+            for (Map.Entry<UUID, ActiveRange> entry : active.entrySet()) {
+                if (entry.getKey().equals(fake.getUUID())) continue;
+                ActiveRange range = entry.getValue();
+                ranges.add(new ChunkLoadPlanner.SimulationRange(entry.getKey(),
+                    range.level().dimension().identifier(), range.chunks()));
+            }
         }
         ranges.add(new ChunkLoadPlanner.SimulationRange(fake.getUUID(),
             next.level().dimension().identifier(), next.chunks()));

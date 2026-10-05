@@ -9,6 +9,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 import net.minecraft.network.chat.Component;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.inventory.PlayerEnderChestContainer;
@@ -17,8 +18,9 @@ import com.sakurakugu.archweaver.platform.PlatformNetworking;
 
 /** 维护真实玩家与假人之间的身体交换会话和服务端访问锁。 */
 public final class FakePlayerPossession {
-    private static final Map<UUID, Session> BY_VIEWER = new HashMap<>();
-    private static final Map<UUID, Session> BY_TARGET = new HashMap<>();
+    /** 会话按服务端实例隔离，避免切换世界后仍持有旧实例的玩家对象。 */
+    private static final Map<MinecraftServer, Map<UUID, Session>> BY_VIEWER = new HashMap<>();
+    private static final Map<MinecraftServer, Map<UUID, Session>> BY_TARGET = new HashMap<>();
     private FakePlayerPossession() {
     }
 
@@ -26,7 +28,7 @@ public final class FakePlayerPossession {
         if (isControlling(viewer, target)) {
             return true;
         }
-        if (BY_VIEWER.containsKey(viewer.getUUID())) {
+        if (viewerSession(viewer) != null) {
             viewer.sendSystemMessage(Component.translatable("gui.archweaver.fakeplayer.possess_unavailable"));
             return false;
         }
@@ -42,11 +44,12 @@ public final class FakePlayerPossession {
         prepareForExchange(target);
         PossessionBodyState viewerOriginal = PossessionBodyState.capture(viewer);
         PossessionBodyState targetOriginal = PossessionBodyState.capture(target);
+        MinecraftServer server = viewer.level().getServer();
         Session session = new Session(
-            viewer, target, viewerOriginal, targetOriginal, target.actions().snapshot(), State.STARTING
+            server, viewer, target, viewerOriginal, targetOriginal, target.actions().snapshot(), State.STARTING
         );
-        BY_VIEWER.put(viewer.getUUID(), session);
-        BY_TARGET.put(target.getUUID(), session);
+        BY_VIEWER.computeIfAbsent(server, key -> new HashMap<>()).put(viewer.getUUID(), session);
+        BY_TARGET.computeIfAbsent(server, key -> new HashMap<>()).put(target.getUUID(), session);
         target.actions().stop();
 
         try {
@@ -67,13 +70,13 @@ public final class FakePlayerPossession {
     }
 
     public static boolean stop(ServerPlayer viewer) {
-        Session session = BY_VIEWER.get(viewer.getUUID());
+        Session session = viewerSession(viewer);
         return session != null && stop(session);
     }
 
     /** 生命周期结束时仅丢弃会话，不再尝试恢复附身前的身体。 */
     public static void discard(ServerPlayer viewer) {
-        Session session = BY_VIEWER.get(viewer.getUUID());
+        Session session = viewerSession(viewer);
         if (session != null) {
             removeSession(session);
         }
@@ -81,7 +84,7 @@ public final class FakePlayerPossession {
 
     /** 假玩家被移除前把身体状态交换回去；会话不处于活动状态或恢复失败时退回丢弃。 */
     public static void restoreTarget(FakeServerPlayer target) {
-        Session session = BY_TARGET.get(target.getUUID());
+        Session session = targetSession(target);
         if (session == null) {
             return;
         }
@@ -97,14 +100,26 @@ public final class FakePlayerPossession {
         }
     }
 
-    /** 服务器保存玩家数据前恢复所有附身会话。 */
-    public static void stopAll() {
-        for (Session session : BY_VIEWER.values().toArray(Session[]::new)) {
-            if (!stop(session)) {
-                // 恢复失败时保留原有的失败处理，避免阻断服务器关闭流程。
-                removeSession(session);
+    /** 服务器保存玩家数据前恢复该实例的所有附身会话，并释放其索引。 */
+    public static void stopAll(MinecraftServer server) {
+        Map<UUID, Session> sessions = BY_VIEWER.get(server);
+        if (sessions != null) {
+            for (Session session : sessions.values().toArray(Session[]::new)) {
+                if (!stop(session)) {
+                    // 恢复失败时保留原有的失败处理，避免阻断服务器关闭流程。
+                    removeSession(session);
+                }
             }
         }
+        // 会话已全部结束，连同索引一起移除，避免静态表继续持有已停止的服务端实例。
+        BY_VIEWER.remove(server);
+        BY_TARGET.remove(server);
+    }
+
+    /** 丢弃其它服务端实例残留的会话；同一 JVM 同时只会存在一个服务端。 */
+    public static void discardStale(MinecraftServer server) {
+        BY_VIEWER.keySet().removeIf(key -> key != server);
+        BY_TARGET.keySet().removeIf(key -> key != server);
     }
 
     private static boolean stop(Session session) {
@@ -148,7 +163,7 @@ public final class FakePlayerPossession {
 
     private static void savePlayerData(Session session) {
         try {
-            var playerList = session.viewer.level().getServer().getPlayerList();
+            var playerList = session.server.getPlayerList();
             PlayerListInvoker invoker = (PlayerListInvoker) playerList;
             invoker.archweaver$save(session.viewer);
             invoker.archweaver$save(session.target);
@@ -173,7 +188,7 @@ public final class FakePlayerPossession {
 
     /** 活动身体死亡时取消真实玩家死亡，并让承载该状态的假人按原版流程死亡。 */
     public static boolean handleActiveBodyDeath(ServerPlayer viewer, DamageSource source) {
-        Session session = BY_VIEWER.get(viewer.getUUID());
+        Session session = viewerSession(viewer);
         if (session == null || session.state != State.ACTIVE) {
             return false;
         }
@@ -187,7 +202,7 @@ public final class FakePlayerPossession {
 
     /** 躯壳死亡时恢复交换，并把死亡结果转移给真实玩家原来的身体。 */
     public static boolean handleShellDeath(FakeServerPlayer target, DamageSource source) {
-        Session session = BY_TARGET.get(target.getUUID());
+        Session session = targetSession(target);
         if (session == null || session.state != State.ACTIVE) {
             return false;
         }
@@ -201,27 +216,27 @@ public final class FakePlayerPossession {
     }
 
     public static boolean isControlling(ServerPlayer viewer, FakeServerPlayer target) {
-        Session session = BY_VIEWER.get(viewer.getUUID());
+        Session session = viewerSession(viewer);
         return session != null && session.target == target && session.state == State.ACTIVE;
     }
 
     public static boolean isPossessing(ServerPlayer viewer) {
-        return BY_VIEWER.containsKey(viewer.getUUID());
+        return viewerSession(viewer) != null;
     }
 
     public static boolean isPossessed(FakeServerPlayer target) {
-        return BY_TARGET.containsKey(target.getUUID());
+        return targetSession(target) != null;
     }
 
     public static PlayerEnderChestContainer possessedEnderChest(ServerPlayer viewer) {
-        Session session = BY_VIEWER.get(viewer.getUUID());
+        Session session = viewerSession(viewer);
         return session != null && session.state == State.ACTIVE
             ? session.target.getEnderChestInventory()
             : null;
     }
 
     public static void tickTarget(FakeServerPlayer target) {
-        Session session = BY_TARGET.get(target.getUUID());
+        Session session = targetSession(target);
         if (session == null || session.state != State.ACTIVE) {
             return;
         }
@@ -236,11 +251,22 @@ public final class FakePlayerPossession {
         if (player instanceof FakeServerPlayer) {
             return;
         }
-        for (Session session : BY_VIEWER.values()) {
+        for (Session session : BY_VIEWER.getOrDefault(player.level().getServer(), Map.of()).values()) {
             sendAppearanceState(player, PossessionStatePayload.started(
                 session.viewer.getId(), session.target.getId()
             ));
         }
+    }
+
+    /** 按服务端实例读取会话；没有会话时返回 null，避免为未使用附身的世界创建空表。 */
+    private static Session viewerSession(ServerPlayer viewer) {
+        Map<UUID, Session> sessions = BY_VIEWER.get(viewer.level().getServer());
+        return sessions == null ? null : sessions.get(viewer.getUUID());
+    }
+
+    private static Session targetSession(FakeServerPlayer target) {
+        Map<UUID, Session> sessions = BY_TARGET.get(target.server());
+        return sessions == null ? null : sessions.get(target.getUUID());
     }
 
     private static boolean canStart(ServerPlayer viewer, FakeServerPlayer target) {
@@ -278,7 +304,7 @@ public final class FakePlayerPossession {
         PossessionStatePayload payload = active
             ? PossessionStatePayload.started(session.viewer.getId(), session.target.getId())
             : PossessionStatePayload.stopped(session.viewer.getId());
-        for (ServerPlayer player : session.viewer.level().getServer().getPlayerList().getPlayers()) {
+        for (ServerPlayer player : session.server.getPlayerList().getPlayers()) {
             if (!(player instanceof FakeServerPlayer)) {
                 sendAppearanceState(player, payload);
             }
@@ -295,8 +321,10 @@ public final class FakePlayerPossession {
     }
 
     private static void removeSession(Session session) {
-        BY_VIEWER.remove(session.viewer.getUUID(), session);
-        BY_TARGET.remove(session.target.getUUID(), session);
+        Map<UUID, Session> byViewer = BY_VIEWER.get(session.server);
+        if (byViewer != null) byViewer.remove(session.viewer.getUUID(), session);
+        Map<UUID, Session> byTarget = BY_TARGET.get(session.server);
+        if (byTarget != null) byTarget.remove(session.target.getUUID(), session);
         session.state = State.IDLE;
     }
 
@@ -309,6 +337,7 @@ public final class FakePlayerPossession {
     }
 
     private static final class Session {
+        private final MinecraftServer server;
         private final ServerPlayer viewer;
         private final FakeServerPlayer target;
         private final PossessionBodyState viewerOriginal;
@@ -317,6 +346,7 @@ public final class FakePlayerPossession {
         private State state;
 
         private Session(
+            MinecraftServer server,
             ServerPlayer viewer,
             FakeServerPlayer target,
             PossessionBodyState viewerOriginal,
@@ -324,6 +354,7 @@ public final class FakePlayerPossession {
             FakePlayerActions.State targetActions,
             State state
         ) {
+            this.server = server;
             this.viewer = viewer;
             this.target = target;
             this.viewerOriginal = viewerOriginal;

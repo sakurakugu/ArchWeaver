@@ -106,7 +106,7 @@ public record ChunkMapSnapshotPayload(
             .map(fake -> {
                 FakePlayerLoadPolicy policy = data.policy(fake.getUUID())
                     .orElse(new FakePlayerLoadPolicy(fake.getUUID(), FakePlayerLoadMode.PLAYER, 0));
-                var activeRange = FakePlayerSimulationService.activeRange(fake.getUUID()).orElse(null);
+                var activeRange = FakePlayerSimulationService.activeRange(fake).orElse(null);
                 int simulationDistance = policy.usesCustomSimulation()
                     ? FakePlayerSimulationService.dollSimulationDistance(fake)
                     : policy.simulationDistance();

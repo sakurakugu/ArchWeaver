@@ -43,6 +43,9 @@ public final class CommonEvents {
 
     @SubscribeEvent
     public static void serverStarted(ServerStartedEvent event) {
+        // 上一实例若未正常清理，在这里丢弃其运行时状态，避免继续持有已关闭世界的引用。
+        FakePlayerSimulationService.discardStale(event.getServer());
+        FakePlayerPossession.discardStale(event.getServer());
         FakePlayerPersistence.restore(event.getServer());
         ChunkLoaderManager.reconcile(event.getServer());
         FakePlayerSimulationService.reconcile(event.getServer());
@@ -56,7 +59,9 @@ public final class CommonEvents {
     @SubscribeEvent
     public static void serverStopping(ServerStoppingEvent event) {
         // 原版即将保存 playerdata，必须先把真人恢复到附身前的位置。
-        FakePlayerPossession.stopAll();
+        FakePlayerPossession.stopAll(event.getServer());
+        // 区块票据必须在 level 关闭前撤销，随服务端一起丢弃的还有模拟范围的运行时状态。
+        FakePlayerSimulationService.revokeAll(event.getServer());
     }
 
     @SubscribeEvent
