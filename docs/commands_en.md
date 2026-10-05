@@ -17,7 +17,7 @@ In command syntax, `<name>` indicates a required argument and `[option]` indicat
 
 - `/fakeplayer possess <name>`: possess the specified fake player.
 - `/fakeplayer unpossess`: exit the current possession.
-- `/fakeplayer list`: list all current fake players.
+- `/fakeplayer list`: list all current fake players, including their aliases when set.
 - `/fakeplayer gui [name]`: open the control center, or go directly to the specified fake player's inventory management screen.
 - `/fakeplayer player <name> <action>`: equivalent to `/player <name> <action>`; see the action list below.
 
@@ -27,7 +27,7 @@ Spawn position, dimension, and rotation come from the command source. The game m
 
 Running `/fakeplayer preset` opens preset management; `/fakeplayer group` opens group management. Both are also accessible from the map's bottom bar. Use the `preset` and `group` subcommands to manage them.
 
-A preset saves the name, UUID, a vanilla player data snapshot (including dimension, position, rotation, inventory, experience, game mode, and abilities), continuous actions, and an optional description. Saving a preset does not bring it online; a fake player is spawned only when the preset is loaded.
+A preset saves the name, UUID, a vanilla player data snapshot (including alias, dimension, position, rotation, inventory, experience, game mode, and abilities), continuous actions, and an optional description. Saving a preset does not bring it online; a fake player is spawned only when the preset is loaded.
 
 - `/fakeplayer preset list [page]`: list presets by page, with load and delete buttons.
 - `/fakeplayer preset save <preset> <online-fake-player> [description]`: save the fake player's current state, creating or overwriting a preset.
@@ -87,6 +87,7 @@ Example:
 - `/player <name> config default` / `/player <name> config reset`: reset action and input settings to defaults without changing inventory or other data.
 - `/player <name> possess`: possess the fake player.
 - `/player <name> unpossess`: exit possession if currently possessing this fake player.
+- `/player <name> alias [alias]`: set the fake player's display alias, supporting spaces, up to 32 characters.
 
 Automation command:
 

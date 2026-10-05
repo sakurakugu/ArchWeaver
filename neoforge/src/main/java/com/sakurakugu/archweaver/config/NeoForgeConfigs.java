@@ -23,6 +23,7 @@ public final class NeoForgeConfigs {
         private final ModConfigSpec.IntValue maxTickingChunks;
         private final ModConfigSpec.IntValue maxPlayerLoadingChunks;
         private final ModConfigSpec.BooleanValue containerTransferButtons;
+        private final ModConfigSpec.BooleanValue fakePlayerAliasFirst;
 
         private Backend(boolean ignored) {
             ModConfigSpec.Builder builder = new ModConfigSpec.Builder();
@@ -44,6 +45,7 @@ public final class NeoForgeConfigs {
             builder.pop();
             builder.push("ui");
             containerTransferButtons = builder.comment("普通容器是否显示物品转移按钮。").define("enableContainerTransferButtons", true);
+            fakePlayerAliasFirst = builder.comment("假人别名是否在 Tab 中优先显示，并在头顶显示于真实名称上方。").define("fakePlayerAliasFirst", false);
             builder.pop();
             spec = builder.build();
         }
@@ -58,8 +60,10 @@ public final class NeoForgeConfigs {
         public int maxTickingChunks() { return maxTickingChunks.get(); }
         public int maxPlayerLoadingChunks() { return maxPlayerLoadingChunks.get(); }
         public boolean containerTransferButtons() { return containerTransferButtons.get(); }
+        public boolean fakePlayerAliasFirst() { return fakePlayerAliasFirst.get(); }
         public void setRestoreFakePlayers(boolean value) { restoreFakePlayers.set(value); }
         public void setContainerTransferButtons(boolean value) { containerTransferButtons.set(value); }
+        public void setFakePlayerAliasFirst(boolean value) { fakePlayerAliasFirst.set(value); }
         public void save() { spec.save(); }
     }
 

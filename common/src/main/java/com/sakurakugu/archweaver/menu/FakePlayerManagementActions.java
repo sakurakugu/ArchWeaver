@@ -13,6 +13,20 @@ public final class FakePlayerManagementActions {
     private FakePlayerManagementActions() {
     }
 
+    public static void setAlias(ServerPlayer viewer, String alias) {
+        if (!(viewer.containerMenu instanceof FakePlayerInventoryMenu menu)
+            || menu.view() != FakePlayerInventoryMenu.View.INVENTORY
+            || !menu.canManageTarget(viewer)) {
+            return;
+        }
+        try {
+            menu.target().setAlias(alias);
+            FakePlayerMenuOpener.openInventory(viewer, menu.target());
+        } catch (IllegalArgumentException exception) {
+            failure(viewer, "commands.archweaver.fakeplayer.invalid_alias");
+        }
+    }
+
     public static void rename(ServerPlayer viewer, String name) {
         if (!(viewer.containerMenu instanceof FakePlayerInventoryMenu menu)
             || menu.view() != FakePlayerInventoryMenu.View.INVENTORY

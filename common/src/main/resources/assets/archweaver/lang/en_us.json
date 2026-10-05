@@ -1,4 +1,11 @@
 {
+  "gui.archweaver.fakeplayer.global.setting.alias_first": "Alias first (Tab and name tags)",
+  "commands.archweaver.fakeplayer.invalid_alias": "Aliases may contain up to 32 characters, without control characters or formatting codes",
+  "commands.archweaver.fakeplayer.alias_set": "Set the alias of fake player %1$s to %2$s",
+  "commands.archweaver.fakeplayer.alias_cleared": "Cleared the alias of fake player %s",
+  "gui.archweaver.fakeplayer.info.alias": "Alias",
+  "gui.archweaver.fakeplayer.info.alias_hint": "Up to 32 characters; leave empty to restore the default.",
+  "gui.archweaver.fakeplayer.info.alias_unset": "No alias",
   "commands.archweaver.fakeplayer.spawned": "Spawned fake player %s",
   "commands.archweaver.fakeplayer.killed": "Removed fake player %s",
   "commands.archweaver.fakeplayer.renamed": "Renamed fake player %1$s to %2$s",

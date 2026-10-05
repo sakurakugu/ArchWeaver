@@ -13,7 +13,9 @@ public interface PlatformConfig {
     int maxTickingChunks();
     int maxPlayerLoadingChunks();
     boolean containerTransferButtons();
+    boolean fakePlayerAliasFirst();
     void setRestoreFakePlayers(boolean value);
     void setContainerTransferButtons(boolean value);
+    void setFakePlayerAliasFirst(boolean value);
     void save();
 }

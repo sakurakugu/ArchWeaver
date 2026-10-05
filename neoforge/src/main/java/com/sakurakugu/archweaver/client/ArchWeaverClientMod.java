@@ -7,6 +7,7 @@ import com.sakurakugu.archweaver.network.StopPossessionPayload;
 import com.sakurakugu.archweaver.network.ChunkMapOpenTarget;
 import com.sakurakugu.archweaver.network.ChunkMapSnapshotPayload;
 import com.sakurakugu.archweaver.network.BodyRotationPayload;
+import com.sakurakugu.archweaver.network.FakePlayerAliasPayload;
 import com.sakurakugu.archweaver.network.OpenMainPagePayload;
 import com.sakurakugu.archweaver.client.chunkloading.ClientChunkLoadingState;
 import com.sakurakugu.archweaver.client.chunkloading.ChunkLoadingDebugEntry;
@@ -93,6 +94,8 @@ public final class ArchWeaverClientMod {
             (payload, context) -> ClientChunkLoadingState.openMainScreen(mainViewOf(payload.view())));
         event.register(PossessionStatePayload.TYPE,
             (payload, context) -> ClientPossession.accept(payload));
+        event.register(FakePlayerAliasPayload.TYPE,
+            (payload, context) -> ClientFakePlayerAliases.accept(payload));
         event.register(BodyRotationPayload.TYPE,
             (payload, context) -> ClientBodyRotation.accept(payload));
     }
@@ -135,6 +138,7 @@ public final class ArchWeaverClientMod {
         }
         if (minecraft.player == null) {
             ClientChunkLoadingState.clear();
+            ClientFakePlayerAliases.clear();
             refreshTicks = 0;
         } else if (!minecraft.debugEntries.isOverlayVisible()) {
             refreshTicks = 0;

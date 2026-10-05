@@ -114,7 +114,7 @@ public final class FakePlayerMenuOpener {
             view == FakePlayerInventoryMenu.View.ENDER_CHEST
                 ? "gui.archweaver.fakeplayer.ender_chest"
                 : "gui.archweaver.fakeplayer.inventory",
-            fake.getGameProfile().name()
+            fake.alias().isEmpty() ? fake.getGameProfile().name() : fake.alias()
         );
         viewer.openMenu(
             new ManagementMenuProvider(
@@ -124,6 +124,7 @@ public final class FakePlayerMenuOpener {
             ),
             data -> {
                 data.writeUtf(fake.getGameProfile().name());
+                data.writeUtf(fake.alias(), com.sakurakugu.archweaver.entity.FakePlayerAlias.MAX_LENGTH);
                 data.writeVarInt(view.ordinal());
                 data.writeVarInt(fake.getId());
                 data.writeBoolean(possessedByViewer);

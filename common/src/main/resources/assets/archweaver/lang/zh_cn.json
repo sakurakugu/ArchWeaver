@@ -1,4 +1,11 @@
 {
+  "gui.archweaver.fakeplayer.global.setting.alias_first": "别名优先（Tab 与头顶名称）",
+  "commands.archweaver.fakeplayer.invalid_alias": "别名最多 32 个字符，不能包含控制字符或格式代码",
+  "commands.archweaver.fakeplayer.alias_set": "已将假人 %1$s 的别名设为 %2$s",
+  "commands.archweaver.fakeplayer.alias_cleared": "已清除假人 %s 的别名",
+  "gui.archweaver.fakeplayer.info.alias": "别名",
+  "gui.archweaver.fakeplayer.info.alias_hint": "最多 32 个字符；留空恢复默认。",
+  "gui.archweaver.fakeplayer.info.alias_unset": "无别名",
   "commands.archweaver.fakeplayer.spawned": "已生成假人 %s",
   "commands.archweaver.fakeplayer.killed": "已移除假人 %s",
   "commands.archweaver.fakeplayer.renamed": "已将假人 %1$s 重命名为 %2$s",

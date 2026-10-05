@@ -29,6 +29,15 @@ public final class ClientPossession {
         }
     }
 
+    /** 别名跟随附身后实际显示的身体，而非操作玩家的原始档案。 */
+    public static java.util.UUID displayedPlayerId(AbstractClientPlayer player) {
+        Integer proxyId = APPEARANCE_PROXIES.get(player.getId());
+        if (proxyId != null && player.level().getEntity(proxyId) instanceof AbstractClientPlayer proxy) {
+            return proxy.getUUID();
+        }
+        return player.getUUID();
+    }
+
     public static boolean active() {
         Minecraft minecraft = Minecraft.getInstance();
         return minecraft.player != null && APPEARANCE_PROXIES.containsKey(minecraft.player.getId());

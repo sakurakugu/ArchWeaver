@@ -110,7 +110,7 @@ public record ChunkMapSnapshotPayload(
                 int simulationDistance = policy.usesCustomSimulation()
                     ? FakePlayerSimulationService.dollSimulationDistance(fake)
                     : policy.simulationDistance();
-                return new FakePlayerView(fake.getUUID(), fake.getGameProfile().name(),
+                return new FakePlayerView(fake.getUUID(), fake.getGameProfile().name(), fake.alias(),
                     fake.level().dimension().identifier().toString(), fake.getBlockX(), fake.getBlockY(),
                     fake.getBlockZ(), fake.getYRot(), true, FakePlayerPossession.isPossessed(fake),
                     policy.mode(), simulationDistance,
@@ -240,12 +240,14 @@ public record ChunkMapSnapshotPayload(
         }
     }
 
-    public record FakePlayerView(UUID id, String name, String dimension, int x, int y, int z, float yaw,
+    public record FakePlayerView(UUID id, String name, String alias, String dimension, int x, int y, int z, float yaw,
                                  boolean online, boolean possessed, FakePlayerLoadMode mode, int simulationDistance,
                                  boolean loadingActive, String loadingDimension, int loadingChunkX,
                                  int loadingChunkZ, int loadingDistance) {
         private FakePlayerView(RegistryFriendlyByteBuf buffer) {
-            this(buffer.readUUID(), buffer.readUtf(32), buffer.readUtf(256), buffer.readInt(), buffer.readInt(),
+            this(buffer.readUUID(), buffer.readUtf(32),
+                buffer.readUtf(com.sakurakugu.archweaver.entity.FakePlayerAlias.MAX_LENGTH),
+                buffer.readUtf(256), buffer.readInt(), buffer.readInt(),
                 buffer.readInt(), buffer.readFloat(), buffer.readBoolean(), buffer.readBoolean(),
                 buffer.readEnum(FakePlayerLoadMode.class), buffer.readVarInt(),
                 buffer.readBoolean(), buffer.readUtf(256), buffer.readInt(), buffer.readInt(), buffer.readVarInt());
@@ -261,7 +263,9 @@ public record ChunkMapSnapshotPayload(
         }
 
         private void write(RegistryFriendlyByteBuf buffer) {
-            buffer.writeUUID(id); buffer.writeUtf(name, 32); buffer.writeUtf(dimension, 256);
+            buffer.writeUUID(id); buffer.writeUtf(name, 32);
+            buffer.writeUtf(alias, com.sakurakugu.archweaver.entity.FakePlayerAlias.MAX_LENGTH);
+            buffer.writeUtf(dimension, 256);
             buffer.writeInt(x); buffer.writeInt(y); buffer.writeInt(z);
             buffer.writeFloat(yaw);
             buffer.writeBoolean(online); buffer.writeBoolean(possessed);

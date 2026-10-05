@@ -3,7 +3,8 @@ package com.sakurakugu.archweaver.entity;
 import com.mojang.authlib.GameProfile;
 import com.sakurakugu.archweaver.automation.FakePlayerAutomation;
 import com.sakurakugu.archweaver.persistence.FakePlayerPersistence;
-import net.minecraft.ChatFormatting;
+import com.sakurakugu.archweaver.mixin.PlayerListInvoker;
+import com.sakurakugu.archweaver.config.ArchWeaverConfig;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ClientInformation;
@@ -15,6 +16,8 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.vehicle.boat.AbstractBoat;
 import net.minecraft.world.food.FoodData;
 import net.minecraft.world.level.portal.TeleportTransition;
+import net.minecraft.world.level.storage.ValueInput;
+import net.minecraft.world.level.storage.ValueOutput;
 import net.minecraft.world.phys.Vec3;
 
 /** 没有真实客户端连接、但参与原版服务端玩家逻辑的假玩家实体。 */
@@ -22,6 +25,7 @@ public final class FakeServerPlayer extends ServerPlayer {
     private final MinecraftServer server;
     private final FakePlayerActions actions;
     private final FakePlayerAutomation automation;
+    private String alias = "";
 
     public FakeServerPlayer(MinecraftServer server, ServerLevel level, GameProfile profile) {
         this(server, level, profile, ClientInformation.createDefault());
@@ -44,6 +48,33 @@ public final class FakeServerPlayer extends ServerPlayer {
 
     public MinecraftServer server() {
         return server;
+    }
+
+    public String alias() {
+        return alias;
+    }
+
+    /** 修改后立即同步 Tab 并保存，重启、重新生成和预设快照都沿用该别名。 */
+    public void setAlias(String value) {
+        String normalized = FakePlayerAlias.normalize(value);
+        if (alias.equals(normalized)) {
+            return;
+        }
+        alias = normalized;
+        FakePlayerAliasSync.broadcast(this);
+        ((PlayerListInvoker) server.getPlayerList()).archweaver$save(this);
+    }
+
+    @Override
+    protected void readAdditionalSaveData(ValueInput input) {
+        super.readAdditionalSaveData(input);
+        alias = FakePlayerAlias.normalize(input.getStringOr("archweaver_alias", ""));
+    }
+
+    @Override
+    protected void addAdditionalSaveData(ValueOutput output) {
+        super.addAdditionalSaveData(output);
+        output.putString("archweaver_alias", alias);
     }
 
     @Override
@@ -75,7 +106,7 @@ public final class FakeServerPlayer extends ServerPlayer {
         if (displayName == null) {
             displayName = getDisplayName();
         }
-        return displayName.copy().append(Component.translatable("gui.archweaver.fakeplayer.tab_marker").withStyle(ChatFormatting.DARK_GRAY));
+        return FakePlayerAlias.tabName(displayName, alias, ArchWeaverConfig.fakePlayerAliasFirst());
     }
 
     public void showAllSkinLayers() {

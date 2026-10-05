@@ -40,7 +40,7 @@ This project produces two separate JARs:
 
 1. Simulation loading: player mode and doll mode.
 2. View direction, rotation, movement, flight, hotbar selection, continuous actions, item dropping, and riding.
-3. Fake player information, including game mode, name, and coordinates.
+3. Fake player information, including game mode, name, alias, and coordinates.
 4. Inventory, armor, offhand, and ender chest management.
 5. Possession: take control of a fake player's inventory and viewpoint. This does not transfer everything, such as advancements.
 6. Automation: these features run on the server and apply only to fake players, unlike client mods such as Tweakeroo.

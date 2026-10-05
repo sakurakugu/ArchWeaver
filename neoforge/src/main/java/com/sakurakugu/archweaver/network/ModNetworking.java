@@ -58,6 +58,9 @@ public final class ModNetworking {
                 if (context.player() instanceof ServerPlayer player
                     && ArchWeaverConfig.canUseCommands(player.createCommandSourceStack())
                     && ArchWeaverConfig.toggleGlobalSetting(payload.settingIndex())) {
+                    if (payload.settingIndex() == ArchWeaverConfig.GlobalSetting.FAKE_PLAYER_ALIAS_FIRST.ordinal()) {
+                        com.sakurakugu.archweaver.entity.FakePlayerAliasSync.refreshAll(player.level().getServer());
+                    }
                     PacketDistributor.sendToPlayer(player, ChunkMapSnapshotPayload.create(player,
                         ChunkLoaderManager.data(player.level().getServer()), ChunkMapOpenTarget.NONE));
                 }
@@ -96,6 +99,18 @@ public final class ModNetworking {
                     && player.containerMenu.containerId == payload.containerId()
                     && ArchWeaverConfig.canUseCommands(player.createCommandSourceStack())) {
                     FakePlayerManagementActions.rename(player, payload.name());
+                }
+            }
+        );
+        registrar.playToServer(
+            SetFakePlayerAliasPayload.TYPE,
+            SetFakePlayerAliasPayload.STREAM_CODEC,
+            (payload, context) -> {
+                if (context.player() instanceof ServerPlayer player
+                    && player.containerMenu instanceof FakePlayerInventoryMenu
+                    && player.containerMenu.containerId == payload.containerId()
+                    && ArchWeaverConfig.canUseCommands(player.createCommandSourceStack())) {
+                    FakePlayerManagementActions.setAlias(player, payload.alias());
                 }
             }
         );
@@ -176,5 +191,6 @@ public final class ModNetworking {
         registrar.playToClient(OpenMainPagePayload.TYPE, OpenMainPagePayload.STREAM_CODEC);
         registrar.playToClient(PossessionStatePayload.TYPE, PossessionStatePayload.STREAM_CODEC);
         registrar.playToClient(BodyRotationPayload.TYPE, BodyRotationPayload.STREAM_CODEC);
+        registrar.playToClient(FakePlayerAliasPayload.TYPE, FakePlayerAliasPayload.STREAM_CODEC);
     }
 }

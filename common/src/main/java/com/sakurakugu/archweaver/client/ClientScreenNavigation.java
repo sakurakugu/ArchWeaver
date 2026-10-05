@@ -63,6 +63,12 @@ public final class ClientScreenNavigation {
         pendingReturnScreen = null;
         if (!hasPendingParent) parent = inferParent(source, next, sourceEntry);
 
+        // 同一背包视图刷新标题时，在新页面初始化前保留当前展开的面板。
+        if (source instanceof FakePlayerInventoryScreen inventory
+            && next instanceof FakePlayerInventoryScreen nextInventory && replacesPage(source, next)) {
+            nextInventory.restorePanelStateFrom(inventory);
+        }
+
         NavigationEntry entry = new NavigationEntry(next, routeFor(next), parent);
         ENTRIES.put(next, entry);
         if (isOverlay(next)) {

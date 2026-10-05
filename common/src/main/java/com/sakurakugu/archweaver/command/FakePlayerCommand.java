@@ -89,6 +89,10 @@ public final class FakePlayerCommand {
 
         target.then(spawnCommand());
         target.then(Commands.literal("kill").executes(FakePlayerCommand::kill));
+        target.then(Commands.literal("alias")
+            .executes(context -> setAlias(context, ""))
+            .then(Commands.argument("alias", StringArgumentType.greedyString())
+                .executes(context -> setAlias(context, StringArgumentType.getString(context, "alias")))));
         target.then(Commands.literal("shadow").executes(FakePlayerCommand::shadow));
         target.then(Commands.literal("gui")
             .executes(FakePlayerCommand::openPlayerGui)
@@ -134,6 +138,27 @@ public final class FakePlayerCommand {
             command.then(automationSetting(names[index], index));
         }
         return command;
+    }
+
+    private static int setAlias(CommandContext<CommandSourceStack> context, String alias) {
+        FakeServerPlayer fake = getFake(context);
+        if (fake == null) {
+            return 0;
+        }
+        if (FakePlayerPossession.isPossessed(fake)) {
+            context.getSource().sendFailure(Component.translatable("gui.archweaver.fakeplayer.possess_locked"));
+            return 0;
+        }
+        try {
+            fake.setAlias(alias);
+        } catch (IllegalArgumentException exception) {
+            context.getSource().sendFailure(Component.translatable("commands.archweaver.fakeplayer.invalid_alias"));
+            return 0;
+        }
+        context.getSource().sendSuccess(() -> Component.translatable(
+            fake.alias().isEmpty() ? "commands.archweaver.fakeplayer.alias_cleared"
+                : "commands.archweaver.fakeplayer.alias_set", fake.getGameProfile().name(), fake.alias()), true);
+        return 1;
     }
 
     private static LiteralArgumentBuilder<CommandSourceStack> automationSetting(String name, int index) {
@@ -679,7 +704,8 @@ public final class FakePlayerCommand {
 
     private static int list(CommandContext<CommandSourceStack> context) {
         String names = FakePlayerManager.all(context.getSource().getServer()).stream()
-            .map(player -> player.getGameProfile().name())
+            .map(player -> player.getGameProfile().name()
+                + (player.alias().isEmpty() ? "" : " [" + player.alias() + "]"))
             .sorted(String.CASE_INSENSITIVE_ORDER)
             .reduce((left, right) -> left + ", " + right)
             .orElse(Component.translatable("commands.archweaver.fakeplayer.none").getString());

@@ -7,6 +7,7 @@ import com.sakurakugu.archweaver.chunkloading.ChunkLoaderManager;
 import com.sakurakugu.archweaver.chunkloading.FakePlayerSimulationService;
 import com.sakurakugu.archweaver.config.ArchWeaverConfig;
 import com.sakurakugu.archweaver.entity.FakePlayerManager;
+import com.sakurakugu.archweaver.entity.FakePlayerAliasSync;
 import com.sakurakugu.archweaver.entity.FakePlayerPossession;
 import com.sakurakugu.archweaver.entity.FakeServerPlayer;
 import com.sakurakugu.archweaver.menu.FakePlayerMenuOpener;
@@ -116,6 +117,8 @@ public final class CommonEvents {
     public static void playerLoggedIn(PlayerEvent.PlayerLoggedInEvent event) {
         if (event.getEntity() instanceof ServerPlayer player) {
             FakePlayerPossession.syncTo(player);
+            if (player instanceof FakeServerPlayer fake) FakePlayerAliasSync.broadcast(fake);
+            else FakePlayerAliasSync.syncTo(player);
         }
     }
 
@@ -124,11 +127,13 @@ public final class CommonEvents {
         if (event.getEntity() instanceof ServerPlayer viewer
             && event.getTarget() instanceof FakeServerPlayer fake) {
             fake.actions().syncBodyRotation(viewer);
+            FakePlayerAliasSync.syncTo(viewer, fake);
         }
     }
 
     @SubscribeEvent
     public static void playerLoggedOut(PlayerEvent.PlayerLoggedOutEvent event) {
+        if (event.getEntity() instanceof FakeServerPlayer fake) FakePlayerAliasSync.clear(fake);
         if (event.getEntity() instanceof ServerPlayer player && !(player instanceof FakeServerPlayer)) {
             // 真人退出前先恢复附身前的身体状态，确保原版保存的 playerdata 仍是真人原来的位置。
             if (!FakePlayerPossession.stop(player)) {

@@ -4,6 +4,7 @@ import com.sakurakugu.archweaver.client.chunkloading.ChunkMapClientConfig;
 import com.sakurakugu.archweaver.client.chunkloading.ClientChunkLoadingState;
 import com.sakurakugu.archweaver.client.ui.PixelGlyph;
 import com.sakurakugu.archweaver.client.ui.SolidButton;
+import com.sakurakugu.archweaver.client.ui.FakePlayerListButton;
 import com.sakurakugu.archweaver.client.ui.TitlePanel;
 import com.sakurakugu.archweaver.network.ChunkMapSnapshotPayload;
 import com.sakurakugu.archweaver.network.ChunkMapOpenTarget;
@@ -34,7 +35,7 @@ public final class MainPageScreen extends Screen {
     private UUID selectedFake; // 选中的假人 ID，没有选中时为 null。
     private int selectedRegion = -1; // 选中的管理区域下标，没有选中时为 -1。
     private View view = View.FAKE_PLAYERS; // 中间内容区当前显示的页面。
-    private final Button[] settingButtons = new Button[2]; // 全局设置开关按钮，点击后统一置灰。
+    private final Button[] settingButtons = new Button[com.sakurakugu.archweaver.config.ArchWeaverConfig.GlobalSetting.values().length]; // 全局设置开关按钮，点击后统一置灰。
 
     public MainPageScreen(ChunkMapSnapshotPayload snapshot) {
         this(snapshot, View.FAKE_PLAYERS);
@@ -78,8 +79,7 @@ public final class MainPageScreen extends Screen {
 
     private void rebuildMainWidgets() {
         clearWidgets();
-        settingButtons[0] = null;
-        settingButtons[1] = null;
+        java.util.Arrays.fill(settingButtons, null);
         int left = panelLeft();
         int top = PANEL_TOP;
         int sideWidth = sideWidth();
@@ -100,10 +100,11 @@ public final class MainPageScreen extends Screen {
             int count = Math.min(snapshot.fakePlayers().size(), rowCapacity(listTop));
             for (int index = 0; index < count; index++) {
                 int fakeIndex = index;
-                SolidButton row = addRenderableWidget(new SolidButton(centerLeft + PANEL_PADDING,
+                var fake = snapshot.fakePlayers().get(index);
+                addRenderableWidget(new FakePlayerListButton(centerLeft + PANEL_PADDING,
                     listTop + index * (ROW_HEIGHT + ROW_GAP), listWidth, ROW_HEIGHT,
-                    Component.literal(snapshot.fakePlayers().get(index).name()), button -> selectFake(fakeIndex)));
-                if (snapshot.fakePlayers().get(index).id().equals(selectedFake)) row.setTextColor(0xFF55FF55);
+                    fake.id(), fake.alias(), fake.name(), fake.id().equals(selectedFake),
+                    button -> selectFake(fakeIndex)));
             }
             // 生成假人收成加号，钉在列表左上角；预设管理紧随其后，占满工具行剩余宽度。
             addRenderableWidget(new SolidButton(centerLeft + PANEL_PADDING, toolbarY(),
@@ -286,7 +287,11 @@ public final class MainPageScreen extends Screen {
     }
 
     private Component settingLabel(int index) {
-        String key = index == 0 ? "restore_players" : "container_transfer_buttons";
+        String key = switch (com.sakurakugu.archweaver.config.ArchWeaverConfig.GlobalSetting.values()[index]) {
+            case RESTORE_FAKE_PLAYERS -> "restore_players";
+            case CONTAINER_TRANSFER_BUTTONS -> "container_transfer_buttons";
+            case FAKE_PLAYER_ALIAS_FIRST -> "alias_first";
+        };
         boolean enabled = (snapshot.globalSettingsMask() & (1 << index)) != 0;
         return Component.translatable("gui.archweaver.fakeplayer.global.setting_value",
             Component.translatable("gui.archweaver.fakeplayer.global.setting." + key),
@@ -340,7 +345,12 @@ public final class MainPageScreen extends Screen {
                 ? "gui.archweaver.main.no_fake_players" : "gui.archweaver.main.select_fake"), x + w / 2, y + 18, 0xFFFFFFFF);
             return;
         }
-        graphics.text(font, Component.literal(fake.name()), x + PANEL_PADDING, y, 0xFFFFFFFF, false);
+        if (!fake.alias().isEmpty()) {
+            graphics.text(font, Component.literal(font.plainSubstrByWidth(fake.alias(), Math.max(1, w - PANEL_PADDING * 2))),
+                x + PANEL_PADDING, y, 0xFFFFFFFF, false);
+            y += 14;
+        }
+        graphics.text(font, Component.literal(fake.name()), x + PANEL_PADDING, y, 0xFFD0D0D0, false);
         graphics.text(font, Component.translatable("gui.archweaver.main.world", fake.dimension()), x + PANEL_PADDING, y + 18, 0xFFFFFFFF, false);
         graphics.text(font, Component.translatable("gui.archweaver.main.position", fake.x(), fake.y(), fake.z()), x + PANEL_PADDING, y + 36, 0xFFFFFFFF, false);
         graphics.text(font, Component.translatable("gui.archweaver.main.loading", fake.loadingActive() ? fake.loadingDistance() : 0), x + PANEL_PADDING, y + 54, 0xFFFFFFFF, false);

@@ -17,7 +17,9 @@
     "AbstractClientPlayerMixin",
     "PlayerAppearanceMixin",
     "EntityNameMixin",
-    "EntityRendererNameMixin"
+    "EntityRendererNameMixin",
+    "EntityRenderStateAliasMixin",
+    "EntityRendererAliasMixin"
   ],
   "injectors": {
     "defaultRequire": 1

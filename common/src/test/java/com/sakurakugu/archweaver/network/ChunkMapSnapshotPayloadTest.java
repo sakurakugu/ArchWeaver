@@ -10,8 +10,61 @@ import java.util.UUID;
 import com.sakurakugu.archweaver.chunkloading.ChunkKey;
 import com.sakurakugu.archweaver.chunkloading.FakePlayerLoadMode;
 import org.junit.jupiter.api.Test;
+import io.netty.buffer.Unpooled;
+import net.minecraft.core.RegistryAccess;
+import net.minecraft.network.RegistryFriendlyByteBuf;
 
 class ChunkMapSnapshotPayloadTest {
+    @Test
+    void nameTagSyncTransmitsIdentityChineseAliasClearAndBothOrders() {
+        UUID playerId = UUID.randomUUID();
+        for (String alias : List.of("矿场 一号", "矿".repeat(32), "")) {
+            for (boolean aliasFirst : List.of(false, true)) {
+                var original = new FakePlayerAliasPayload(playerId, alias, aliasFirst);
+                var buffer = new RegistryFriendlyByteBuf(Unpooled.buffer(), RegistryAccess.EMPTY);
+                try {
+                    FakePlayerAliasPayload.STREAM_CODEC.encode(buffer, original);
+                    assertEquals(original, FakePlayerAliasPayload.STREAM_CODEC.decode(buffer));
+                } finally {
+                    buffer.release();
+                }
+            }
+        }
+    }
+
+    @Test
+    void snapshotTransmitsChineseAliasSeparatelyFromRealName() {
+        var fake = new ChunkMapSnapshotPayload.FakePlayerView(UUID.randomUUID(), "robot-1", "矿场 一号",
+            "minecraft:overworld", 0, 64, 0, 0.0F, true, false, FakePlayerLoadMode.PLAYER, 0,
+            false, "", 0, 0, 0);
+        var original = new ChunkMapSnapshotPayload(ChunkMapOpenTarget.NONE, 0, 32, 1L, false,
+            "minecraft:overworld", 0, 0, List.of(), List.of(), List.of(fake));
+        var buffer = new RegistryFriendlyByteBuf(Unpooled.buffer(), RegistryAccess.EMPTY);
+        try {
+            ChunkMapSnapshotPayload.STREAM_CODEC.encode(buffer, original);
+            var decoded = ChunkMapSnapshotPayload.STREAM_CODEC.decode(buffer);
+            assertEquals(original, decoded);
+            assertEquals("robot-1", decoded.fakePlayers().getFirst().name());
+            assertEquals("矿场 一号", decoded.fakePlayers().getFirst().alias());
+        } finally {
+            buffer.release();
+        }
+    }
+
+    @Test
+    void aliasRequestTransmitsChineseAndEmptyAlias() {
+        for (String alias : List.of("矿场一号", "")) {
+            var original = new SetFakePlayerAliasPayload(7, alias);
+            var buffer = new RegistryFriendlyByteBuf(Unpooled.buffer(), RegistryAccess.EMPTY);
+            try {
+                SetFakePlayerAliasPayload.STREAM_CODEC.encode(buffer, original);
+                assertEquals(original, SetFakePlayerAliasPayload.STREAM_CODEC.decode(buffer));
+            } finally {
+                buffer.release();
+            }
+        }
+    }
+
     @Test
     void fakePlayerViewOnlyLoadsChunksInsideItsActiveRange() {
         var active = view(true, "minecraft:overworld", 10, -5, 2);
@@ -58,7 +111,7 @@ class ChunkMapSnapshotPayloadTest {
 
     private static ChunkMapSnapshotPayload.FakePlayerView view(boolean active, String dimension,
                                                                 int chunkX, int chunkZ, int distance) {
-        return new ChunkMapSnapshotPayload.FakePlayerView(UUID.randomUUID(), "Loader", "minecraft:overworld",
+        return new ChunkMapSnapshotPayload.FakePlayerView(UUID.randomUUID(), "Loader", "", "minecraft:overworld",
             0, 64, 0, 0.0F, true, false, FakePlayerLoadMode.DOLL, distance,
             active, dimension, chunkX, chunkZ, distance);
     }

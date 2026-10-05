@@ -78,6 +78,7 @@ public final class FakePlayerInventoryMenu extends AbstractContainerMenu {
 
     private final FakeServerPlayer target;
     private final String targetName;
+    private final String targetAlias;
     private final int targetEntityId;
     private final View view;
     private final int targetSlotCount;
@@ -150,6 +151,7 @@ public final class FakePlayerInventoryMenu extends AbstractContainerMenu {
             inventory,
             null,
             data.readUtf(64),
+            data.readUtf(com.sakurakugu.archweaver.entity.FakePlayerAlias.MAX_LENGTH),
             View.fromNetwork(data.readVarInt()),
             data.readVarInt(),
             data.readBoolean(),
@@ -177,7 +179,7 @@ public final class FakePlayerInventoryMenu extends AbstractContainerMenu {
         boolean possessedByViewer,
         boolean targetOccupied
     ) {
-        this(containerId, inventory, target, target.getGameProfile().name(), view, target.getId(),
+        this(containerId, inventory, target, target.getGameProfile().name(), target.alias(), view, target.getId(),
             possessedByViewer, targetOccupied, automationMask(target), continuousControlMask(target),
             target.actions().repeatInterval(FakePlayerActions.ScheduledAction.ATTACK),
             target.actions().repeatInterval(FakePlayerActions.ScheduledAction.USE),
@@ -205,6 +207,7 @@ public final class FakePlayerInventoryMenu extends AbstractContainerMenu {
         Inventory viewerInventory,
         FakeServerPlayer target,
         String targetName,
+        String targetAlias,
         View view,
         int targetEntityId,
         boolean possessedByViewer,
@@ -225,6 +228,7 @@ public final class FakePlayerInventoryMenu extends AbstractContainerMenu {
         super(ModMenus.FAKE_PLAYER_INVENTORY.get(), containerId);
         this.target = target;
         this.targetName = targetName;
+        this.targetAlias = targetAlias;
         this.view = view;
         this.targetEntityId = targetEntityId;
         this.possessedByViewer = possessedByViewer;
@@ -889,6 +893,10 @@ public final class FakePlayerInventoryMenu extends AbstractContainerMenu {
         target.actions().setViewRotation(pitch, yaw);
         broadcastChanges();
         return true;
+    }
+
+    public String targetAlias() {
+        return target == null ? targetAlias : target.alias();
     }
 
     public String targetName() {

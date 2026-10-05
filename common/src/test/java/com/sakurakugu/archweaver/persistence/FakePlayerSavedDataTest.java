@@ -198,6 +198,28 @@ class FakePlayerSavedDataTest {
         assertEquals("signed value", restored.signature());
     }
 
+    @Test
+    void presetAliasSurvivesPersistenceAndRealNameMigration() {
+        FakePlayerSavedData data = new FakePlayerSavedData();
+        var original = preset("Miner");
+        var player = original.player();
+        var tag = player.playerData();
+        tag.putString("archweaver_alias", "矿场一号");
+        data.putPreset(new FakePlayerSavedData.Preset(original.id(), original.description(),
+            new FakePlayerSavedData.PlayerSnapshot(player.uuid(), player.name(), player.profileProperties(),
+                tag, player.actions(), player.automation())));
+
+        var newProfile = new GameProfile(UUID.randomUUID(), "RenamedBot");
+        data.migratePlayer(player.uuid(), newProfile);
+        var encoded = FakePlayerSavedData.CODEC.encodeStart(JsonOps.INSTANCE, data).getOrThrow();
+        var decoded = FakePlayerSavedData.CODEC.parse(JsonOps.INSTANCE, encoded).getOrThrow();
+        var restored = decoded.preset("Miner").orElseThrow().player();
+
+        assertEquals("矿场一号", restored.playerData().getStringOr("archweaver_alias", ""));
+        assertEquals(newProfile.name(), restored.name());
+        assertEquals(newProfile.id(), restored.uuid());
+    }
+
     private static FakePlayerSavedData.Preset preset(String id) {
         FakePlayerActions.State actions = new FakePlayerActions.State(
             List.of(new FakePlayerActions.ScheduledState(

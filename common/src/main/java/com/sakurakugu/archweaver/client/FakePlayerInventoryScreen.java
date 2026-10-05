@@ -19,6 +19,8 @@ import com.sakurakugu.archweaver.menu.FakePlayerMenuActionCodec;
 import com.sakurakugu.archweaver.chunkloading.FakePlayerLoadMode;
 import com.sakurakugu.archweaver.entity.FakePlayerActions;
 import com.sakurakugu.archweaver.network.RenameFakePlayerPayload;
+import com.sakurakugu.archweaver.network.SetFakePlayerAliasPayload;
+import com.sakurakugu.archweaver.entity.FakePlayerAlias;
 import com.sakurakugu.archweaver.network.FakePlayerSimulationPayload;
 import com.sakurakugu.archweaver.network.FakePlayerViewRotationPayload;
 import com.sakurakugu.archweaver.platform.PlatformNetworking;
@@ -123,7 +125,7 @@ public final class FakePlayerInventoryScreen extends AbstractContainerScreen<Fak
     private static final OverlayPanelManager.Layout CONTINUOUS_PANEL_LAYOUT = nextPanelLayout(
         AIM_PANEL_LAYOUT, 94, 219); // 持续控制面板的布局，紧接 AIM_PANEL_LAYOUT 下方。
     private static final OverlayPanelManager.Layout INFO_PANEL_LAYOUT = nextPanelLayout(
-        CONTINUOUS_PANEL_LAYOUT, 132, 160); // 假人信息面板的布局，紧接 CONTINUOUS_PANEL_LAYOUT 下方。
+        CONTINUOUS_PANEL_LAYOUT, 132, 180); // 假人信息面板的布局，紧接 CONTINUOUS_PANEL_LAYOUT 下方。
     private static final OverlayPanelManager.Layout DROP_PANEL_LAYOUT = nextPanelLayout(
         INFO_PANEL_LAYOUT, 94, 109); // Q 键丢弃面板的布局，紧接 INFO_PANEL_LAYOUT 下方。
     private static final int TRANSFER_BUTTON_LEFT = 144; // 物品转移按钮组的左边偏移，单位为像素。
@@ -168,6 +170,8 @@ public final class FakePlayerInventoryScreen extends AbstractContainerScreen<Fak
     }; // 与 CONTINUOUS_KEYS 一一对应的持续控制切换动作。
 
     private OverlayPanelManager panelManager; // 侧栏浮层面板管理器，负责面板的展开与遮挡顺序。
+    private String restoredOpenPanelId; // 服务端刷新标题重开页面时，继承原页面展开的侧栏。
+    private boolean restoredSimulationPanelOpen; // 同时保留左侧模拟面板的展开状态。
     // 按界面从上到下注册，展开的面板会遮挡并禁用其下方的标签。
     private OverlayPanelManager.Panel aimPanel; // 视觉朝向面板，含视角摇杆、方向摇杆与角度输入框。
     private OverlayPanelManager.Panel continuousPanel; // 持续控制面板，含移动、攻击、使用与跳跃开关及间隔滑条。
@@ -195,6 +199,7 @@ public final class FakePlayerInventoryScreen extends AbstractContainerScreen<Fak
     private EditBox yawInput; // 偏航角输入框，取值范围 -180 到 179。
     private ToggleSwitchButton bodyFollowsHeadButton; // “身体跟随头部”开关按钮。
     private boolean syncingAimInputs; // 是否正在同步角度输入框，用于避免回调递归。
+    private EditBox aliasInput; // 假人别名输入框，允许中文，清空后恢复默认标记。
     private EditBox nameInput; // 假人名称输入框，最长 16 个字符。
     private SolidDropdownButton<GameType> gameModeButton; // 游戏模式下拉框，选项为四种原版游戏模式。
     private FakePlayerLoadMode simulationMode = FakePlayerLoadMode.PLAYER; // 面板中当前选择的区块加载模式，默认为玩家模式。
@@ -221,6 +226,14 @@ public final class FakePlayerInventoryScreen extends AbstractContainerScreen<Fak
         lastSentYaw = menu.yaw();
     }
 
+    /** 更新名称或别名会重建容器页面，在首次初始化前接续原页面的面板状态。 */
+    public void restorePanelStateFrom(FakePlayerInventoryScreen previous) {
+        restoredOpenPanelId = previous.panelManager == null
+            ? previous.restoredOpenPanelId : previous.panelManager.openPanelId();
+        restoredSimulationPanelOpen = previous.simulationPanel == null
+            ? previous.restoredSimulationPanelOpen : previous.simulationPanel.isOpen();
+    }
+
     /** Esc 返回上一级。 */
     @Override
     public void onClose() {
@@ -229,8 +242,9 @@ public final class FakePlayerInventoryScreen extends AbstractContainerScreen<Fak
 
     @Override
     protected void init() {
-        String openPanelId = panelManager == null ? null : panelManager.openPanelId();
-        boolean simulationPanelOpen = simulationPanel != null && simulationPanel.isOpen();
+        String openPanelId = panelManager == null ? restoredOpenPanelId : panelManager.openPanelId();
+        boolean simulationPanelOpen = simulationPanel == null
+            ? restoredSimulationPanelOpen : simulationPanel.isOpen();
         super.init();
         if (menu.view() == FakePlayerInventoryMenu.View.ENDER_CHEST) {
             addTransferButtons(ENDER_CHEST_TRANSFER_BUTTON_TOP);
@@ -490,26 +504,37 @@ public final class FakePlayerInventoryScreen extends AbstractContainerScreen<Fak
             Component.translatable("gui.archweaver.fakeplayer.info.rename"),
             button -> submitRename()
         ));
+        aliasInput = addRenderableWidget(new EditBox(font, left + 6, top + 47, 86, 16,
+            Component.translatable("gui.archweaver.fakeplayer.info.alias")));
+        aliasInput.setMaxLength(FakePlayerAlias.MAX_LENGTH);
+        aliasInput.setValue(menu.targetAlias());
+        aliasInput.setHint(Component.translatable("gui.archweaver.fakeplayer.info.alias"));
+        aliasInput.setTooltip(Tooltip.create(Component.translatable("gui.archweaver.fakeplayer.info.alias_hint")));
+        Button aliasButton = addRenderableWidget(new SolidButton(
+            left + 96, top + 47, 28, 16,
+            Component.translatable("gui.archweaver.fakeplayer.info.rename"),
+            button -> PlatformNetworking.sendToServer(new SetFakePlayerAliasPayload(menu.containerId, aliasInput.getValue()))
+        ));
         // 收窄下拉框，右边界与名称、复制、经验等控件对齐在 left + 124。
         gameModeButton = addRenderableWidget(new SolidDropdownButton<>(
-            left + 68, top + 47, 56, 16,
+            left + 68, top + 67, 56, 16,
             java.util.List.of(GameType.SURVIVAL, GameType.CREATIVE, GameType.ADVENTURE, GameType.SPECTATOR),
             gameType(), this::gameModeName,
             gameType -> sendAction(new SetGameMode(gameType))
         ));
         ExperienceDisplay experienceDisplay = addRenderableWidget(new ExperienceDisplay(
-            left + 7, top + 122, 117, 16
+            left + 7, top + 142, 117, 16
         ));
         CoordinateDisplay coordinateDisplay = addRenderableWidget(new CoordinateDisplay(
-            left + 7, top + 138, 85, 15
+            left + 7, top + 158, 85, 15
         ));
         Button copyPositionButton = addRenderableWidget(new SolidButton(
-            left + 96, top + 139, 28, 14,
+            left + 96, top + 159, 28, 14,
             Component.translatable("gui.archweaver.fakeplayer.info.copy"),
             button -> copyPosition()
         ));
         addRenderableWidget(infoPanel.createTab(new ItemStack(Items.NAME_TAG)));
-        infoPanel.bindContents(nameInput, renameButton, gameModeButton, experienceDisplay,
+        infoPanel.bindContents(nameInput, renameButton, aliasInput, aliasButton, gameModeButton, experienceDisplay,
             coordinateDisplay, copyPositionButton);
     }
 
@@ -1016,7 +1041,7 @@ public final class FakePlayerInventoryScreen extends AbstractContainerScreen<Fak
     private void drawInfoPanelContents(GuiGraphicsExtractor graphics, int left, int top) {
         int labelLeft = left + 7;
         int statusLeft = labelLeft + statusLabelWidth() + 4;
-        int line = top + 66;
+        int line = top + 86;
         drawStatusLabel(graphics, "gui.archweaver.fakeplayer.info.health", labelLeft, line);
         drawHealth(graphics, statusLeft, line);
         drawStatusLabel(graphics, "gui.archweaver.fakeplayer.info.food", labelLeft, line + 15);
@@ -1026,7 +1051,7 @@ public final class FakePlayerInventoryScreen extends AbstractContainerScreen<Fak
         drawArmor(graphics, statusLeft, line + 30);
         drawStatusLabel(graphics, "gui.archweaver.fakeplayer.info.air", labelLeft, line + 45);
         drawAir(graphics, statusLeft, line + 45);
-        graphics.text(font, Component.translatable("gui.archweaver.fakeplayer.info.game_mode"), labelLeft, top + 51,
+        graphics.text(font, Component.translatable("gui.archweaver.fakeplayer.info.game_mode"), labelLeft, top + 71,
             0xFF404040, false);
     }
 
@@ -1209,17 +1234,28 @@ public final class FakePlayerInventoryScreen extends AbstractContainerScreen<Fak
     @Override
     protected void extractLabels(GuiGraphicsExtractor graphics, int mouseX, int mouseY) {
         if (menu.view() == FakePlayerInventoryMenu.View.ENDER_CHEST) {
-            super.extractLabels(graphics, mouseX, mouseY);
+            drawTitle(graphics, titleLabelX, titleLabelY);
+            graphics.text(font, playerInventoryTitle, inventoryLabelX, inventoryLabelY, -12566464, false);
             return;
         }
         if (menu.view() == FakePlayerInventoryMenu.View.POSSESSED_INVENTORY) {
             return;
         }
 
-        graphics.text(font, title, 97, 6, -12566464, false);
+        drawTitle(graphics, 97, 6);
         graphics.text(font, playerInventoryTitle, 8, 167, -12566464, false);
         if (gameModeButton != null) {
             gameModeButton.extractPopup(graphics, mouseX, mouseY, leftPos, topPos);
+        }
+    }
+
+    /** 标题在容器右边框内滚动，短标题保持原有位置。 */
+    private void drawTitle(GuiGraphicsExtractor graphics, int left, int top) {
+        int right = imageWidth - 8;
+        if (font.width(title) <= right - left) {
+            graphics.text(font, title, left, top, -12566464, false);
+        } else {
+            PixelGui.drawScrollingText(graphics, font, title, left, right, top - 4, 16, -12566464);
         }
     }
 }
