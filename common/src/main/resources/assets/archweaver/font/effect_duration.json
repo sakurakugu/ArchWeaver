@@ -1,0 +1,15 @@
+{
+  "providers": [
+    {
+      "type": "bitmap",
+      "file": "archweaver:font/effect_duration.png",
+      "height": 8,
+      "ascent": 7,
+      "chars": ["*"]
+    },
+    {
+      "type": "reference",
+      "id": "minecraft:default"
+    }
+  ]
+}

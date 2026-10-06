@@ -36,6 +36,7 @@ import com.sakurakugu.archweaver.client.ui.ToggleSwitchButton;
 import com.sakurakugu.archweaver.client.ui.SegmentedSwitchButton;
 import com.sakurakugu.archweaver.client.ui.TransferButton;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.Gui;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.EditBox;
@@ -45,18 +46,26 @@ import net.minecraft.client.gui.screens.inventory.InventoryScreen;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.FontDescription;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.GameType;
 
 import java.util.Locale;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Optional;
 
 /** 绘制假人完整物品栏；末影箱使用原版三行容器界面。 */
 public final class FakePlayerInventoryScreen extends AbstractContainerScreen<FakePlayerInventoryMenu> {
+    private static final FontDescription EFFECT_DURATION_FONT = new FontDescription.Resource(
+        Identifier.fromNamespaceAndPath(ArchWeaverMod.MOD_ID, "effect_duration")); // 时间专用字体，将星号字形调整为与数字等高。
     private static final Identifier CONTAINER_BACKGROUND =
         Identifier.withDefaultNamespace("textures/gui/container/generic_54.png"); // 原版通用容器背景贴图，用于末影箱视图与操作者背包区域。
     private static final Identifier INVENTORY_BACKGROUND =
@@ -138,6 +147,22 @@ public final class FakePlayerInventoryScreen extends AbstractContainerScreen<Fak
     private static final OverlayPanelManager.Layout MOUNT_PANEL_LAYOUT = nextPanelLayout(
         AUTOMATION_PANEL_LAYOUT, 94, 83); // 骑乘面板的布局，紧接 AUTOMATION_PANEL_LAYOUT 下方。
     private static final OverlayPanelManager.Layout SIMULATION_PANEL_LAYOUT = panelLayout(8, 100, 92); // 模拟面板的布局，绘制在物品栏左侧。
+    private static final int EFFECTS_COLUMNS = 3; // 药水效果网格列数。
+    private static final int EFFECTS_VISIBLE_ROWS = 3; // 药水效果网格同时显示的行数。
+    private static final int EFFECT_CELL_WIDTH = 32; // 药水效果网格单元宽度，单元之间不留横向间距。
+    private static final int EFFECT_CELL_HEIGHT = 32; // 药水效果网格单元高度，单元之间不留纵向间距。
+    private static final int EFFECT_GRID_PADDING = 5; // 网格左右和底部的内边距，包含面板边框。
+    private static final int EFFECT_GRID_TOP = 23; // 药水效果网格相对面板顶部的偏移。
+    private static final int EFFECT_GRID_WIDTH = EFFECTS_COLUMNS * EFFECT_CELL_WIDTH; // 网格可见区域宽度。
+    private static final int EFFECT_GRID_HEIGHT = EFFECTS_VISIBLE_ROWS * EFFECT_CELL_HEIGHT; // 网格可见区域高度。
+    private static final int EFFECT_SCROLLBAR_GAP = 2; // 网格与滚动条之间的间距。
+    private static final int EFFECT_SCROLLBAR_WIDTH = 4; // 始终预留的滚动条宽度。
+    private static final int EFFECTS_PANEL_WIDTH = EFFECT_GRID_PADDING * 2
+        + EFFECT_GRID_WIDTH + EFFECT_SCROLLBAR_GAP + EFFECT_SCROLLBAR_WIDTH; // 网格和始终显示的滚动条共用固定宽度。
+    private static final int EFFECTS_PANEL_HEIGHT = EFFECT_GRID_TOP + EFFECT_GRID_HEIGHT
+        + EFFECT_GRID_PADDING; // 底部边距与左侧相同，不再额外留空。
+    private static final OverlayPanelManager.Layout EFFECTS_PANEL_LAYOUT = panelLayout(
+        CONTINUOUS_PANEL_LAYOUT.top(), EFFECTS_PANEL_WIDTH, EFFECTS_PANEL_HEIGHT); // 药水效果面板的布局，与持续控制面板顶边对齐。
     // 应用按钮三态文字色：红=有未保存改动，绿=已保存，白=无需保存。
     private static final int APPLY_DIRTY_COLOR = 0xFFFF5555; // 应用按钮“有未保存改动”状态的文字色，ARGB 红色。
     private static final int APPLY_SAVED_COLOR = 0xFF55FF55; // 应用按钮“刚保存成功”状态的文字色，ARGB 绿色。
@@ -153,6 +178,7 @@ public final class FakePlayerInventoryScreen extends AbstractContainerScreen<Fak
     private static final String AUTOMATION_PANEL_ID = "automation"; // 自动化面板的唯一标识。
     private static final String MOUNT_PANEL_ID = "mount"; // 骑乘面板的唯一标识。
     private static final String SIMULATION_PANEL_ID = "simulation"; // 模拟面板的唯一标识。
+    private static final String EFFECTS_PANEL_ID = "effects"; // 药水效果面板的唯一标识。
     private static final String[] AUTOMATION_KEYS = {
         "auto_replenishment", "shulker_replenishment", "auto_replace_tools", "auto_fishing"
     }; // 自动化开关的语言键后缀，顺序与服务端的自动化设置序号一一对应。
@@ -169,9 +195,11 @@ public final class FakePlayerInventoryScreen extends AbstractContainerScreen<Fak
         new ToggleContinuous(FakePlayerActions.ScheduledAction.JUMP)
     }; // 与 CONTINUOUS_KEYS 一一对应的持续控制切换动作。
 
-    private OverlayPanelManager panelManager; // 侧栏浮层面板管理器，负责面板的展开与遮挡顺序。
+    private OverlayPanelManager rightPanelManager; // 右侧浮层面板管理器，负责面板的展开与遮挡顺序。
+    private OverlayPanelManager leftPanelManager; // 左侧面板管理器，保证模拟和药水效果面板互斥。
     private String restoredOpenPanelId; // 服务端刷新标题重开页面时，继承原页面展开的侧栏。
     private boolean restoredSimulationPanelOpen; // 同时保留左侧模拟面板的展开状态。
+    private boolean restoredEffectsPanelOpen; // 同时保留左侧药水效果面板的展开状态。
     // 按界面从上到下注册，展开的面板会遮挡并禁用其下方的标签。
     private OverlayPanelManager.Panel aimPanel; // 视觉朝向面板，含视角摇杆、方向摇杆与角度输入框。
     private OverlayPanelManager.Panel continuousPanel; // 持续控制面板，含移动、攻击、使用与跳跃开关及间隔滑条。
@@ -180,6 +208,10 @@ public final class FakePlayerInventoryScreen extends AbstractContainerScreen<Fak
     private OverlayPanelManager.Panel automationPanel; // 自动化面板，含自动补货等开关。
     private OverlayPanelManager.Panel mountPanel; // 骑乘面板，含骑乘、乘坐任意实体与下马按钮。
     private OverlayPanelManager.Panel simulationPanel; // 模拟面板，控制假人的区块加载模式与距离。
+    private OverlayPanelManager.Panel effectsPanel; // 药水效果面板，显示假人当前的全部可见效果。
+    private int effectsScrollRow; // 药水效果网格当前显示的首行。
+    private boolean draggingEffectsScrollbar; // 是否正在拖动药水效果滚动条。
+    private double effectsScrollbarGrabOffset; // 鼠标按下位置相对滚动条滑块顶部的偏移。
     private boolean continuousDrop; // 是否开启连续丢弃，为 true 时持续执行丢弃动作。
     private boolean percentageDrop; // 丢弃模式是否为百分比，false 表示按数量。
     private int dropAmount = 1; // 按数量丢弃时使用的数量，取值范围为 1 到 Drop.MAX_AMOUNT。
@@ -228,10 +260,13 @@ public final class FakePlayerInventoryScreen extends AbstractContainerScreen<Fak
 
     /** 更新名称或别名会重建容器页面，在首次初始化前接续原页面的面板状态。 */
     public void restorePanelStateFrom(FakePlayerInventoryScreen previous) {
-        restoredOpenPanelId = previous.panelManager == null
-            ? previous.restoredOpenPanelId : previous.panelManager.openPanelId();
+        restoredOpenPanelId = previous.rightPanelManager == null
+            ? previous.restoredOpenPanelId : previous.rightPanelManager.openPanelId();
         restoredSimulationPanelOpen = previous.simulationPanel == null
             ? previous.restoredSimulationPanelOpen : previous.simulationPanel.isOpen();
+        restoredEffectsPanelOpen = previous.effectsPanel == null
+            ? previous.restoredEffectsPanelOpen : previous.effectsPanel.isOpen();
+        effectsScrollRow = previous.effectsScrollRow;
     }
 
     /** Esc 返回上一级。 */
@@ -242,9 +277,12 @@ public final class FakePlayerInventoryScreen extends AbstractContainerScreen<Fak
 
     @Override
     protected void init() {
-        String openPanelId = panelManager == null ? restoredOpenPanelId : panelManager.openPanelId();
+        draggingEffectsScrollbar = false;
+        String openPanelId = rightPanelManager == null ? restoredOpenPanelId : rightPanelManager.openPanelId();
         boolean simulationPanelOpen = simulationPanel == null
             ? restoredSimulationPanelOpen : simulationPanel.isOpen();
+        boolean effectsPanelOpen = effectsPanel == null
+            ? restoredEffectsPanelOpen : effectsPanel.isOpen();
         super.init();
         if (menu.view() == FakePlayerInventoryMenu.View.ENDER_CHEST) {
             addTransferButtons(ENDER_CHEST_TRANSFER_BUTTON_TOP);
@@ -308,29 +346,31 @@ public final class FakePlayerInventoryScreen extends AbstractContainerScreen<Fak
         addInfoPanel();
         addAimPanel();
         addSimulationPanel();
+        addEffectsPanel();
         addAutomationPanel();
         addMountPanel();
         addContinuousPanel();
         addDropPanel();
-        panelManager.restoreOpenPanel(openPanelId);
+        rightPanelManager.restoreOpenPanel(openPanelId);
         simulationPanel.setOpen(simulationPanelOpen);
+        effectsPanel.setOpen(effectsPanelOpen);
     }
 
     private void createPanels() {
         int panelLeft = leftPos + imageWidth;
-        panelManager = new OverlayPanelManager(font);
-        aimPanel = panelManager.addRightPanel(AIM_PANEL_ID, panelLeft, topPos, AIM_PANEL_LAYOUT,
+        rightPanelManager = new OverlayPanelManager(font);
+        aimPanel = rightPanelManager.addRightPanel(AIM_PANEL_ID, panelLeft, topPos, AIM_PANEL_LAYOUT,
             Component.translatable("gui.archweaver.fakeplayer.look.title"));
-        continuousPanel = panelManager.addRightPanel(CONTINUOUS_PANEL_ID, panelLeft, topPos, CONTINUOUS_PANEL_LAYOUT,
+        continuousPanel = rightPanelManager.addRightPanel(CONTINUOUS_PANEL_ID, panelLeft, topPos, CONTINUOUS_PANEL_LAYOUT,
             Component.translatable("gui.archweaver.fakeplayer.continuous.title"));
-        infoPanel = panelManager.addRightPanel(INFO_PANEL_ID, panelLeft, topPos, INFO_PANEL_LAYOUT,
+        infoPanel = rightPanelManager.addRightPanel(INFO_PANEL_ID, panelLeft, topPos, INFO_PANEL_LAYOUT,
             Component.translatable("gui.archweaver.fakeplayer.info.title"));
-        dropPanel = panelManager.addRightPanel(DROP_PANEL_ID, panelLeft, topPos, DROP_PANEL_LAYOUT,
+        dropPanel = rightPanelManager.addRightPanel(DROP_PANEL_ID, panelLeft, topPos, DROP_PANEL_LAYOUT,
             Component.translatable("gui.archweaver.fakeplayer.drop_panel_title"));
-        automationPanel = panelManager.addRightPanel(
+        automationPanel = rightPanelManager.addRightPanel(
             AUTOMATION_PANEL_ID, panelLeft, topPos, AUTOMATION_PANEL_LAYOUT,
             Component.translatable("gui.archweaver.fakeplayer.automation.title"));
-        mountPanel = panelManager.addRightPanel(MOUNT_PANEL_ID, panelLeft, topPos, MOUNT_PANEL_LAYOUT,
+        mountPanel = rightPanelManager.addRightPanel(MOUNT_PANEL_ID, panelLeft, topPos, MOUNT_PANEL_LAYOUT,
             Component.translatable("gui.archweaver.fakeplayer.mount.title"));
     }
 
@@ -548,8 +588,8 @@ public final class FakePlayerInventoryScreen extends AbstractContainerScreen<Fak
     private void addSimulationPanel() {
         int left = leftPos - SIMULATION_PANEL_LAYOUT.width();
         int top = topPos + 8;
-        OverlayPanelManager simulationPanelManager = new OverlayPanelManager(font);
-        simulationPanel = simulationPanelManager.addLeftPanel(
+        leftPanelManager = new OverlayPanelManager(font);
+        simulationPanel = leftPanelManager.addLeftPanel(
             SIMULATION_PANEL_ID, left, top - SIMULATION_PANEL_LAYOUT.top(),
             SIMULATION_PANEL_LAYOUT, Component.translatable("gui.archweaver.fakeplayer.simulation.title"));
         addRenderableWidget(simulationPanel);
@@ -586,8 +626,19 @@ public final class FakePlayerInventoryScreen extends AbstractContainerScreen<Fak
             }));
         simulationApplyButton = apply;
         updateSimulationApplyColor();
-        addRenderableWidget(simulationPanel.createTab(new ItemStack(Items.GRASS_BLOCK), 2));
+        addRenderableWidget(simulationPanel.createTab(new ItemStack(Items.GRASS_BLOCK)));
         simulationPanel.bindContents(mode, slider, apply);
+    }
+
+    private void addEffectsPanel() {
+        int left = leftPos - EFFECTS_PANEL_LAYOUT.width();
+        int top = topPos + EFFECTS_PANEL_LAYOUT.top();
+        effectsPanel = leftPanelManager.addLeftPanel(
+            EFFECTS_PANEL_ID, left, top - EFFECTS_PANEL_LAYOUT.top(), EFFECTS_PANEL_LAYOUT,
+            Component.translatable("gui.archweaver.fakeplayer.effects.title"));
+        addRenderableWidget(effectsPanel);
+        effectsPanel.setContentRenderer(this::drawEffectsPanelContents);
+        addRenderableWidget(effectsPanel.createTab(new ItemStack(Items.POTION)));
     }
 
     /** 服务端已保存的模拟距离；存档值可能大于当前服务器上限，取夹紧后的值。 */
@@ -1001,6 +1052,7 @@ public final class FakePlayerInventoryScreen extends AbstractContainerScreen<Fak
         infoPanel.drawBackground(graphics);
         continuousPanel.drawBackground(graphics);
         aimPanel.drawBackground(graphics);
+        effectsPanel.drawBackground(graphics);
         simulationPanel.drawBackground(graphics);
 
         drawTargetEntity(graphics, mouseX, mouseY);
@@ -1036,6 +1088,174 @@ public final class FakePlayerInventoryScreen extends AbstractContainerScreen<Fak
                 livingEntity
             );
         }
+    }
+
+    private void drawEffectsPanelContents(GuiGraphicsExtractor graphics, int left, int top) {
+        List<MobEffectInstance> effects = visibleEffects();
+        drawEffectsScrollbar(graphics, effects.size());
+        if (effects.isEmpty()) {
+            drawEmptyEffectsMessage(graphics, left, top);
+            return;
+        }
+        int gridLeft = left + EFFECT_GRID_PADDING;
+        int gridTop = top + EFFECT_GRID_TOP;
+        int firstIndex = effectsScrollRow * EFFECTS_COLUMNS;
+        int endIndex = Math.min(effects.size(), firstIndex + EFFECTS_VISIBLE_ROWS * EFFECTS_COLUMNS);
+        // 按整行滚动，只绘制可见的三行，避免内容越过网格区域。
+        for (int index = firstIndex; index < endIndex; index++) {
+            MobEffectInstance effect = effects.get(index);
+            int column = index % EFFECTS_COLUMNS;
+            int row = index / EFFECTS_COLUMNS - effectsScrollRow;
+            int cellLeft = gridLeft + column * EFFECT_CELL_WIDTH;
+            int cellTop = gridTop + row * EFFECT_CELL_HEIGHT;
+            drawEffectCellBackground(graphics, cellLeft, cellTop, effect.isAmbient());
+            graphics.blitSprite(RenderPipelines.GUI_TEXTURED, Gui.getMobEffectSprite(effect.getEffect()),
+                cellLeft + 7, cellTop + 2, 18, 18);
+            Component duration = effectDurationComponent(effect);
+            graphics.text(font, duration,
+                cellLeft + (EFFECT_CELL_WIDTH - font.width(duration)) / 2, cellTop + 21, 0xFFFFFFFF, true);
+        }
+    }
+
+    private void drawEffectsScrollbar(GuiGraphicsExtractor graphics, int effectCount) {
+        int left = effectsScrollbarLeft();
+        int top = effectsPanel.getY() + EFFECT_GRID_TOP;
+        int thumbTop = effectsScrollbarThumbTop(effectCount);
+        int thumbHeight = effectsScrollbarThumbHeight(effectCount);
+        graphics.fill(left, top, left + EFFECT_SCROLLBAR_WIDTH, top + EFFECT_GRID_HEIGHT, 0xFF212121);
+        graphics.fill(left, thumbTop, left + EFFECT_SCROLLBAR_WIDTH, thumbTop + thumbHeight, 0xFF555555);
+        graphics.fill(left, thumbTop, left + EFFECT_SCROLLBAR_WIDTH - 1, thumbTop + thumbHeight - 1, 0xFFC6C6C6);
+        graphics.fill(left, thumbTop, left + 1, thumbTop + thumbHeight - 1, 0xFFFFFFFF);
+    }
+
+    private int effectsScrollbarLeft() {
+        return effectsPanel.getX() + EFFECT_GRID_PADDING + EFFECT_GRID_WIDTH + EFFECT_SCROLLBAR_GAP;
+    }
+
+    private int maxEffectsScrollRow(int effectCount) {
+        return Math.max(0, (effectCount + EFFECTS_COLUMNS - 1) / EFFECTS_COLUMNS - EFFECTS_VISIBLE_ROWS);
+    }
+
+    private int effectsScrollbarThumbHeight(int effectCount) {
+        if (maxEffectsScrollRow(effectCount) == 0) {
+            return EFFECT_GRID_HEIGHT;
+        }
+        int rows = (effectCount + EFFECTS_COLUMNS - 1) / EFFECTS_COLUMNS;
+        return Math.max(8, EFFECT_GRID_HEIGHT * EFFECTS_VISIBLE_ROWS / rows);
+    }
+
+    private int effectsScrollbarThumbTop(int effectCount) {
+        if (maxEffectsScrollRow(effectCount) == 0) {
+            return effectsPanel.getY() + EFFECT_GRID_TOP;
+        }
+        int travel = EFFECT_GRID_HEIGHT - effectsScrollbarThumbHeight(effectCount);
+        return effectsPanel.getY() + EFFECT_GRID_TOP
+            + (int) Math.round((double) effectsScrollRow * travel / maxEffectsScrollRow(effectCount));
+    }
+
+    private boolean isEffectsPanelOpen() {
+        return menu.view() == FakePlayerInventoryMenu.View.INVENTORY
+            && effectsPanel != null && effectsPanel.isOpen() && effectsPanel.visible;
+    }
+
+    private void dragEffectsScrollbar(double mouseY, int effectCount) {
+        int maxRow = maxEffectsScrollRow(effectCount);
+        if (maxRow == 0) {
+            return;
+        }
+        int travel = EFFECT_GRID_HEIGHT - effectsScrollbarThumbHeight(effectCount);
+        double thumbOffset = mouseY - effectsPanel.getY() - EFFECT_GRID_TOP - effectsScrollbarGrabOffset;
+        effectsScrollRow = Math.clamp((int) Math.round(thumbOffset * maxRow / travel), 0, maxRow);
+    }
+
+    private void drawEffectCellBackground(
+        GuiGraphicsExtractor graphics, int left, int top, boolean ambient
+    ) {
+        int borderColor = ambient ? 0xFF005454 : 0xFF000000;
+        int fillColor = ambient ? 0xFF00A8A8 : 0xFF555555;
+        graphics.fill(left, top, left + EFFECT_CELL_WIDTH, top + EFFECT_CELL_HEIGHT, borderColor);
+        graphics.fill(left + 1, top + 1, left + EFFECT_CELL_WIDTH - 1, top + EFFECT_CELL_HEIGHT - 1, fillColor);
+        graphics.fill(left + 3, top + 3, left + EFFECT_CELL_WIDTH - 3, top + EFFECT_CELL_HEIGHT - 3, 0xFF212121);
+    }
+
+    private void drawEmptyEffectsMessage(GuiGraphicsExtractor graphics, int left, int top) {
+        Component message = Component.translatable("gui.archweaver.fakeplayer.effects.empty");
+        int usableWidth = EFFECTS_PANEL_LAYOUT.width();
+        int contentTop = top + 21;
+        int contentHeight = EFFECTS_PANEL_LAYOUT.height() - 21;
+        int messageLeft = left + (usableWidth - font.width(message)) / 2;
+        int messageTop = contentTop + (contentHeight - font.lineHeight) / 2;
+        graphics.text(font, message, messageLeft, messageTop, 0xFF606060, false);
+    }
+
+    private void drawEffectsTooltip(GuiGraphicsExtractor graphics, int mouseX, int mouseY) {
+        if (!isEffectsPanelOpen() || draggingEffectsScrollbar) {
+            return;
+        }
+        List<MobEffectInstance> effects = visibleEffects();
+        int gridLeft = effectsPanel.getX() + EFFECT_GRID_PADDING;
+        int gridTop = effectsPanel.getY() + EFFECT_GRID_TOP;
+        int relativeX = mouseX - gridLeft;
+        int relativeY = mouseY - gridTop;
+        if (relativeX < 0 || relativeY < 0 || relativeX >= EFFECT_GRID_WIDTH || relativeY >= EFFECT_GRID_HEIGHT) {
+            return;
+        }
+        int column = relativeX / EFFECT_CELL_WIDTH;
+        int row = relativeY / EFFECT_CELL_HEIGHT;
+        int index = (effectsScrollRow + row) * EFFECTS_COLUMNS + column;
+        if (index >= effects.size()) {
+            return;
+        }
+        MobEffectInstance effect = effects.get(index);
+        List<Component> tooltip = new ArrayList<>();
+        Component effectName = effect.getEffect().value().getDisplayName();
+        tooltip.add(effectName);
+        tooltip.add(Component.translatable("gui.archweaver.fakeplayer.effects.level", effect.getAmplifier() + 1));
+        tooltip.add(Component.translatable("gui.archweaver.fakeplayer.effects.duration",
+            effectDurationComponent(effect)));
+        if (effect.isAmbient()) {
+            tooltip.add(Component.translatable("gui.archweaver.fakeplayer.effects.ambient"));
+        }
+        graphics.setTooltipForNextFrame(font, tooltip, Optional.empty(), mouseX, mouseY);
+    }
+
+    private LivingEntity targetLivingEntity() {
+        if (minecraft.level == null) {
+            return null;
+        }
+        Entity entity = minecraft.level.getEntity(menu.targetEntityId());
+        return entity instanceof LivingEntity livingEntity ? livingEntity : null;
+    }
+
+    private List<MobEffectInstance> visibleEffects() {
+        LivingEntity livingEntity = targetLivingEntity();
+        List<MobEffectInstance> effects = livingEntity == null ? List.of() : livingEntity.getActiveEffects().stream()
+            .filter(effect -> effect.isInfiniteDuration() || effect.getDuration() > 0)
+            .filter(MobEffectInstance::showIcon)
+            .sorted(Comparator.naturalOrder())
+            .toList();
+        // 效果消失时修正首行，避免滚动位置停留在已经不存在的行。
+        effectsScrollRow = Math.clamp(effectsScrollRow, 0, maxEffectsScrollRow(effects.size()));
+        if (maxEffectsScrollRow(effects.size()) == 0) {
+            draggingEffectsScrollbar = false;
+        }
+        return effects;
+    }
+
+    private Component effectDurationComponent(MobEffectInstance effect) {
+        return Component.literal(formatEffectDuration(effect)).withStyle(style -> style.withFont(EFFECT_DURATION_FONT));
+    }
+
+    private String formatEffectDuration(MobEffectInstance effect) {
+        if (effect.isInfiniteDuration()) {
+            return "∞";
+        }
+        int totalSeconds = Math.max(0, effect.getDuration()) / 20;
+        int minutes = totalSeconds / 60;
+        int seconds = totalSeconds % 60;
+        return minutes >= 100
+            ? String.format(Locale.ROOT, "**:%02d", seconds)
+            : String.format(Locale.ROOT, "%02d:%02d", minutes, seconds);
     }
 
     private void drawInfoPanelContents(GuiGraphicsExtractor graphics, int left, int top) {
@@ -1204,13 +1424,65 @@ public final class FakePlayerInventoryScreen extends AbstractContainerScreen<Fak
         if (gameModeButton != null && gameModeButton.popupMouseClicked(event)) {
             return true;
         }
+        if (event.button() == 0 && isEffectsPanelOpen()) {
+            int effectCount = visibleEffects().size();
+            int scrollbarLeft = effectsScrollbarLeft();
+            int scrollbarTop = effectsPanel.getY() + EFFECT_GRID_TOP;
+            if (event.x() >= scrollbarLeft && event.x() < scrollbarLeft + EFFECT_SCROLLBAR_WIDTH
+                && event.y() >= scrollbarTop && event.y() < scrollbarTop + EFFECT_GRID_HEIGHT) {
+                // 内容未超出时仍显示完整滑块，点击只消耗事件，不开始拖动。
+                if (maxEffectsScrollRow(effectCount) == 0) {
+                    return true;
+                }
+                int thumbTop = effectsScrollbarThumbTop(effectCount);
+                int thumbHeight = effectsScrollbarThumbHeight(effectCount);
+                // 点击滑块保留抓取位置，点击轨道则将滑块中心移到鼠标位置。
+                effectsScrollbarGrabOffset = event.y() >= thumbTop && event.y() < thumbTop + thumbHeight
+                    ? event.y() - thumbTop : thumbHeight / 2.0;
+                draggingEffectsScrollbar = true;
+                dragEffectsScrollbar(event.y(), effectCount);
+                return true;
+            }
+        }
         return super.mouseClicked(event, doubleClick);
+    }
+
+    @Override
+    public boolean mouseScrolled(double mouseX, double mouseY, double horizontalAmount, double verticalAmount) {
+        if (isEffectsPanelOpen()
+            && mouseX >= effectsPanel.getX() && mouseX < effectsPanel.getRight()
+            && mouseY >= effectsPanel.getY() && mouseY < effectsPanel.getBottom()) {
+            int effectCount = visibleEffects().size();
+            int rows = (int) Math.ceil(Math.abs(verticalAmount));
+            int direction = verticalAmount > 0 ? -1 : 1;
+            effectsScrollRow = Math.clamp(effectsScrollRow + direction * rows, 0, maxEffectsScrollRow(effectCount));
+            return true;
+        }
+        return super.mouseScrolled(mouseX, mouseY, horizontalAmount, verticalAmount);
+    }
+
+    @Override
+    public boolean mouseDragged(MouseButtonEvent event, double dragX, double dragY) {
+        if (event.button() == 0 && draggingEffectsScrollbar) {
+            int effectCount = visibleEffects().size();
+            if (isEffectsPanelOpen()) {
+                dragEffectsScrollbar(event.y(), effectCount);
+            } else {
+                draggingEffectsScrollbar = false;
+            }
+            return true;
+        }
+        return super.mouseDragged(event, dragX, dragY);
     }
 
     @Override
     public boolean mouseReleased(MouseButtonEvent event) {
         if (event.button() == 0) {
             releaseHeldControl();
+            if (draggingEffectsScrollbar) {
+                draggingEffectsScrollbar = false;
+                return true;
+            }
         }
         return super.mouseReleased(event);
     }
@@ -1247,6 +1519,7 @@ public final class FakePlayerInventoryScreen extends AbstractContainerScreen<Fak
         if (gameModeButton != null) {
             gameModeButton.extractPopup(graphics, mouseX, mouseY, leftPos, topPos);
         }
+        drawEffectsTooltip(graphics, mouseX, mouseY);
     }
 
     /** 标题在容器右边框内滚动，短标题保持原有位置。 */

@@ -14,6 +14,7 @@ import com.sakurakugu.archweaver.menu.FakePlayerMenuOpener;
 import com.sakurakugu.archweaver.persistence.FakePlayerPersistence;
 import java.util.concurrent.CompletableFuture;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.protocol.game.ClientboundUpdateMobEffectPacket;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionResult;
@@ -128,6 +129,8 @@ public final class CommonEvents {
             && event.getTarget() instanceof FakeServerPlayer fake) {
             fake.actions().syncBodyRotation(viewer);
             FakePlayerAliasSync.syncTo(viewer, fake);
+            fake.getActiveEffects().forEach(effect -> viewer.connection.send(
+                new ClientboundUpdateMobEffectPacket(fake.getId(), effect, false)));
         }
     }
 

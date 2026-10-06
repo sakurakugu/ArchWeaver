@@ -106,7 +106,7 @@ public final class OverlayPanelManager {
         }
 
         public IconTabButton createTab(ItemStack icon) {
-            return createTab(icon, 0);
+            return createTab(icon, side == Side.LEFT ? 2 : 0);
         }
 
         public IconTabButton createTab(ItemStack icon, int iconOffsetX) {

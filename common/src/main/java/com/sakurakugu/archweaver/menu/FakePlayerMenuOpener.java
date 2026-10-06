@@ -13,6 +13,7 @@ import com.sakurakugu.archweaver.persistence.FakePlayerPersistence;
 import com.sakurakugu.archweaver.persistence.FakePlayerSavedData;
 import java.util.List;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.protocol.game.ClientboundUpdateMobEffectPacket;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.MenuProvider;
 import net.minecraft.world.entity.player.Inventory;
@@ -116,6 +117,9 @@ public final class FakePlayerMenuOpener {
                 : "gui.archweaver.fakeplayer.inventory",
             fake.alias().isEmpty() ? fake.getGameProfile().name() : fake.alias()
         );
+        // 假人可能早于查看者加入世界，原版追踪初始化不会补发已有药水效果。
+        fake.getActiveEffects().forEach(effect -> viewer.connection.send(
+            new ClientboundUpdateMobEffectPacket(fake.getId(), effect, false)));
         viewer.openMenu(
             new ManagementMenuProvider(
                 (containerId, inventory, player) -> new FakePlayerInventoryMenu(
