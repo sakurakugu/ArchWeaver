@@ -863,7 +863,7 @@ public final class FakePlayerInventoryMenu extends AbstractContainerMenu {
         return !target.hasDisconnected()
             && player instanceof ServerPlayer viewer
             && ArchWeaverConfig.canUseCommands(viewer.createCommandSourceStack())
-            && !FakePlayerPossession.isPossessed(target);
+            && FakePlayerPossession.canOpenMenu(viewer, target);
     }
 
     @Override

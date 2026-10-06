@@ -228,6 +228,11 @@ public final class FakePlayerPossession {
         return targetSession(target) != null;
     }
 
+    /** 未附身时照常开放页面；附身期间仅活动会话的交换者可访问躯壳。 */
+    public static boolean canOpenMenu(ServerPlayer viewer, FakeServerPlayer target) {
+        return !isPossessed(target) || isControlling(viewer, target);
+    }
+
     public static PlayerEnderChestContainer possessedEnderChest(ServerPlayer viewer) {
         Session session = viewerSession(viewer);
         return session != null && session.state == State.ACTIVE

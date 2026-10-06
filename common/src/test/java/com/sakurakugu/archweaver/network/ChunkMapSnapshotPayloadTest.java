@@ -35,7 +35,7 @@ class ChunkMapSnapshotPayloadTest {
     @Test
     void snapshotTransmitsChineseAliasSeparatelyFromRealName() {
         var fake = new ChunkMapSnapshotPayload.FakePlayerView(UUID.randomUUID(), "robot-1", "矿场 一号",
-            "minecraft:overworld", 0, 64, 0, 0.0F, true, false, FakePlayerLoadMode.PLAYER, 0,
+            "minecraft:overworld", 0, 64, 0, 0.0F, true, false, false, FakePlayerLoadMode.PLAYER, 0,
             false, "", 0, 0, 0);
         var original = new ChunkMapSnapshotPayload(ChunkMapOpenTarget.NONE, 0, 32, 1L, false,
             "minecraft:overworld", 0, 0, List.of(), List.of(), List.of(fake));
@@ -48,6 +48,29 @@ class ChunkMapSnapshotPayloadTest {
             assertEquals("矿场 一号", decoded.fakePlayers().getFirst().alias());
         } finally {
             buffer.release();
+        }
+    }
+
+    @Test
+    void snapshotKeepsPossessionOwnerSeparateFromOtherViewers() {
+        for (boolean possessed : List.of(false, true)) {
+            for (boolean possessedByViewer : List.of(false, true)) {
+                if (!possessed && possessedByViewer) continue;
+                var fake = new ChunkMapSnapshotPayload.FakePlayerView(UUID.randomUUID(), "robot-1", "",
+                    "minecraft:overworld", 0, 64, 0, 0.0F, true, possessed, possessedByViewer,
+                    FakePlayerLoadMode.PLAYER, 0, false, "", 0, 0, 0);
+                var original = new ChunkMapSnapshotPayload(ChunkMapOpenTarget.NONE, 0, 32, 1L, false,
+                    "minecraft:overworld", 0, 0, List.of(), List.of(), List.of(fake));
+                var buffer = new RegistryFriendlyByteBuf(Unpooled.buffer(), RegistryAccess.EMPTY);
+                try {
+                    ChunkMapSnapshotPayload.STREAM_CODEC.encode(buffer, original);
+                    var decoded = ChunkMapSnapshotPayload.STREAM_CODEC.decode(buffer);
+                    assertEquals(original, decoded);
+                    assertEquals(!possessed || possessedByViewer, decoded.fakePlayers().getFirst().canOpenInventory());
+                } finally {
+                    buffer.release();
+                }
+            }
         }
     }
 
@@ -79,7 +102,7 @@ class ChunkMapSnapshotPayloadTest {
     @Test
     void automaticFakePlayerViewUsesItsSynchronizedPlayerSimulationDistance() {
         var automatic = new ChunkMapSnapshotPayload.FakePlayerView(UUID.randomUUID(), "Loader", "",
-            "minecraft:overworld", -1, 64, -17, 0.0F, true, false, FakePlayerLoadMode.PLAYER, 3,
+            "minecraft:overworld", -1, 64, -17, 0.0F, true, false, false, FakePlayerLoadMode.PLAYER, 3,
             false, "", 0, 0, 0);
 
         assertTrue(automatic.loadsChunk("minecraft:overworld", -4, -4));
@@ -124,7 +147,7 @@ class ChunkMapSnapshotPayloadTest {
     private static ChunkMapSnapshotPayload.FakePlayerView view(boolean active, String dimension,
                                                                 int chunkX, int chunkZ, int distance) {
         return new ChunkMapSnapshotPayload.FakePlayerView(UUID.randomUUID(), "Loader", "", "minecraft:overworld",
-            0, 64, 0, 0.0F, true, false, FakePlayerLoadMode.DOLL, distance,
+            0, 64, 0, 0.0F, true, false, false, FakePlayerLoadMode.DOLL, distance,
             active, dimension, chunkX, chunkZ, distance);
     }
 }

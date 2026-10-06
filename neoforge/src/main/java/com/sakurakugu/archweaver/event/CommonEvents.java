@@ -100,9 +100,8 @@ public final class CommonEvents {
         if (!ArchWeaverConfig.canUseCommands(viewer.createCommandSourceStack())) {
             return;
         }
-        if (FakePlayerPossession.isPossessed(fake)) {
-            // 附身中的假人表现为当前玩家的躯壳，右键时应与普通玩家一样不打开管理界面。
-            // viewer.sendSystemMessage(Component.translatable("gui.archweaver.fakeplayer.possess_locked"));
+        if (!FakePlayerPossession.canOpenMenu(viewer, fake)) {
+            // 附身中的躯壳只允许与其交换的玩家打开页面。
             event.setCancellationResult(InteractionResult.FAIL);
             event.setCanceled(true);
             return;

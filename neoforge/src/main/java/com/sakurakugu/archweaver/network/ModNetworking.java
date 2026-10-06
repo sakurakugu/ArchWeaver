@@ -122,7 +122,8 @@ public final class ModNetworking {
                     && player.containerMenu instanceof FakePlayerInventoryMenu menu
                     && player.containerMenu.containerId == payload.containerId()
                     && ArchWeaverConfig.canUseCommands(player.createCommandSourceStack())
-                    && menu.target() != null) {
+                    && menu.target() != null
+                    && menu.stillValid(player)) {
                     var result = FakePlayerSimulationService.setPolicy(player.level().getServer(), menu.target().getUUID(),
                         payload.mode(), payload.distance());
                     if (result.successful()) menu.broadcastChanges();

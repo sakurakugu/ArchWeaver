@@ -274,7 +274,7 @@ public final class MainPageScreen extends Screen {
             Math.max(1, w - PANEL_PADDING * 2), FOOTER_HEIGHT,
             Component.translatable("gui.archweaver.main.open_inventory"),
             button -> openInventory(fake.name())));
-        openInventoryButton.active = !fake.possessed();
+        openInventoryButton.active = fake.canOpenInventory();
     }
 
     private void refresh() {

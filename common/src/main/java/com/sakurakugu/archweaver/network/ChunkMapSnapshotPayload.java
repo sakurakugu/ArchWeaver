@@ -115,6 +115,7 @@ public record ChunkMapSnapshotPayload(
                 return new FakePlayerView(fake.getUUID(), fake.getGameProfile().name(), fake.alias(),
                     fake.level().dimension().identifier().toString(), fake.getBlockX(), fake.getBlockY(),
                     fake.getBlockZ(), fake.getYRot(), true, FakePlayerPossession.isPossessed(fake),
+                    FakePlayerPossession.isControlling(player, fake),
                     policy.mode(), simulationDistance,
                     activeRange != null, activeRange == null ? "" : activeRange.dimension(),
                     activeRange == null ? 0 : activeRange.chunkX(), activeRange == null ? 0 : activeRange.chunkZ(),
@@ -243,7 +244,8 @@ public record ChunkMapSnapshotPayload(
     }
 
     public record FakePlayerView(UUID id, String name, String alias, String dimension, int x, int y, int z, float yaw,
-                                 boolean online, boolean possessed, FakePlayerLoadMode mode, int simulationDistance,
+                                 boolean online, boolean possessed, boolean possessedByViewer,
+                                 FakePlayerLoadMode mode, int simulationDistance,
                                  boolean loadingActive, String loadingDimension, int loadingChunkX,
                                  int loadingChunkZ, int loadingDistance) {
         private FakePlayerView(RegistryFriendlyByteBuf buffer) {
@@ -251,6 +253,7 @@ public record ChunkMapSnapshotPayload(
                 buffer.readUtf(com.sakurakugu.archweaver.entity.FakePlayerAlias.MAX_LENGTH),
                 buffer.readUtf(256), buffer.readInt(), buffer.readInt(),
                 buffer.readInt(), buffer.readFloat(), buffer.readBoolean(), buffer.readBoolean(),
+                buffer.readBoolean(),
                 buffer.readEnum(FakePlayerLoadMode.class), buffer.readVarInt(),
                 buffer.readBoolean(), buffer.readUtf(256), buffer.readInt(), buffer.readInt(), buffer.readVarInt());
             if (!Float.isFinite(yaw)) throw new IllegalArgumentException("假玩家朝向非法");
@@ -271,9 +274,14 @@ public record ChunkMapSnapshotPayload(
             buffer.writeInt(x); buffer.writeInt(y); buffer.writeInt(z);
             buffer.writeFloat(yaw);
             buffer.writeBoolean(online); buffer.writeBoolean(possessed);
+            buffer.writeBoolean(possessedByViewer);
             buffer.writeEnum(mode); buffer.writeVarInt(simulationDistance);
             buffer.writeBoolean(loadingActive); buffer.writeUtf(loadingDimension, 256);
             buffer.writeInt(loadingChunkX); buffer.writeInt(loadingChunkZ); buffer.writeVarInt(loadingDistance);
+        }
+
+        public boolean canOpenInventory() {
+            return !possessed || possessedByViewer;
         }
 
         public boolean loadsChunk(String dimension, int chunkX, int chunkZ) {

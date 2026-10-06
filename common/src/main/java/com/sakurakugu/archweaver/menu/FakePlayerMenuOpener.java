@@ -153,7 +153,7 @@ public final class FakePlayerMenuOpener {
     }
 
     private static boolean canManage(ServerPlayer viewer, FakeServerPlayer fake) {
-        if (!FakePlayerPossession.isPossessed(fake)) {
+        if (FakePlayerPossession.canOpenMenu(viewer, fake)) {
             return true;
         }
         viewer.sendSystemMessage(Component.translatable("gui.archweaver.fakeplayer.possess_locked"));
