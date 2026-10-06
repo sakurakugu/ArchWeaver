@@ -237,6 +237,7 @@
   "gui.archweaver.fakeplayer.automation.setting_value": "%1$s: %2$s",
   "gui.archweaver.fakeplayer.mount.title": "Mounting",
   "gui.archweaver.fakeplayer.mount.mount": "Mount",
+  "gui.archweaver.fakeplayer.mount.mount_nearby": "Mount nearby entity",
   "gui.archweaver.fakeplayer.mount.mount_anything": "Mount anything",
   "gui.archweaver.fakeplayer.mount.dismount": "Dismount",
   "gui.archweaver.fakeplayer.look.title": "View & Facing",

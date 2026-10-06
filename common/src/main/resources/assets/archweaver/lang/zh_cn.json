@@ -237,6 +237,7 @@
   "gui.archweaver.fakeplayer.automation.setting_value": "%1$s：%2$s",
   "gui.archweaver.fakeplayer.mount.title": "骑乘",
   "gui.archweaver.fakeplayer.mount.mount": "骑乘",
+  "gui.archweaver.fakeplayer.mount.mount_nearby": "骑乘附近实体",
   "gui.archweaver.fakeplayer.mount.mount_anything": "强制骑乘任意实体",
   "gui.archweaver.fakeplayer.mount.dismount": "下马",
   "gui.archweaver.fakeplayer.look.title": "视角与朝向",

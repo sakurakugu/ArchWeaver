@@ -565,6 +565,7 @@ public final class FakePlayerInventoryMenu extends AbstractContainerMenu {
                 }
             }
             case MOUNT -> target.actions().mountNearest(false);
+            case MOUNT_NEARBY -> target.actions().mountNearest(true);
             case MOUNT_ANYTHING -> target.actions().mountNearest(true);
             case DISMOUNT -> target.actions().dismount();
             case MOVE_FORWARD -> target.actions().moveOnce(FakePlayerActions.MoveDirection.FORWARD);

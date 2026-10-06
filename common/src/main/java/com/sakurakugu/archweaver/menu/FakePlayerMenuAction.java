@@ -29,6 +29,7 @@ public sealed interface FakePlayerMenuAction {
         REMOVE,
         POSSESS,
         MOUNT,
+        MOUNT_NEARBY,
         MOUNT_ANYTHING,
         DISMOUNT,
         /** 单次向前移动一格；持续移动见 {@link Held}。 */

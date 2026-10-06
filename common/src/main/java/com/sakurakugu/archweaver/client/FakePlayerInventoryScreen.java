@@ -145,7 +145,7 @@ public final class FakePlayerInventoryScreen extends AbstractContainerScreen<Fak
         DROP_PANEL_LAYOUT, 94, 97); // 自动化面板的布局，紧接 DROP_PANEL_LAYOUT 下方。
     private static final int AUTOMATION_BUTTON_HEIGHT = 16; // 自动化开关按钮的高度，单位为像素。
     private static final OverlayPanelManager.Layout MOUNT_PANEL_LAYOUT = nextPanelLayout(
-        AUTOMATION_PANEL_LAYOUT, 94, 83); // 骑乘面板的布局，紧接 AUTOMATION_PANEL_LAYOUT 下方。
+        AUTOMATION_PANEL_LAYOUT, 94, 101); // 骑乘面板的布局，紧接 AUTOMATION_PANEL_LAYOUT 下方。
     private static final OverlayPanelManager.Layout SIMULATION_PANEL_LAYOUT = panelLayout(8, 100, 92); // 模拟面板的布局，绘制在物品栏左侧。
     private static final int EFFECTS_COLUMNS = 3; // 药水效果网格列数。
     private static final int EFFECTS_VISIBLE_ROWS = 3; // 药水效果网格同时显示的行数。
@@ -404,19 +404,24 @@ public final class FakePlayerInventoryScreen extends AbstractContainerScreen<Fak
             Component.translatable("gui.archweaver.fakeplayer.mount.mount"),
             button -> sendAction(Simple.MOUNT)
         ));
-        Button mountAnythingButton = addRenderableWidget(new SolidButton(
+        Button mountNearbyButton = addRenderableWidget(new SolidButton(
             panelLeft + 6, mountTop + 39, mountPanel.contentWidth() - 12, MOUNT_BUTTON_HEIGHT,
+            Component.translatable("gui.archweaver.fakeplayer.mount.mount_nearby"),
+            button -> sendAction(Simple.MOUNT_NEARBY)
+        ));
+        Button mountAnythingButton = addRenderableWidget(new SolidButton(
+            panelLeft + 6, mountTop + 57, mountPanel.contentWidth() - 12, MOUNT_BUTTON_HEIGHT,
             Component.translatable("gui.archweaver.fakeplayer.mount.mount_anything"),
             button -> sendAction(Simple.MOUNT_ANYTHING)
         ));
         Button dismountButton = addRenderableWidget(new SolidButton(
-            panelLeft + 6, mountTop + 57, mountPanel.contentWidth() - 12, MOUNT_BUTTON_HEIGHT,
+            panelLeft + 6, mountTop + 75, mountPanel.contentWidth() - 12, MOUNT_BUTTON_HEIGHT,
             Component.translatable("gui.archweaver.fakeplayer.mount.dismount"),
             button -> sendAction(Simple.DISMOUNT)
         ));
         // 马鞍贴图的视觉重心偏下，单独向左上修正 1 像素。
         addRenderableWidget(mountPanel.createTab(new ItemStack(Items.SADDLE), -1, -1));
-        mountPanel.bindContents(mountButton, mountAnythingButton, dismountButton);
+        mountPanel.bindContents(mountButton, mountNearbyButton, mountAnythingButton, dismountButton);
     }
 
     private void addContinuousPanel() {
