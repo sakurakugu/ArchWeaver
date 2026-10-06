@@ -67,6 +67,24 @@ public final class ModNetworking {
             }
         );
         registrar.playToServer(
+            ToggleFakePlayerRestorePayload.TYPE,
+            ToggleFakePlayerRestorePayload.STREAM_CODEC,
+            (payload, context) -> {
+                if (context.player() instanceof ServerPlayer player
+                    && player.containerMenu instanceof FakePlayerInventoryMenu menu
+                    && player.containerMenu.containerId == payload.containerId()
+                    && menu.target() != null
+                    && menu.target().getUUID().equals(payload.fakePlayerId())
+                    && ArchWeaverConfig.canUseCommands(player.createCommandSourceStack())
+                    && menu.stillValid(player)) {
+                    com.sakurakugu.archweaver.persistence.FakePlayerPersistence.toggleRestoreOnRestart(
+                        player.level().getServer(), payload.fakePlayerId());
+                    PacketDistributor.sendToPlayer(player, ChunkMapSnapshotPayload.create(player,
+                        ChunkLoaderManager.data(player.level().getServer()), ChunkMapOpenTarget.NONE));
+                }
+            }
+        );
+        registrar.playToServer(
             PresetActionPayload.TYPE,
             PresetActionPayload.STREAM_CODEC,
             (payload, context) -> {

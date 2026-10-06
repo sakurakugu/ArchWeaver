@@ -83,7 +83,8 @@ public final class FakePlayerSavedData extends SavedData {
             UUIDUtil.CODEC.fieldOf("uuid").forGetter(Resident::uuid),
             Codec.STRING.fieldOf("name").forGetter(Resident::name),
             PROFILE_PROPERTY_CODEC.listOf().fieldOf("profile_properties").forGetter(Resident::profileProperties),
-            AUTOMATION_CODEC.fieldOf("automation").forGetter(Resident::automation)
+            AUTOMATION_CODEC.fieldOf("automation").forGetter(Resident::automation),
+            Codec.BOOL.optionalFieldOf("restore_on_restart", true).forGetter(Resident::restoreOnRestart)
         ).apply(instance, Resident::new)
     );
     public static final Codec<PlayerSnapshot> PLAYER_SNAPSHOT_CODEC = RecordCodecBuilder.create(instance ->
@@ -160,6 +161,19 @@ public final class FakePlayerSavedData extends SavedData {
         }
     }
 
+    public Optional<Resident> resident(UUID uuid) {
+        return Optional.ofNullable(residents.get(uuid));
+    }
+
+    public void setRestoreOnRestart(UUID uuid, boolean enabled) {
+        Resident resident = residents.get(uuid);
+        if (resident != null && resident.restoreOnRestart() != enabled) {
+            residents.put(uuid, new Resident(uuid, resident.name(), resident.profileProperties(),
+                resident.automation(), enabled));
+            setDirty();
+        }
+    }
+
     public void clearResidents() {
         if (!residents.isEmpty()) {
             residents.clear();
@@ -188,10 +202,10 @@ public final class FakePlayerSavedData extends SavedData {
         boolean changed = false;
         Resident resident = residents.remove(oldUuid);
         if (resident != null && !resident.name().equals(name)) {
-            residents.put(newUuid, new Resident(newUuid, name, properties, resident.automation()));
+            residents.put(newUuid, new Resident(newUuid, name, properties, resident.automation(), resident.restoreOnRestart()));
             changed = true;
         } else if (resident != null) {
-            residents.put(newUuid, new Resident(newUuid, name, properties, resident.automation()));
+            residents.put(newUuid, new Resident(newUuid, name, properties, resident.automation(), resident.restoreOnRestart()));
             changed = !oldUuid.equals(newUuid) || !resident.profileProperties().equals(properties);
         }
         for (Map.Entry<String, Preset> entry : presets.entrySet()) {
@@ -293,15 +307,16 @@ public final class FakePlayerSavedData extends SavedData {
         UUID uuid,
         String name,
         List<ProfileProperty> profileProperties,
-        FakePlayerAutomation.AutomationState automation
+        FakePlayerAutomation.AutomationState automation,
+        boolean restoreOnRestart
     ) {
         public Resident {
             profileProperties = List.copyOf(profileProperties);
         }
 
-        public static Resident from(FakeServerPlayer player) {
+        public static Resident from(FakeServerPlayer player, boolean restoreOnRestart) {
             return new Resident(player.getUUID(), player.getGameProfile().name(),
-                FakePlayerSavedData.profileProperties(player.getGameProfile()), player.automation().settings());
+                FakePlayerSavedData.profileProperties(player.getGameProfile()), player.automation().settings(), restoreOnRestart);
         }
 
         public GameProfile profile() {

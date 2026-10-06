@@ -195,7 +195,7 @@
   "gui.archweaver.fakeplayer.global.spawn_title": "Spawn Fake Player",
   "gui.archweaver.fakeplayer.global.spawn_name": "Fake player name",
   "gui.archweaver.fakeplayer.global.spawn": "Spawn",
-  "gui.archweaver.fakeplayer.global.setting.restore_players": "Restore on restart",
+  "gui.archweaver.fakeplayer.global.setting.restore_players": "Respawn fake players after game restart",
   "gui.archweaver.fakeplayer.global.setting.container_transfer_buttons": "Container transfer buttons",
   "gui.archweaver.fakeplayer.global.enabled": "On",
   "gui.archweaver.fakeplayer.global.disabled": "Off",
@@ -318,5 +318,7 @@
   "gui.archweaver.main.region_size": "Size: %s chunks",
   "gui.archweaver.main.region_status": "Status: %s",
   "gui.archweaver.main.settings_hint": "Adjust global settings in the center",
-  "gui.archweaver.main.settings_count": "Settings: %s"
+  "gui.archweaver.main.settings_count": "Settings: %s",
+  "gui.archweaver.fakeplayer.restore.title": "Fake Player Settings",
+  "gui.archweaver.fakeplayer.restore.toggle": "Respawn fake player after game restart"
 }

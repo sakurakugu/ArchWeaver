@@ -195,7 +195,7 @@
   "gui.archweaver.fakeplayer.global.spawn_title": "生成假人",
   "gui.archweaver.fakeplayer.global.spawn_name": "假人名称",
   "gui.archweaver.fakeplayer.global.spawn": "生成",
-  "gui.archweaver.fakeplayer.global.setting.restore_players": "重启恢复假人",
+  "gui.archweaver.fakeplayer.global.setting.restore_players": "重启游戏假人自动重生",
   "gui.archweaver.fakeplayer.global.setting.container_transfer_buttons": "普通容器转移按钮",
   "gui.archweaver.fakeplayer.global.enabled": "开",
   "gui.archweaver.fakeplayer.global.disabled": "关",
@@ -318,5 +318,7 @@
   "gui.archweaver.main.region_size": "大小：%s 区块",
   "gui.archweaver.main.region_status": "状态：%s",
   "gui.archweaver.main.settings_hint": "在中间调整全局设置",
-  "gui.archweaver.main.settings_count": "设置项：%s"
+  "gui.archweaver.main.settings_count": "设置项：%s",
+  "gui.archweaver.fakeplayer.restore.title": "假人设置",
+  "gui.archweaver.fakeplayer.restore.toggle": "重启游戏假人自动重生"
 }

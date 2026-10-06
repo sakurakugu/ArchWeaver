@@ -77,14 +77,23 @@ public final class FakePlayerPersistence {
     }
 
     public static void track(FakeServerPlayer player) {
-        if (!ArchWeaverConfig.restoreFakePlayers() || player.hasDisconnected()) {
+        if (player.hasDisconnected()) {
             return;
         }
-        data(player.server()).putResident(Resident.from(player));
+        FakePlayerSavedData savedData = data(player.server());
+        boolean restore = savedData.resident(player.getUUID())
+            .map(Resident::restoreOnRestart).orElse(ArchWeaverConfig.restoreFakePlayers());
+        savedData.putResident(Resident.from(player, restore));
     }
 
     public static void untrack(FakeServerPlayer player) {
         data(player.server()).removeResident(player.getUUID());
+    }
+
+    public static void toggleRestoreOnRestart(MinecraftServer server, java.util.UUID uuid) {
+        FakePlayerSavedData savedData = data(server);
+        savedData.resident(uuid).ifPresent(resident ->
+            savedData.setRestoreOnRestart(uuid, !resident.restoreOnRestart()));
     }
 
     /** 使用原版实体存档格式保存玩家状态，避免重复维护背包、位置和能力字段。 */
@@ -226,12 +235,8 @@ public final class FakePlayerPersistence {
 
     public static void restore(MinecraftServer server) {
         FakePlayerSavedData savedData = data(server);
-        if (!ArchWeaverConfig.restoreFakePlayers()) {
-            savedData.clearResidents();
-            return;
-        }
-
         for (Resident resident : savedData.residents()) {
+            if (!resident.restoreOnRestart()) continue;
             LoadResult result = loadResident(server, resident);
             if (!result.successful()) {
                 ArchWeaverMod.LOGGER.warn("无法恢复驻留假玩家 {}：{}", resident.name(), result.reason());

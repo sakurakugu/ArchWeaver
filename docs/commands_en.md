@@ -43,9 +43,9 @@ A preset saves the name, UUID, a vanilla player data snapshot (including alias, 
 - `/fakeplayer group info <group> [page]`: view group members by page, with options to load or remove members.
 - `/fakeplayer group remove <group>`: delete the group without deleting its presets.
 
-The resident list stores fake player identities (UUIDs and names) in the world's `data/archweaver/fake_players.dat`, without continuous actions. Presets store their complete vanilla player data snapshots in the same file.
+The resident list stores fake player identities (UUIDs and names), each fake player's restart-respawn setting, and automation settings in the world's `data/archweaver/fake_players.dat`, without continuous actions. The global `restoreFakePlayers` setting is the default for newly spawned fake players; each fake player can override it in the left sidebar of the inventory screen. Presets store their complete vanilla player data snapshots in the same file.
 
-Live state such as inventory, position, abilities, and experience is saved and restored through vanilla `playerdata/<UUID>.dat` files. Normal removal or death removes a fake player from the resident list. A normal server shutdown retains resident records so they can be restored on the next startup. Records are also retained when a real player logs in and takes over an identity. On the next startup, a resident fake player is restored only if neither its name nor its UUID is in use. Operators must set continuous actions again after each startup.
+Live state such as inventory, position, abilities, and experience is saved and restored through vanilla `playerdata/<UUID>.dat` files. Normal removal or death removes a fake player from the resident list. A normal server shutdown retains resident records, but only fake players with restart-respawn enabled are brought back on the next startup. Records are also retained when a real player logs in and takes over an identity. On the next startup, a resident fake player is restored only if its setting is enabled and neither its name nor its UUID is in use. Operators must set continuous actions again after each startup.
 
 Before reading the data on each startup, the existing file is copied to a timestamped `fake_players.*.dat.bak` backup. This preserves a copy for troubleshooting if parsing fails and an empty save later replaces the original.
 

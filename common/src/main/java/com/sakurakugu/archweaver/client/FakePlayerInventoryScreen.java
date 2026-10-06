@@ -23,6 +23,7 @@ import com.sakurakugu.archweaver.network.SetFakePlayerAliasPayload;
 import com.sakurakugu.archweaver.entity.FakePlayerAlias;
 import com.sakurakugu.archweaver.network.FakePlayerSimulationPayload;
 import com.sakurakugu.archweaver.network.FakePlayerViewRotationPayload;
+import com.sakurakugu.archweaver.network.ToggleFakePlayerRestorePayload;
 import com.sakurakugu.archweaver.platform.PlatformNetworking;
 import com.sakurakugu.archweaver.client.ui.HotbarSelector;
 import com.sakurakugu.archweaver.client.ui.IntegerSliderButton;
@@ -146,7 +147,9 @@ public final class FakePlayerInventoryScreen extends AbstractContainerScreen<Fak
     private static final int AUTOMATION_BUTTON_HEIGHT = 16; // 自动化开关按钮的高度，单位为像素。
     private static final OverlayPanelManager.Layout MOUNT_PANEL_LAYOUT = nextPanelLayout(
         AUTOMATION_PANEL_LAYOUT, 94, 101); // 骑乘面板的布局，紧接 AUTOMATION_PANEL_LAYOUT 下方。
-    private static final OverlayPanelManager.Layout SIMULATION_PANEL_LAYOUT = panelLayout(8, 100, 92); // 模拟面板的布局，绘制在物品栏左侧。
+    private static final OverlayPanelManager.Layout RESTORE_PANEL_LAYOUT = panelLayout(8, 100, 54); // 重启恢复设置面板，绘制在物品栏左侧。
+    private static final OverlayPanelManager.Layout SIMULATION_PANEL_LAYOUT = nextPanelLayout(
+        RESTORE_PANEL_LAYOUT, 100, 92); // 模拟面板紧接重启恢复侧栏标签。
     private static final int EFFECTS_COLUMNS = 3; // 药水效果网格列数。
     private static final int EFFECTS_VISIBLE_ROWS = 3; // 药水效果网格同时显示的行数。
     private static final int EFFECT_CELL_WIDTH = 32; // 药水效果网格单元宽度，单元之间不留横向间距。
@@ -161,8 +164,8 @@ public final class FakePlayerInventoryScreen extends AbstractContainerScreen<Fak
         + EFFECT_GRID_WIDTH + EFFECT_SCROLLBAR_GAP + EFFECT_SCROLLBAR_WIDTH; // 网格和始终显示的滚动条共用固定宽度。
     private static final int EFFECTS_PANEL_HEIGHT = EFFECT_GRID_TOP + EFFECT_GRID_HEIGHT
         + EFFECT_GRID_PADDING; // 底部边距与左侧相同，不再额外留空。
-    private static final OverlayPanelManager.Layout EFFECTS_PANEL_LAYOUT = panelLayout(
-        CONTINUOUS_PANEL_LAYOUT.top(), EFFECTS_PANEL_WIDTH, EFFECTS_PANEL_HEIGHT); // 药水效果面板的布局，与持续控制面板顶边对齐。
+    private static final OverlayPanelManager.Layout EFFECTS_PANEL_LAYOUT = nextPanelLayout(
+        SIMULATION_PANEL_LAYOUT, EFFECTS_PANEL_WIDTH, EFFECTS_PANEL_HEIGHT); // 药水效果面板紧接模拟侧栏标签。
     // 应用按钮三态文字色：红=有未保存改动，绿=已保存，白=无需保存。
     private static final int APPLY_DIRTY_COLOR = 0xFFFF5555; // 应用按钮“有未保存改动”状态的文字色，ARGB 红色。
     private static final int APPLY_SAVED_COLOR = 0xFF55FF55; // 应用按钮“刚保存成功”状态的文字色，ARGB 绿色。
@@ -200,6 +203,7 @@ public final class FakePlayerInventoryScreen extends AbstractContainerScreen<Fak
     private String restoredOpenPanelId; // 服务端刷新标题重开页面时，继承原页面展开的侧栏。
     private boolean restoredSimulationPanelOpen; // 同时保留左侧模拟面板的展开状态。
     private boolean restoredEffectsPanelOpen; // 同时保留左侧药水效果面板的展开状态。
+    private boolean restoredRestorePanelOpen; // 同时保留左侧重启恢复面板的展开状态。
     // 按界面从上到下注册，展开的面板会遮挡并禁用其下方的标签。
     private OverlayPanelManager.Panel aimPanel; // 视觉朝向面板，含视角摇杆、方向摇杆与角度输入框。
     private OverlayPanelManager.Panel continuousPanel; // 持续控制面板，含移动、攻击、使用与跳跃开关及间隔滑条。
@@ -208,6 +212,7 @@ public final class FakePlayerInventoryScreen extends AbstractContainerScreen<Fak
     private OverlayPanelManager.Panel automationPanel; // 自动化面板，含自动补货等开关。
     private OverlayPanelManager.Panel mountPanel; // 骑乘面板，含骑乘、乘坐任意实体与下马按钮。
     private OverlayPanelManager.Panel simulationPanel; // 模拟面板，控制假人的区块加载模式与距离。
+    private OverlayPanelManager.Panel restorePanel; // 重启恢复设置面板，单独控制当前假人。
     private OverlayPanelManager.Panel effectsPanel; // 药水效果面板，显示假人当前的全部可见效果。
     private int effectsScrollRow; // 药水效果网格当前显示的首行。
     private boolean draggingEffectsScrollbar; // 是否正在拖动药水效果滚动条。
@@ -239,6 +244,8 @@ public final class FakePlayerInventoryScreen extends AbstractContainerScreen<Fak
     private boolean simulationStateInitialized; // 是否已用服务端数据初始化过模拟面板，避免重建界面时覆盖用户改动。
     private SolidButton simulationApplyButton; // 模拟面板的应用按钮，用于刷新其文字颜色。
     private boolean simulationApplied; // 模拟设置上一次应用后是否尚未改动，用于显示已保存颜色。
+    private boolean restoreOnRestart; // 当前假人的重启恢复开关。
+    private boolean restoreStateInitialized; // 首次打开时读取服务端值，重建界面时保留本地切换结果。
     private int lastSentPitch; // 最近一次发送到服务端的俯仰角，用于去重。
     private int lastSentYaw; // 最近一次发送到服务端的偏航角，用于去重。
 
@@ -266,6 +273,8 @@ public final class FakePlayerInventoryScreen extends AbstractContainerScreen<Fak
             ? previous.restoredSimulationPanelOpen : previous.simulationPanel.isOpen();
         restoredEffectsPanelOpen = previous.effectsPanel == null
             ? previous.restoredEffectsPanelOpen : previous.effectsPanel.isOpen();
+        restoredRestorePanelOpen = previous.restorePanel == null
+            ? previous.restoredRestorePanelOpen : previous.restorePanel.isOpen();
         effectsScrollRow = previous.effectsScrollRow;
     }
 
@@ -283,6 +292,8 @@ public final class FakePlayerInventoryScreen extends AbstractContainerScreen<Fak
             ? restoredSimulationPanelOpen : simulationPanel.isOpen();
         boolean effectsPanelOpen = effectsPanel == null
             ? restoredEffectsPanelOpen : effectsPanel.isOpen();
+        boolean restorePanelOpen = restorePanel == null
+            ? restoredRestorePanelOpen : restorePanel.isOpen();
         super.init();
         if (menu.view() == FakePlayerInventoryMenu.View.ENDER_CHEST) {
             addTransferButtons(ENDER_CHEST_TRANSFER_BUTTON_TOP);
@@ -300,6 +311,11 @@ public final class FakePlayerInventoryScreen extends AbstractContainerScreen<Fak
             );
             return;
         }
+        if (!restoreStateInitialized) {
+            restoreOnRestart = menu.restoreOnRestart();
+            restoreStateInitialized = true;
+        }
+        addRestorePanel();
         addRenderableWidget(
             new InventorySlotButton(
                 leftPos + ACTION_BUTTON_LEFT,
@@ -354,6 +370,27 @@ public final class FakePlayerInventoryScreen extends AbstractContainerScreen<Fak
         rightPanelManager.restoreOpenPanel(openPanelId);
         simulationPanel.setOpen(simulationPanelOpen);
         effectsPanel.setOpen(effectsPanelOpen);
+        restorePanel.setOpen(restorePanelOpen);
+    }
+
+    private void addRestorePanel() {
+        int left = leftPos - RESTORE_PANEL_LAYOUT.width();
+        int top = topPos + RESTORE_PANEL_LAYOUT.top();
+        leftPanelManager = new OverlayPanelManager(font);
+        restorePanel = leftPanelManager.addLeftPanel(
+            "restart_restore", left, top - RESTORE_PANEL_LAYOUT.top(), RESTORE_PANEL_LAYOUT,
+            Component.translatable("gui.archweaver.fakeplayer.restore.title"));
+        addRenderableWidget(restorePanel);
+        ToggleSwitchButton toggle = addRenderableWidget(new ToggleSwitchButton(
+            left + 6, top + 25, restorePanel.contentWidth() - 10, 18,
+            Component.translatable("gui.archweaver.fakeplayer.restore.toggle"),
+            () -> restoreOnRestart,
+            button -> {
+                restoreOnRestart = !restoreOnRestart;
+                PlatformNetworking.sendToServer(new ToggleFakePlayerRestorePayload(menu.containerId, menu.targetUuid()));
+            }));
+        addRenderableWidget(restorePanel.createTab(new ItemStack(Items.CLOCK)));
+        restorePanel.bindContents(toggle);
     }
 
     private void createPanels() {
@@ -592,8 +629,8 @@ public final class FakePlayerInventoryScreen extends AbstractContainerScreen<Fak
 
     private void addSimulationPanel() {
         int left = leftPos - SIMULATION_PANEL_LAYOUT.width();
-        int top = topPos + 8;
-        leftPanelManager = new OverlayPanelManager(font);
+        int top = topPos + SIMULATION_PANEL_LAYOUT.top();
+        if (leftPanelManager == null) leftPanelManager = new OverlayPanelManager(font);
         simulationPanel = leftPanelManager.addLeftPanel(
             SIMULATION_PANEL_ID, left, top - SIMULATION_PANEL_LAYOUT.top(),
             SIMULATION_PANEL_LAYOUT, Component.translatable("gui.archweaver.fakeplayer.simulation.title"));
@@ -1059,6 +1096,7 @@ public final class FakePlayerInventoryScreen extends AbstractContainerScreen<Fak
         aimPanel.drawBackground(graphics);
         effectsPanel.drawBackground(graphics);
         simulationPanel.drawBackground(graphics);
+        restorePanel.drawBackground(graphics);
 
         drawTargetEntity(graphics, mouseX, mouseY);
         drawSelectorAreaSideBorders(graphics);

@@ -79,11 +79,13 @@ public final class FakePlayerInventoryMenu extends AbstractContainerMenu {
     private final FakeServerPlayer target;
     private final String targetName;
     private final String targetAlias;
+    private final java.util.UUID targetUuid;
     private final int targetEntityId;
     private final View view;
     private final int targetSlotCount;
     private final boolean possessedByViewer;
     private final boolean targetOccupied;
+    private final boolean restoreOnRestart;
     private final Player viewer;
     private final Player craftingOwner;
     private final CraftingContainer craftSlots = new TransientCraftingContainer(this, 2, 2);
@@ -152,8 +154,10 @@ public final class FakePlayerInventoryMenu extends AbstractContainerMenu {
             null,
             data.readUtf(64),
             data.readUtf(com.sakurakugu.archweaver.entity.FakePlayerAlias.MAX_LENGTH),
+            data.readUUID(),
             View.fromNetwork(data.readVarInt()),
             data.readVarInt(),
+            data.readBoolean(),
             data.readBoolean(),
             data.readBoolean(),
             data.readVarInt(),
@@ -179,8 +183,12 @@ public final class FakePlayerInventoryMenu extends AbstractContainerMenu {
         boolean possessedByViewer,
         boolean targetOccupied
     ) {
-        this(containerId, inventory, target, target.getGameProfile().name(), target.alias(), view, target.getId(),
-            possessedByViewer, targetOccupied, automationMask(target), continuousControlMask(target),
+        this(containerId, inventory, target, target.getGameProfile().name(), target.alias(), target.getUUID(), view, target.getId(),
+            possessedByViewer, targetOccupied,
+            com.sakurakugu.archweaver.persistence.FakePlayerPersistence.data(target.server()).resident(target.getUUID())
+                .map(com.sakurakugu.archweaver.persistence.FakePlayerSavedData.Resident::restoreOnRestart)
+                .orElse(ArchWeaverConfig.restoreFakePlayers()),
+            automationMask(target), continuousControlMask(target),
             target.actions().repeatInterval(FakePlayerActions.ScheduledAction.ATTACK),
             target.actions().repeatInterval(FakePlayerActions.ScheduledAction.USE),
             target.actions().repeatInterval(FakePlayerActions.ScheduledAction.JUMP),
@@ -208,10 +216,12 @@ public final class FakePlayerInventoryMenu extends AbstractContainerMenu {
         FakeServerPlayer target,
         String targetName,
         String targetAlias,
+        java.util.UUID targetUuid,
         View view,
         int targetEntityId,
         boolean possessedByViewer,
         boolean targetOccupied,
+        boolean restoreOnRestart,
         int automationMask,
         int continuousControlMask,
         int attackInterval,
@@ -229,10 +239,12 @@ public final class FakePlayerInventoryMenu extends AbstractContainerMenu {
         this.target = target;
         this.targetName = targetName;
         this.targetAlias = targetAlias;
+        this.targetUuid = targetUuid;
         this.view = view;
         this.targetEntityId = targetEntityId;
         this.possessedByViewer = possessedByViewer;
         this.targetOccupied = targetOccupied;
+        this.restoreOnRestart = restoreOnRestart;
         this.pitchSnapshot = pitch;
         this.yawSnapshot = yaw;
         this.bodyYawSnapshot = bodyYaw;
@@ -904,6 +916,10 @@ public final class FakePlayerInventoryMenu extends AbstractContainerMenu {
         return targetName;
     }
 
+    public java.util.UUID targetUuid() {
+        return targetUuid;
+    }
+
     public View view() {
         return view;
     }
@@ -945,6 +961,10 @@ public final class FakePlayerInventoryMenu extends AbstractContainerMenu {
 
     public boolean targetOccupied() {
         return targetOccupied;
+    }
+
+    public boolean restoreOnRestart() {
+        return restoreOnRestart;
     }
 
     public boolean isFlying() {

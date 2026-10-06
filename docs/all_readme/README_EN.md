@@ -120,7 +120,7 @@ enableContainerTransferButtons = true
 | `commands.permissionLevel`            | Minimum vanilla permission level for `/fakeplayer` and `/player`, from `0` to `4`.                                      |
 | `profiles.allowOfflineProfiles`       | Allow offline UUIDs when neither cached nor online profiles are available.                                              |
 | `profiles.strategy`                   | Profile resolution strategy: `ONLINE_PREFERRED`, `CACHE_ONLY`, or `OFFLINE_ONLY`.                                       |
-| `persistence.restoreFakePlayers`      | Restore fake players that were still online when the server last shut down.                                             |
+| `persistence.restoreFakePlayers`      | Default restart-restoration setting for newly spawned fake players; each fake player can override it in the inventory screen's left sidebar. |
 | `chunkloading.maxRadius`              | Maximum radius for a single loading region, from `0` to `32`; `0` means only the center chunk.                          |
 | `chunkloading.maxForcedChunks`        | Total force-loaded chunk budget for all enabled manual regions, from `1` to `65536`.                                    |
 | `chunkloading.maxTickingChunks`       | Total fully simulated chunk budget for all manual force-loading regions, from `1` to `16384`.                           |

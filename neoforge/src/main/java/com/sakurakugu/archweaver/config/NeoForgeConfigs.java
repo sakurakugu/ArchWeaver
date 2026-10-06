@@ -35,7 +35,7 @@ public final class NeoForgeConfigs {
             profileStrategy = builder.comment("ONLINE_PREFERRED、CACHE_ONLY 或 OFFLINE_ONLY。").defineEnum("strategy", ArchWeaverConfig.ProfileStrategy.ONLINE_PREFERRED);
             builder.pop();
             builder.push("persistence");
-            restoreFakePlayers = builder.comment("服务器启动后是否恢复上次仍在线的假玩家。").define("restoreFakePlayers", true);
+            restoreFakePlayers = builder.comment("游戏重启后是否默认恢复新生成的假玩家；可对每个假人单独设置。").define("restoreFakePlayers", true);
             builder.pop();
             builder.push("chunkloading");
             maxChunkLoadingRadius = builder.comment("单个区块加载点允许的最大半径。").defineInRange("maxRadius", 8, 0, 32);

@@ -6,6 +6,7 @@ import com.sakurakugu.archweaver.client.ui.PixelGlyph;
 import com.sakurakugu.archweaver.client.ui.SolidButton;
 import com.sakurakugu.archweaver.client.ui.FakePlayerListButton;
 import com.sakurakugu.archweaver.client.ui.TitlePanel;
+import com.sakurakugu.archweaver.client.ui.ToggleSwitchButton;
 import com.sakurakugu.archweaver.network.ChunkMapSnapshotPayload;
 import com.sakurakugu.archweaver.network.ChunkMapOpenTarget;
 import com.sakurakugu.archweaver.network.OpenFakePlayerInventoryPayload;
@@ -160,8 +161,10 @@ public final class MainPageScreen extends Screen {
         int buttonWidth = Math.max(1, centerWidth - PANEL_PADDING * 2);
         for (int index = 0; index < settingButtons.length; index++) {
             int settingIndex = index;
-            settingButtons[index] = addRenderableWidget(new SolidButton(centerLeft + PANEL_PADDING,
-                contentTop() + PANEL_PADDING + index * 32, buttonWidth, 24, settingLabel(index), button -> toggleSetting(settingIndex)));
+            settingButtons[index] = addRenderableWidget(new ToggleSwitchButton(centerLeft + PANEL_PADDING,
+                contentTop() + PANEL_PADDING + index * 32, buttonWidth, 24, settingLabel(index), 0xFFFFFFFF,
+                () -> (snapshot.globalSettingsMask() & (1 << settingIndex)) != 0,
+                button -> toggleSetting(settingIndex)));
         }
     }
 
@@ -292,10 +295,7 @@ public final class MainPageScreen extends Screen {
             case CONTAINER_TRANSFER_BUTTONS -> "container_transfer_buttons";
             case FAKE_PLAYER_ALIAS_FIRST -> "alias_first";
         };
-        boolean enabled = (snapshot.globalSettingsMask() & (1 << index)) != 0;
-        return Component.translatable("gui.archweaver.fakeplayer.global.setting_value",
-            Component.translatable("gui.archweaver.fakeplayer.global.setting." + key),
-            Component.translatable(enabled ? "gui.archweaver.fakeplayer.global.enabled" : "gui.archweaver.fakeplayer.global.disabled"));
+        return Component.translatable("gui.archweaver.fakeplayer.global.setting." + key);
     }
 
     @Override

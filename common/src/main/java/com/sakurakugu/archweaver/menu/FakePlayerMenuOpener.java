@@ -129,10 +129,14 @@ public final class FakePlayerMenuOpener {
             data -> {
                 data.writeUtf(fake.getGameProfile().name());
                 data.writeUtf(fake.alias(), com.sakurakugu.archweaver.entity.FakePlayerAlias.MAX_LENGTH);
+                data.writeUUID(fake.getUUID());
                 data.writeVarInt(view.ordinal());
                 data.writeVarInt(fake.getId());
                 data.writeBoolean(possessedByViewer);
                 data.writeBoolean(targetOccupied);
+                data.writeBoolean(FakePlayerPersistence.data(viewer.level().getServer()).resident(fake.getUUID())
+                    .map(FakePlayerSavedData.Resident::restoreOnRestart)
+                    .orElse(ArchWeaverConfig.restoreFakePlayers()));
                 data.writeVarInt(FakePlayerInventoryMenu.automationMask(fake));
                 data.writeVarInt(FakePlayerInventoryMenu.continuousControlMask(fake));
                 data.writeVarInt(fake.actions().repeatInterval(

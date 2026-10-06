@@ -53,6 +53,25 @@ class FakePlayerSavedDataTest {
     }
 
     @Test
+    void restartRestorationIsStoredIndependentlyPerResident() {
+        FakePlayerSavedData data = new FakePlayerSavedData();
+        FakePlayerSavedData.Resident enabled = resident(UUID.randomUUID(), "Enabled");
+        FakePlayerSavedData.Resident disabled = new FakePlayerSavedData.Resident(
+            UUID.randomUUID(), "Disabled", List.of(),
+            com.sakurakugu.archweaver.automation.FakePlayerAutomation.AutomationState.DEFAULT, false);
+        data.putResident(enabled);
+        data.putResident(disabled);
+
+        data.setRestoreOnRestart(enabled.uuid(), false);
+        data.setRestoreOnRestart(disabled.uuid(), true);
+        FakePlayerSavedData decoded = FakePlayerSavedData.CODEC.parse(JsonOps.INSTANCE,
+            FakePlayerSavedData.CODEC.encodeStart(JsonOps.INSTANCE, data).getOrThrow()).getOrThrow();
+
+        assertFalse(decoded.resident(enabled.uuid()).orElseThrow().restoreOnRestart());
+        assertTrue(decoded.resident(disabled.uuid()).orElseThrow().restoreOnRestart());
+    }
+
+    @Test
     void presetsAndGroupsUseCaseInsensitiveIds() {
         FakePlayerSavedData data = new FakePlayerSavedData();
         FakePlayerSavedData.Preset preset = preset("Miner");
@@ -254,7 +273,8 @@ class FakePlayerSavedDataTest {
             uuid,
             name,
             java.util.List.of(),
-            com.sakurakugu.archweaver.automation.FakePlayerAutomation.AutomationState.DEFAULT
+            com.sakurakugu.archweaver.automation.FakePlayerAutomation.AutomationState.DEFAULT,
+            true
         );
     }
 
