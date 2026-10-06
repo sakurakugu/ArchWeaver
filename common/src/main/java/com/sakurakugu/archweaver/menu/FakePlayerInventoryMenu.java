@@ -3,7 +3,7 @@ package com.sakurakugu.archweaver.menu;
 import com.sakurakugu.archweaver.config.ArchWeaverConfig;
 import com.sakurakugu.archweaver.chunkloading.ChunkLoaderManager;
 import com.sakurakugu.archweaver.chunkloading.FakePlayerLoadPolicy;
-import com.sakurakugu.archweaver.chunkloading.FakePlayerLoadMode;
+import com.sakurakugu.archweaver.chunkloading.FakePlayerSimulationMode;
 import com.sakurakugu.archweaver.chunkloading.FakePlayerSimulationService;
 import com.sakurakugu.archweaver.entity.FakePlayerActions;
 import com.sakurakugu.archweaver.entity.FakePlayerManager;
@@ -207,7 +207,7 @@ public final class FakePlayerInventoryMenu extends AbstractContainerMenu {
 
     private static FakePlayerLoadPolicy simulationPolicyFor(FakeServerPlayer target) {
         return ChunkLoaderManager.data(target.server()).policy(target.getUUID())
-            .orElse(new FakePlayerLoadPolicy(target.getUUID(), FakePlayerLoadMode.PLAYER, 0));
+            .orElse(new FakePlayerLoadPolicy(target.getUUID(), FakePlayerSimulationMode.FOLLOW_SERVER, 0));
     }
 
     private FakePlayerInventoryMenu(
@@ -943,10 +943,10 @@ public final class FakePlayerInventoryMenu extends AbstractContainerMenu {
     public int positionX() { return positionX.get(); }
     public int positionY() { return positionY.get(); }
     public int positionZ() { return positionZ.get(); }
-    public FakePlayerLoadMode simulationMode() {
+    public FakePlayerSimulationMode simulationMode() {
         int ordinal = simulationMode.get();
-        return ordinal >= 0 && ordinal < FakePlayerLoadMode.values().length
-            ? FakePlayerLoadMode.values()[ordinal] : FakePlayerLoadMode.PLAYER;
+        return ordinal >= 0 && ordinal < FakePlayerSimulationMode.values().length
+            ? FakePlayerSimulationMode.values()[ordinal] : FakePlayerSimulationMode.FOLLOW_SERVER;
     }
     public int simulationDistance() { return simulationDistance.get(); }
     public int simulationDistanceLimit() { return simulationDistanceLimit.get(); }

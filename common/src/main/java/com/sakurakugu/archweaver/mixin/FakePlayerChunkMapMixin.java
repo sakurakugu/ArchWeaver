@@ -15,39 +15,39 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
-/** 玩偶模式绕过原版逐玩家区块票据，由模组独立维护模拟票据。 */
+/** 关闭和手动策略绕过原版玩家加载票据；手动范围由模组独立维护。 */
 @Mixin(ChunkMap.class)
 public abstract class FakePlayerChunkMapMixin {
     @Shadow @Final private ServerLevel level;
 
     @Inject(method = "skipPlayer(Lnet/minecraft/server/level/ServerPlayer;)Z", at = @At("HEAD"), cancellable = true)
-    private void archweaver$skipDollPlayerTickets(ServerPlayer player, CallbackInfoReturnable<Boolean> callback) {
-        if (player instanceof FakeServerPlayer fake && FakePlayerSimulationService.usesDollMode(fake)) {
+    private void archweaver$skipVanillaPlayerTickets(ServerPlayer player, CallbackInfoReturnable<Boolean> callback) {
+        if (player instanceof FakeServerPlayer fake && FakePlayerSimulationService.skipsVanillaLoading(fake)) {
             callback.setReturnValue(true);
         }
     }
 
     @Inject(method = "getPlayerViewDistance(Lnet/minecraft/server/level/ServerPlayer;)I", at = @At("HEAD"), cancellable = true)
-    private void archweaver$limitDollChunkTracking(ServerPlayer player, CallbackInfoReturnable<Integer> callback) {
-        if (player instanceof FakeServerPlayer fake && FakePlayerSimulationService.usesDollMode(fake)) {
+    private void archweaver$limitFakeChunkTracking(ServerPlayer player, CallbackInfoReturnable<Integer> callback) {
+        if (player instanceof FakeServerPlayer fake && FakePlayerSimulationService.skipsVanillaLoading(fake)) {
             callback.setReturnValue(0);
         }
     }
 
     @Inject(method = "anyPlayerCloseEnoughForSpawning(Lnet/minecraft/world/level/ChunkPos;)Z",
         at = @At("HEAD"), cancellable = true)
-    private void archweaver$allowDollSpawning(ChunkPos chunk, CallbackInfoReturnable<Boolean> callback) {
+    private void archweaver$allowCustomSpawning(ChunkPos chunk, CallbackInfoReturnable<Boolean> callback) {
         if (level.players().stream().filter(FakeServerPlayer.class::isInstance).map(FakeServerPlayer.class::cast)
             .anyMatch(fake -> archweaver$canSpawnNear(fake, chunk))) callback.setReturnValue(true);
     }
 
     @Inject(method = "getPlayersCloseForSpawning(Lnet/minecraft/world/level/ChunkPos;)Ljava/util/List;",
         at = @At("RETURN"), cancellable = true)
-    private void archweaver$includeDollSpawningPlayers(ChunkPos chunk,
+    private void archweaver$includeCustomSpawningPlayers(ChunkPos chunk,
         CallbackInfoReturnable<List<ServerPlayer>> callback) {
         List<ServerPlayer> players = new ArrayList<>(callback.getReturnValue());
         players.removeIf(player -> player instanceof FakeServerPlayer fake
-            && FakePlayerSimulationService.usesDollMode(fake) && !archweaver$canSpawnNear(fake, chunk));
+            && FakePlayerSimulationService.usesCustomSimulation(fake) && !archweaver$canSpawnNear(fake, chunk));
         for (ServerPlayer player : level.players()) {
             if (player instanceof FakeServerPlayer fake && archweaver$canSpawnNear(fake, chunk)
                 && !players.contains(fake)) players.add(fake);
@@ -56,7 +56,7 @@ public abstract class FakePlayerChunkMapMixin {
     }
 
     private boolean archweaver$canSpawnNear(FakeServerPlayer fake, ChunkPos chunk) {
-        int distance = FakePlayerSimulationService.dollSimulationDistance(fake);
+        int distance = FakePlayerSimulationService.customSimulationDistance(fake);
         if (distance < 0 || fake.level() != level || fake.isSpectator()
             || Math.abs(fake.chunkPosition().x() - chunk.x()) > distance
             || Math.abs(fake.chunkPosition().z() - chunk.z()) > distance) return false;

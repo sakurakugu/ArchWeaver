@@ -32,7 +32,9 @@ class ChunkLoaderSavedDataTest {
         ChunkLoaderSavedData original = new ChunkLoaderSavedData();
         ManualLoadRegion region = region("Spawn").withEnabled(false);
         original.addRegion(region);
-        original.putPolicy(new FakePlayerLoadPolicy(UUID.randomUUID(), FakePlayerLoadMode.DOLL, 7));
+        for (FakePlayerSimulationMode mode : FakePlayerSimulationMode.values()) {
+            original.putPolicy(new FakePlayerLoadPolicy(UUID.randomUUID(), mode, 7));
+        }
 
         var json = ChunkLoaderSavedData.CODEC.encodeStart(JsonOps.INSTANCE, original).getOrThrow();
         ChunkLoaderSavedData decoded = ChunkLoaderSavedData.CODEC.parse(JsonOps.INSTANCE, json).getOrThrow();
@@ -113,7 +115,7 @@ class ChunkLoaderSavedDataTest {
     @Test
     void codecRejectsUnknownArchWeaverMode() {
         ChunkLoaderSavedData original = new ChunkLoaderSavedData();
-        original.putPolicy(new FakePlayerLoadPolicy(UUID.randomUUID(), FakePlayerLoadMode.DOLL, 4));
+        original.putPolicy(new FakePlayerLoadPolicy(UUID.randomUUID(), FakePlayerSimulationMode.CUSTOM, 4));
         var json = ChunkLoaderSavedData.CODEC.encodeStart(JsonOps.INSTANCE, original).getOrThrow();
         json.getAsJsonObject().getAsJsonArray("fake_player_policies").get(0).getAsJsonObject()
             .addProperty("mode", "UNKNOWN");

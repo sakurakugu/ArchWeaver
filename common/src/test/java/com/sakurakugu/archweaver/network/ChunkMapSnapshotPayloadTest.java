@@ -8,7 +8,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 import com.sakurakugu.archweaver.chunkloading.ChunkKey;
-import com.sakurakugu.archweaver.chunkloading.FakePlayerLoadMode;
+import com.sakurakugu.archweaver.chunkloading.FakePlayerSimulationMode;
 import org.junit.jupiter.api.Test;
 import io.netty.buffer.Unpooled;
 import net.minecraft.core.RegistryAccess;
@@ -35,7 +35,7 @@ class ChunkMapSnapshotPayloadTest {
     @Test
     void snapshotTransmitsChineseAliasSeparatelyFromRealName() {
         var fake = new ChunkMapSnapshotPayload.FakePlayerView(UUID.randomUUID(), "robot-1", "矿场 一号",
-            "minecraft:overworld", 0, 64, 0, 0.0F, true, false, false, FakePlayerLoadMode.PLAYER, 0,
+            "minecraft:overworld", 0, 64, 0, 0.0F, true, false, false, FakePlayerSimulationMode.FOLLOW_SERVER, 0,
             false, "", 0, 0, 0);
         var original = new ChunkMapSnapshotPayload(ChunkMapOpenTarget.NONE, 0, 32, 1L, false,
             "minecraft:overworld", 0, 0, List.of(), List.of(), List.of(fake));
@@ -58,7 +58,7 @@ class ChunkMapSnapshotPayloadTest {
                 if (!possessed && possessedByViewer) continue;
                 var fake = new ChunkMapSnapshotPayload.FakePlayerView(UUID.randomUUID(), "robot-1", "",
                     "minecraft:overworld", 0, 64, 0, 0.0F, true, possessed, possessedByViewer,
-                    FakePlayerLoadMode.PLAYER, 0, false, "", 0, 0, 0);
+                    FakePlayerSimulationMode.FOLLOW_SERVER, 0, false, "", 0, 0, 0);
                 var original = new ChunkMapSnapshotPayload(ChunkMapOpenTarget.NONE, 0, 32, 1L, false,
                     "minecraft:overworld", 0, 0, List.of(), List.of(), List.of(fake));
                 var buffer = new RegistryFriendlyByteBuf(Unpooled.buffer(), RegistryAccess.EMPTY);
@@ -102,13 +102,46 @@ class ChunkMapSnapshotPayloadTest {
     @Test
     void automaticFakePlayerViewUsesItsSynchronizedPlayerSimulationDistance() {
         var automatic = new ChunkMapSnapshotPayload.FakePlayerView(UUID.randomUUID(), "Loader", "",
-            "minecraft:overworld", -1, 64, -17, 0.0F, true, false, false, FakePlayerLoadMode.PLAYER, 3,
+            "minecraft:overworld", -1, 64, -17, 0.0F, true, false, false, FakePlayerSimulationMode.FOLLOW_SERVER, 3,
             false, "", 0, 0, 0);
 
         assertTrue(automatic.loadsChunk("minecraft:overworld", -4, -4));
         assertTrue(automatic.loadsChunk("minecraft:overworld", -1, -2));
         assertFalse(automatic.loadsChunk("minecraft:overworld", 3, -2));
         assertFalse(automatic.loadsChunk("minecraft:the_nether", -1, -2));
+    }
+
+    @Test
+    void disabledPolicySurvivesSnapshotAndDoesNotAdvertiseStaleLoadingRange() {
+        var disabled = new ChunkMapSnapshotPayload.FakePlayerView(UUID.randomUUID(), "Loader", "",
+            "minecraft:overworld", 0, 64, 0, 0.0F, true, false, false,
+            FakePlayerSimulationMode.DISABLED, 3, true, "minecraft:overworld", 0, 0, 3);
+        var original = new ChunkMapSnapshotPayload(ChunkMapOpenTarget.NONE, 0, 32, 1L, false,
+            "minecraft:overworld", 0, 0, List.of(), List.of(), List.of(disabled));
+        var buffer = new RegistryFriendlyByteBuf(Unpooled.buffer(), RegistryAccess.EMPTY);
+        try {
+            ChunkMapSnapshotPayload.STREAM_CODEC.encode(buffer, original);
+            var decoded = ChunkMapSnapshotPayload.STREAM_CODEC.decode(buffer);
+            assertEquals(original, decoded);
+            assertFalse(decoded.fakePlayers().getFirst().loadsChunk("minecraft:overworld", 0, 0));
+            assertFalse(decoded.fakePlayers().getFirst().loadsChunk("minecraft:overworld", 3, 3));
+        } finally {
+            buffer.release();
+        }
+    }
+
+    @Test
+    void simulationRequestTransmitsAllThreeModes() {
+        for (FakePlayerSimulationMode mode : FakePlayerSimulationMode.values()) {
+            var original = new FakePlayerSimulationPayload(7, mode, 4);
+            var buffer = new RegistryFriendlyByteBuf(Unpooled.buffer(), RegistryAccess.EMPTY);
+            try {
+                FakePlayerSimulationPayload.STREAM_CODEC.encode(buffer, original);
+                assertEquals(original, FakePlayerSimulationPayload.STREAM_CODEC.decode(buffer));
+            } finally {
+                buffer.release();
+            }
+        }
     }
 
     @Test
@@ -147,7 +180,7 @@ class ChunkMapSnapshotPayloadTest {
     private static ChunkMapSnapshotPayload.FakePlayerView view(boolean active, String dimension,
                                                                 int chunkX, int chunkZ, int distance) {
         return new ChunkMapSnapshotPayload.FakePlayerView(UUID.randomUUID(), "Loader", "", "minecraft:overworld",
-            0, 64, 0, 0.0F, true, false, false, FakePlayerLoadMode.DOLL, distance,
+            0, 64, 0, 0.0F, true, false, false, FakePlayerSimulationMode.CUSTOM, distance,
             active, dimension, chunkX, chunkZ, distance);
     }
 }

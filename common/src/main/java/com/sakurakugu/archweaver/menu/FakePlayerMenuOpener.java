@@ -3,7 +3,7 @@ package com.sakurakugu.archweaver.menu;
 import com.sakurakugu.archweaver.config.ArchWeaverConfig;
 import com.sakurakugu.archweaver.chunkloading.ChunkLoaderManager;
 import com.sakurakugu.archweaver.chunkloading.FakePlayerLoadPolicy;
-import com.sakurakugu.archweaver.chunkloading.FakePlayerLoadMode;
+import com.sakurakugu.archweaver.chunkloading.FakePlayerSimulationMode;
 import com.sakurakugu.archweaver.chunkloading.FakePlayerSimulationService;
 import com.sakurakugu.archweaver.entity.FakePlayerActions;
 import com.sakurakugu.archweaver.entity.FakePlayerManager;
@@ -110,7 +110,7 @@ public final class FakePlayerMenuOpener {
         boolean possessedByViewer = FakePlayerPossession.isControlling(viewer, fake);
         boolean targetOccupied = FakePlayerPossession.isPossessed(fake);
         FakePlayerLoadPolicy simulation = ChunkLoaderManager.data(viewer.level().getServer())
-            .policy(fake.getUUID()).orElse(new FakePlayerLoadPolicy(fake.getUUID(), FakePlayerLoadMode.PLAYER, 0));
+            .policy(fake.getUUID()).orElse(new FakePlayerLoadPolicy(fake.getUUID(), FakePlayerSimulationMode.FOLLOW_SERVER, 0));
         Component title = Component.translatable(
             view == FakePlayerInventoryMenu.View.ENDER_CHEST
                 ? "gui.archweaver.fakeplayer.ender_chest"

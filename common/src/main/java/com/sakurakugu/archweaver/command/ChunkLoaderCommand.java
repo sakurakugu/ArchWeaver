@@ -6,7 +6,7 @@ import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.context.CommandContext;
 import com.sakurakugu.archweaver.chunkloading.ChunkLoaderManager;
 import com.sakurakugu.archweaver.chunkloading.FakePlayerSimulationService;
-import com.sakurakugu.archweaver.chunkloading.FakePlayerLoadMode;
+import com.sakurakugu.archweaver.chunkloading.FakePlayerSimulationMode;
 import com.sakurakugu.archweaver.chunkloading.ManualLoadRegion;
 import com.sakurakugu.archweaver.config.ArchWeaverConfig;
 import com.sakurakugu.archweaver.entity.FakePlayerManager;
@@ -51,11 +51,11 @@ public final class ChunkLoaderCommand {
                 .executes(context -> setEnabled(context, false))))
             .then(Commands.literal("fake").then(fakeArgument()
                 .then(Commands.literal("info").executes(ChunkLoaderCommand::fakeInfo))
-                .then(Commands.literal("mode").then(Commands.literal("player")
-                    .executes(context -> setFakeMode(context, FakePlayerLoadMode.PLAYER, 0)))
-                    .then(Commands.literal("doll").then(Commands.argument("distance",
+                .then(Commands.literal("mode").then(Commands.literal("auto")
+                    .executes(context -> setFakeMode(context, FakePlayerSimulationMode.FOLLOW_SERVER, 0)))
+                    .then(Commands.literal("custom").then(Commands.argument("distance",
                         IntegerArgumentType.integer(0, 32))
-                        .executes(context -> setFakeMode(context, FakePlayerLoadMode.DOLL,
+                        .executes(context -> setFakeMode(context, FakePlayerSimulationMode.CUSTOM,
                             IntegerArgumentType.getInteger(context, "distance"))))))))
             .then(Commands.literal("remove").then(anchorArgument().executes(ChunkLoaderCommand::remove))));
     }
@@ -138,7 +138,7 @@ public final class ChunkLoaderCommand {
         return 1;
     }
 
-    private static int setFakeMode(CommandContext<CommandSourceStack> context, FakePlayerLoadMode mode,
+    private static int setFakeMode(CommandContext<CommandSourceStack> context, FakePlayerSimulationMode mode,
                                    int distance) {
         FakeServerPlayer fake = getFake(context);
         if (fake == null) return 0;
@@ -146,13 +146,13 @@ public final class ChunkLoaderCommand {
         if (!result.successful()) {
             return failure(context, Component.translatable("commands.archweaver.chunkloader.fake_mode_failed", result.reason()));
         }
-        if (mode == FakePlayerLoadMode.PLAYER) {
+        if (mode != FakePlayerSimulationMode.CUSTOM) {
             context.getSource().sendSuccess(() -> Component.translatable(
                 "commands.archweaver.chunkloader.fake_mode_set", fake.getName().getString(),
-                Component.translatable("commands.archweaver.chunkloader.fake_mode_player")), true);
+                simulationModeLabel(mode)), true);
         } else {
             context.getSource().sendSuccess(() -> Component.translatable(
-                "commands.archweaver.chunkloader.fake_mode_set_doll", fake.getName().getString(), distance), true);
+                "commands.archweaver.chunkloader.fake_mode_set_custom", fake.getName().getString(), distance), true);
         }
         return 1;
     }
@@ -161,16 +161,24 @@ public final class ChunkLoaderCommand {
         FakeServerPlayer fake = getFake(context);
         if (fake == null) return 0;
         var policy = ChunkLoaderManager.data(context.getSource().getServer()).policy(fake.getUUID()).orElse(null);
-        FakePlayerLoadMode mode = policy == null ? FakePlayerLoadMode.PLAYER : policy.mode();
-        int distance = policy == null ? 0
-            : policy.usesCustomSimulation() ? FakePlayerSimulationService.dollSimulationDistance(fake)
-            : policy.simulationDistance();
-        Component modeLabel = Component.translatable(mode == FakePlayerLoadMode.PLAYER
-            ? "commands.archweaver.chunkloader.fake_mode_player"
-            : "commands.archweaver.chunkloader.fake_mode_doll");
+        FakePlayerSimulationMode mode = policy == null ? FakePlayerSimulationMode.FOLLOW_SERVER : policy.mode();
+        int distance = switch (mode) {
+            case FOLLOW_SERVER -> FakePlayerSimulationService.maxSimulationDistance(context.getSource().getServer());
+            case DISABLED -> 0;
+            case CUSTOM -> FakePlayerSimulationService.customSimulationDistance(fake);
+        };
+        Component modeLabel = simulationModeLabel(mode);
         context.getSource().sendSuccess(() -> Component.translatable(
             "commands.archweaver.chunkloader.fake_mode_info", fake.getName().getString(), modeLabel, distance), false);
         return 1;
+    }
+
+    private static Component simulationModeLabel(FakePlayerSimulationMode mode) {
+        return Component.translatable(switch (mode) {
+            case FOLLOW_SERVER -> "commands.archweaver.chunkloader.fake_mode_auto";
+            case DISABLED -> "commands.archweaver.chunkloader.fake_mode_disabled";
+            case CUSTOM -> "commands.archweaver.chunkloader.fake_mode_custom";
+        });
     }
 
     private static int info(CommandContext<CommandSourceStack> context) {

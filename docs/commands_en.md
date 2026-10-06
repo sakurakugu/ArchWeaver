@@ -175,8 +175,8 @@ Manual loading regions created by commands are centered on the command source's 
 - `/chunkloader enable <name>`: recreate tickets from the saved configuration.
 - `/chunkloader remove <name>`: remove the tickets and delete the region's configuration.
 - `/chunkloader fake <fake-player> info`: view the fake player's simulation loading status and distance.
-- `/chunkloader fake <fake-player> mode player`: switch to player mode, using vanilla player loading and spawning behavior.
-- `/chunkloader fake <fake-player> mode doll <distance>`: switch to doll mode and set the simulation distance in chunks.
+- `/chunkloader fake <fake-player> mode auto`: follow the server simulation distance automatically.
+- `/chunkloader fake <fake-player> mode custom <distance>`: switch to manual mode and set the simulation distance in chunks.
 
 Each chunk in a manual region receives a level 31 force-loading ticket. Tickets propagate outward according to vanilla rules: the first surrounding ring is level 32, which continues block ticking but does not tick entities.
 

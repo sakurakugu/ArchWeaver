@@ -62,7 +62,7 @@ class ChunkLoadPlanTest {
     @Test
     void identicalEditsLeaveThePlanUntouched() {
         ManualLoadRegion existing = ChunkLoaderSavedDataTest.region("基地");
-        FakePlayerLoadPolicy policy = new FakePlayerLoadPolicy(UUID.randomUUID(), FakePlayerLoadMode.DOLL, 4);
+        FakePlayerLoadPolicy policy = new FakePlayerLoadPolicy(UUID.randomUUID(), FakePlayerSimulationMode.CUSTOM, 4);
         ChunkLoadPlan plan = ChunkLoadPlan.of(state(List.of(existing), List.of(policy)));
 
         assertNull(plan.replace(existing));
@@ -74,10 +74,10 @@ class ChunkLoadPlanTest {
     @Test
     void policyChangesMarkThePlanAsModified() {
         UUID fakePlayerId = UUID.randomUUID();
-        FakePlayerLoadPolicy policy = new FakePlayerLoadPolicy(fakePlayerId, FakePlayerLoadMode.DOLL, 4);
+        FakePlayerLoadPolicy policy = new FakePlayerLoadPolicy(fakePlayerId, FakePlayerSimulationMode.CUSTOM, 4);
         ChunkLoadPlan plan = ChunkLoadPlan.of(state(List.of(), List.of(policy)));
 
-        plan.setPolicy(new FakePlayerLoadPolicy(fakePlayerId, FakePlayerLoadMode.DOLL, 6));
+        plan.setPolicy(new FakePlayerLoadPolicy(fakePlayerId, FakePlayerSimulationMode.CUSTOM, 6));
 
         assertTrue(plan.modified());
         assertEquals(6, plan.policies().iterator().next().simulationDistance());

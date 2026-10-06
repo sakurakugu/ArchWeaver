@@ -45,11 +45,13 @@ class ChunkLoadPlannerTest {
         var first = region("first", ChunkKey.pack(0, 0));
         var second = region("second", ChunkKey.pack(1, 0));
         var usage = ChunkLoadPlanner.budget(List.of(first, second),
-            List.of(new FakePlayerLoadPolicy(UUID.randomUUID(), FakePlayerLoadMode.DOLL, 2)));
+            List.of(new FakePlayerLoadPolicy(UUID.randomUUID(), FakePlayerSimulationMode.CUSTOM, 2)));
         assertEquals(2, usage.manualTotal());
         assertEquals(25, usage.player());
         assertEquals(0, ChunkLoadPlanner.budget(List.of(first, second),
-            List.of(new FakePlayerLoadPolicy(UUID.randomUUID(), FakePlayerLoadMode.PLAYER, 2))).player());
+            List.of(new FakePlayerLoadPolicy(UUID.randomUUID(), FakePlayerSimulationMode.FOLLOW_SERVER, 2))).player());
+        assertEquals(0, ChunkLoadPlanner.budget(List.of(first, second),
+            List.of(new FakePlayerLoadPolicy(UUID.randomUUID(), FakePlayerSimulationMode.DISABLED, 2))).player());
         assertThrows(ArithmeticException.class, () -> ChunkLoadPlanner.square(0, 0, Integer.MAX_VALUE));
     }
 

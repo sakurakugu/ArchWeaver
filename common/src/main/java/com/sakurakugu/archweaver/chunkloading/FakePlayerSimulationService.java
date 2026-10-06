@@ -76,12 +76,18 @@ public final class FakePlayerSimulationService {
             range.chunkX(), range.chunkZ(), range.distance()));
     }
 
-    public static boolean usesDollMode(FakeServerPlayer fake) {
+    /** 自动以外的策略均绕过原版玩家加载票据。 */
+    public static boolean skipsVanillaLoading(FakeServerPlayer fake) {
+        return ChunkLoaderManager.data(fake.server()).policy(fake.getUUID())
+            .map(policy -> policy.mode() != FakePlayerSimulationMode.FOLLOW_SERVER).orElse(false);
+    }
+
+    public static boolean usesCustomSimulation(FakeServerPlayer fake) {
         return ChunkLoaderManager.data(fake.server()).policy(fake.getUUID())
             .map(FakePlayerLoadPolicy::usesCustomSimulation).orElse(false);
     }
 
-    public static int dollSimulationDistance(FakeServerPlayer fake) {
+    public static int customSimulationDistance(FakeServerPlayer fake) {
         return ChunkLoaderManager.data(fake.server()).policy(fake.getUUID())
             .map(policy -> customDistance(fake.server(), policy)).orElse(-1);
     }
@@ -95,15 +101,15 @@ public final class FakePlayerSimulationService {
     /**
      * 模拟距离是请求自身的属性，与终态无关，所以逐条校验；玩家加载预算依赖终态，由终态校验统一算。
      */
-    static String validateDistance(MinecraftServer server, FakePlayerLoadMode mode, int distance) {
+    static String validateDistance(MinecraftServer server, FakePlayerSimulationMode mode, int distance) {
         int maxDistance = maxSimulationDistance(server);
-        return distance < 0 || (mode == FakePlayerLoadMode.DOLL && distance > maxDistance)
+        return distance < 0 || (mode == FakePlayerSimulationMode.CUSTOM && distance > maxDistance)
             ? "模拟距离必须在 0-" + maxDistance + " 之间"
             : null;
     }
 
     public static ChunkLoaderManager.Result setPolicy(MinecraftServer server, UUID fakePlayerId,
-                                                      FakePlayerLoadMode mode, int distance) {
+                                                      FakePlayerSimulationMode mode, int distance) {
         String rejected = validateDistance(server, mode, distance);
         if (rejected != null) return ChunkLoaderManager.Result.failure(rejected);
         return ChunkLoaderManager.submit(server, List.of(plan -> {

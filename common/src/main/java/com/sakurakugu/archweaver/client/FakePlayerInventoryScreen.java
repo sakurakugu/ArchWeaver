@@ -16,7 +16,7 @@ import com.sakurakugu.archweaver.menu.FakePlayerMenuAction.ToggleContinuous;
 import com.sakurakugu.archweaver.menu.FakePlayerMenuAction.ToggleMove;
 import com.sakurakugu.archweaver.menu.FakePlayerMenuAction.Transfer;
 import com.sakurakugu.archweaver.menu.FakePlayerMenuActionCodec;
-import com.sakurakugu.archweaver.chunkloading.FakePlayerLoadMode;
+import com.sakurakugu.archweaver.chunkloading.FakePlayerSimulationMode;
 import com.sakurakugu.archweaver.entity.FakePlayerActions;
 import com.sakurakugu.archweaver.network.RenameFakePlayerPayload;
 import com.sakurakugu.archweaver.network.SetFakePlayerAliasPayload;
@@ -239,7 +239,7 @@ public final class FakePlayerInventoryScreen extends AbstractContainerScreen<Fak
     private EditBox aliasInput; // 假人别名输入框，允许中文，清空后恢复默认标记。
     private EditBox nameInput; // 假人名称输入框，最长 16 个字符。
     private SolidDropdownButton<GameType> gameModeButton; // 游戏模式下拉框，选项为四种原版游戏模式。
-    private FakePlayerLoadMode simulationMode = FakePlayerLoadMode.PLAYER; // 面板中当前选择的区块加载模式，默认为玩家模式。
+    private FakePlayerSimulationMode simulationMode = FakePlayerSimulationMode.FOLLOW_SERVER; // 当前模拟加载策略，默认跟随服务器。
     private int simulationDistance; // 面板中当前选择的模拟距离，单位为区块。
     private boolean simulationStateInitialized; // 是否已用服务端数据初始化过模拟面板，避免重建界面时覆盖用户改动。
     private SolidButton simulationApplyButton; // 模拟面板的应用按钮，用于刷新其文字颜色。
@@ -645,10 +645,10 @@ public final class FakePlayerInventoryScreen extends AbstractContainerScreen<Fak
             left + 6, top + 24, simulationPanel.contentWidth() - 12, 18,
             Component.translatable("gui.archweaver.fakeplayer.simulation.auto"),
             Component.translatable("gui.archweaver.fakeplayer.simulation.manual"),
-            () -> simulationMode == FakePlayerLoadMode.DOLL,
-            doll -> {
-                simulationMode = doll ? FakePlayerLoadMode.DOLL : FakePlayerLoadMode.PLAYER;
-                if (distanceControl[0] != null) distanceControl[0].active = doll;
+            () -> simulationMode == FakePlayerSimulationMode.CUSTOM,
+            manual -> {
+                simulationMode = manual ? FakePlayerSimulationMode.CUSTOM : FakePlayerSimulationMode.FOLLOW_SERVER;
+                if (distanceControl[0] != null) distanceControl[0].active = manual;
             }));
         mode.setTooltip(Tooltip.create(Component.translatable("gui.archweaver.fakeplayer.simulation.mode_tooltip")));
         IntegerSliderButton slider = addRenderableWidget(new IntegerSliderButton(
@@ -657,7 +657,7 @@ public final class FakePlayerInventoryScreen extends AbstractContainerScreen<Fak
             Math.min(simulationDistance, menu.simulationDistanceLimit()),
             value -> Component.translatable("gui.archweaver.fakeplayer.simulation.distance", value),
             value -> simulationDistance = value));
-        slider.active = simulationMode == FakePlayerLoadMode.DOLL;
+        slider.active = simulationMode == FakePlayerSimulationMode.CUSTOM;
         distanceControl[0] = slider;
         SolidButton apply = addRenderableWidget(new SolidButton(
             left + 6, top + 70, simulationPanel.contentWidth() - 12, 16,
@@ -692,7 +692,7 @@ public final class FakePlayerInventoryScreen extends AbstractContainerScreen<Fak
     private void updateSimulationApplyColor() {
         if (simulationApplyButton == null) return;
         if (simulationMode != menu.simulationMode()
-            || (simulationMode == FakePlayerLoadMode.DOLL
+            || (simulationMode == FakePlayerSimulationMode.CUSTOM
                 && simulationDistance != savedSimulationDistance())) {
             simulationApplyButton.setTextColor(APPLY_DIRTY_COLOR);
         } else {

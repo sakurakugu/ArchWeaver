@@ -38,7 +38,7 @@ This project produces two separate JARs:
 
 ### Fake Players
 
-1. Simulation loading: player mode and doll mode.
+1. Simulation loading: automatic and manual modes.
 2. View direction, rotation, movement, flight, hotbar selection, continuous actions, item dropping, and riding.
 3. Fake player information, including game mode, name, alias, and coordinates.
 4. Inventory, armor, offhand, and ender chest management.
@@ -124,7 +124,7 @@ enableContainerTransferButtons = true
 | `chunkloading.maxRadius`              | Maximum radius for a single loading region, from `0` to `32`; `0` means only the center chunk.                          |
 | `chunkloading.maxForcedChunks`        | Total force-loaded chunk budget for all enabled manual regions, from `1` to `65536`.                                    |
 | `chunkloading.maxTickingChunks`       | Total fully simulated chunk budget for all manual force-loading regions, from `1` to `16384`.                           |
-| `chunkloading.maxPlayerLoadingChunks` | Deduplicated simulation chunk budget for all online doll-mode fake players, from `-1` to `65536`; `-1` means unlimited. |
+| `chunkloading.maxPlayerLoadingChunks` | Deduplicated simulation chunk budget for all online fake players in manual mode, from `-1` to `65536`; `-1` means unlimited. |
 | `ui.enableContainerTransferButtons`   | Show item transfer buttons in ordinary containers. Fake player inventories always show them.                            |
 
 Profile strategies:

@@ -1,14 +1,14 @@
 package com.sakurakugu.archweaver.network;
 
 import com.sakurakugu.archweaver.ArchWeaverMod;
-import com.sakurakugu.archweaver.chunkloading.FakePlayerLoadMode;
+import com.sakurakugu.archweaver.chunkloading.FakePlayerSimulationMode;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.Identifier;
 
 /** 从假人控制界面提交模拟加载策略。 */
-public record FakePlayerSimulationPayload(int containerId, FakePlayerLoadMode mode, int distance)
+public record FakePlayerSimulationPayload(int containerId, FakePlayerSimulationMode mode, int distance)
     implements CustomPacketPayload {
     public static final Type<FakePlayerSimulationPayload> TYPE = new Type<>(
         Identifier.fromNamespaceAndPath(ArchWeaverMod.MOD_ID, "fake_player_simulation"));
@@ -16,7 +16,7 @@ public record FakePlayerSimulationPayload(int containerId, FakePlayerLoadMode mo
         CustomPacketPayload.codec(FakePlayerSimulationPayload::write, FakePlayerSimulationPayload::new);
 
     private FakePlayerSimulationPayload(RegistryFriendlyByteBuf buffer) {
-        this(buffer.readVarInt(), buffer.readEnum(FakePlayerLoadMode.class), buffer.readVarInt());
+        this(buffer.readVarInt(), buffer.readEnum(FakePlayerSimulationMode.class), buffer.readVarInt());
     }
 
     private void write(RegistryFriendlyByteBuf buffer) {

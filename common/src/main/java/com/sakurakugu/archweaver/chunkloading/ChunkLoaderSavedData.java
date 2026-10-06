@@ -45,11 +45,11 @@ public final class ChunkLoaderSavedData extends SavedData {
         UUIDUtil.CODEC.fieldOf("fake_player_id").forGetter(FakePlayerLoadPolicy::fakePlayerId),
         Codec.STRING.comapFlatMap(name -> {
             try {
-                return DataResult.success(FakePlayerLoadMode.valueOf(name));
+                return DataResult.success(FakePlayerSimulationMode.valueOf(name));
             } catch (IllegalArgumentException exception) {
                 return DataResult.error(() -> "未知的假玩家加载模式: " + name);
             }
-        }, FakePlayerLoadMode::name).fieldOf("mode")
+        }, FakePlayerSimulationMode::name).fieldOf("mode")
             .forGetter(FakePlayerLoadPolicy::mode),
         Codec.intRange(0, MAX_SIMULATION_DISTANCE).fieldOf("simulation_distance")
             .forGetter(FakePlayerLoadPolicy::simulationDistance)

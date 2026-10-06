@@ -3,7 +3,7 @@ package com.sakurakugu.archweaver.network;
 import com.sakurakugu.archweaver.ArchWeaverMod;
 import com.sakurakugu.archweaver.chunkloading.ChunkLoaderSavedData;
 import com.sakurakugu.archweaver.chunkloading.FakePlayerLoadPolicy;
-import com.sakurakugu.archweaver.chunkloading.FakePlayerLoadMode;
+import com.sakurakugu.archweaver.chunkloading.FakePlayerSimulationMode;
 import com.sakurakugu.archweaver.chunkloading.FakePlayerSimulationService;
 import com.sakurakugu.archweaver.chunkloading.ManualLoadRegion;
 import com.sakurakugu.archweaver.entity.FakePlayerManager;
@@ -105,13 +105,15 @@ public record ChunkMapSnapshotPayload(
             .limit(MAX_FAKE_PLAYERS)
             .map(fake -> {
                 FakePlayerLoadPolicy policy = data.policy(fake.getUUID())
-                    .orElse(new FakePlayerLoadPolicy(fake.getUUID(), FakePlayerLoadMode.PLAYER, 0));
+                    .orElse(new FakePlayerLoadPolicy(fake.getUUID(), FakePlayerSimulationMode.FOLLOW_SERVER, 0));
                 var activeRange = FakePlayerSimulationService.activeRange(fake).orElse(null);
                 // 自动模式沿用服务端玩家模拟距离，不会在模拟服务里生成自定义活动范围，
                 // 因此这里必须把原版的有效距离一起同步给地图客户端。
-                int simulationDistance = policy.usesCustomSimulation()
-                    ? FakePlayerSimulationService.dollSimulationDistance(fake)
-                    : FakePlayerSimulationService.maxSimulationDistance(player.level().getServer());
+                int simulationDistance = switch (policy.mode()) {
+                    case FOLLOW_SERVER -> FakePlayerSimulationService.maxSimulationDistance(player.level().getServer());
+                    case DISABLED -> 0;
+                    case CUSTOM -> FakePlayerSimulationService.customSimulationDistance(fake);
+                };
                 return new FakePlayerView(fake.getUUID(), fake.getGameProfile().name(), fake.alias(),
                     fake.level().dimension().identifier().toString(), fake.getBlockX(), fake.getBlockY(),
                     fake.getBlockZ(), fake.getYRot(), true, FakePlayerPossession.isPossessed(fake),
@@ -245,7 +247,7 @@ public record ChunkMapSnapshotPayload(
 
     public record FakePlayerView(UUID id, String name, String alias, String dimension, int x, int y, int z, float yaw,
                                  boolean online, boolean possessed, boolean possessedByViewer,
-                                 FakePlayerLoadMode mode, int simulationDistance,
+                                 FakePlayerSimulationMode mode, int simulationDistance,
                                  boolean loadingActive, String loadingDimension, int loadingChunkX,
                                  int loadingChunkZ, int loadingDistance) {
         private FakePlayerView(RegistryFriendlyByteBuf buffer) {
@@ -254,7 +256,7 @@ public record ChunkMapSnapshotPayload(
                 buffer.readUtf(256), buffer.readInt(), buffer.readInt(),
                 buffer.readInt(), buffer.readFloat(), buffer.readBoolean(), buffer.readBoolean(),
                 buffer.readBoolean(),
-                buffer.readEnum(FakePlayerLoadMode.class), buffer.readVarInt(),
+                buffer.readEnum(FakePlayerSimulationMode.class), buffer.readVarInt(),
                 buffer.readBoolean(), buffer.readUtf(256), buffer.readInt(), buffer.readInt(), buffer.readVarInt());
             if (!Float.isFinite(yaw)) throw new IllegalArgumentException("假玩家朝向非法");
             if (simulationDistance < 0 || simulationDistance > ChunkLoaderSavedData.MAX_SIMULATION_DISTANCE) {
@@ -285,7 +287,8 @@ public record ChunkMapSnapshotPayload(
         }
 
         public boolean loadsChunk(String dimension, int chunkX, int chunkZ) {
-            if (mode == FakePlayerLoadMode.PLAYER) {
+            if (!online || mode == FakePlayerSimulationMode.DISABLED) return false;
+            if (mode == FakePlayerSimulationMode.FOLLOW_SERVER) {
                 int centerChunkX = x >> 4;
                 int centerChunkZ = z >> 4;
                 return online && this.dimension.equals(dimension)

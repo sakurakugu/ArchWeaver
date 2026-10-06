@@ -95,7 +95,7 @@ public final class ChunkLoadApplicationService {
      */
     private static String setPolicy(ChunkLoadPlan plan, MinecraftServer server,
                                     ApplyChunkLoadEditsPayload.Edit edit) {
-        FakePlayerLoadMode mode = edit.enabled() ? FakePlayerLoadMode.DOLL : FakePlayerLoadMode.PLAYER;
+        FakePlayerSimulationMode mode = edit.enabled() ? FakePlayerSimulationMode.CUSTOM : FakePlayerSimulationMode.FOLLOW_SERVER;
         String rejected = FakePlayerSimulationService.validateDistance(server, mode, edit.simulationDistance());
         if (rejected != null) return rejected;
         plan.setPolicy(new FakePlayerLoadPolicy(edit.targetId(), mode, edit.simulationDistance()));
