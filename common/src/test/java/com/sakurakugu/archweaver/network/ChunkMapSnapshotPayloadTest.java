@@ -77,6 +77,18 @@ class ChunkMapSnapshotPayloadTest {
     }
 
     @Test
+    void automaticFakePlayerViewUsesItsSynchronizedPlayerSimulationDistance() {
+        var automatic = new ChunkMapSnapshotPayload.FakePlayerView(UUID.randomUUID(), "Loader", "",
+            "minecraft:overworld", -1, 64, -17, 0.0F, true, false, FakePlayerLoadMode.PLAYER, 3,
+            false, "", 0, 0, 0);
+
+        assertTrue(automatic.loadsChunk("minecraft:overworld", -4, -4));
+        assertTrue(automatic.loadsChunk("minecraft:overworld", -1, -2));
+        assertFalse(automatic.loadsChunk("minecraft:overworld", 3, -2));
+        assertFalse(automatic.loadsChunk("minecraft:the_nether", -1, -2));
+    }
+
+    @Test
     void regionsAreSkippedOnlyWhenRevisionAndDimensionBothMatch() {
         assertTrue(ChunkMapSnapshotPayload.canSkipRegions(7L, "minecraft:overworld", 7L, "minecraft:overworld"));
         assertFalse(ChunkMapSnapshotPayload.canSkipRegions(7L, "minecraft:overworld", 8L, "minecraft:overworld"));

@@ -2,6 +2,7 @@ package com.sakurakugu.archweaver.client.chunkloading;
 
 import com.mojang.authlib.GameProfile;
 import com.sakurakugu.archweaver.chunkloading.ChunkKey;
+import com.sakurakugu.archweaver.chunkloading.FakePlayerLoadMode;
 import com.sakurakugu.archweaver.client.ClientScreenNavigation;
 import com.sakurakugu.archweaver.client.ui.SolidButton;
 import com.sakurakugu.archweaver.client.ui.PixelGlyph;
@@ -376,6 +377,11 @@ public final class ChunkMapScreen extends Screen implements ChunkLoadMapFrontend
             if (fake.loadingActive() && fake.loadingDimension().equals(controller.snapshot().dimension())) {
                 outlineRange(graphics, fake.loadingChunkX(), fake.loadingChunkZ(),
                     fake.loadingDistance(), 0xFF4EC9E8);
+            } else if (fake.mode() == FakePlayerLoadMode.PLAYER
+                && fake.online() && fake.dimension().equals(controller.snapshot().dimension())) {
+                // 自动模式使用原版玩家模拟距离，不会出现在 activeRange 里。
+                outlineRange(graphics, fake.x() >> 4, fake.z() >> 4,
+                    fake.simulationDistance(), 0xFF4EC9E8);
             }
         }
         for (var fake : controller.snapshot().fakePlayers()) {

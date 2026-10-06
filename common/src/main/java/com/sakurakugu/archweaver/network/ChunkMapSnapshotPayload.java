@@ -107,9 +107,11 @@ public record ChunkMapSnapshotPayload(
                 FakePlayerLoadPolicy policy = data.policy(fake.getUUID())
                     .orElse(new FakePlayerLoadPolicy(fake.getUUID(), FakePlayerLoadMode.PLAYER, 0));
                 var activeRange = FakePlayerSimulationService.activeRange(fake).orElse(null);
+                // 自动模式沿用服务端玩家模拟距离，不会在模拟服务里生成自定义活动范围，
+                // 因此这里必须把原版的有效距离一起同步给地图客户端。
                 int simulationDistance = policy.usesCustomSimulation()
                     ? FakePlayerSimulationService.dollSimulationDistance(fake)
-                    : policy.simulationDistance();
+                    : FakePlayerSimulationService.maxSimulationDistance(player.level().getServer());
                 return new FakePlayerView(fake.getUUID(), fake.getGameProfile().name(), fake.alias(),
                     fake.level().dimension().identifier().toString(), fake.getBlockX(), fake.getBlockY(),
                     fake.getBlockZ(), fake.getYRot(), true, FakePlayerPossession.isPossessed(fake),
@@ -275,6 +277,13 @@ public record ChunkMapSnapshotPayload(
         }
 
         public boolean loadsChunk(String dimension, int chunkX, int chunkZ) {
+            if (mode == FakePlayerLoadMode.PLAYER) {
+                int centerChunkX = x >> 4;
+                int centerChunkZ = z >> 4;
+                return online && this.dimension.equals(dimension)
+                    && Math.abs(chunkX - centerChunkX) <= simulationDistance
+                    && Math.abs(chunkZ - centerChunkZ) <= simulationDistance;
+            }
             return loadingActive && loadingDimension.equals(dimension)
                 && Math.abs(chunkX - loadingChunkX) <= loadingDistance
                 && Math.abs(chunkZ - loadingChunkZ) <= loadingDistance;
