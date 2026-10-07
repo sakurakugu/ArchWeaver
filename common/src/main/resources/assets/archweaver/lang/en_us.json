@@ -1,5 +1,7 @@
 {
-  "gui.archweaver.fakeplayer.global.setting.alias_first": "Alias first (Tab and name tags)",
+  "gui.archweaver.fakeplayer.global.setting.alias_first": "Alias first (Tab, name tags and list)",
+  "gui.archweaver.fakeplayer.global.setting.empty_alias_marker": "Show \"Bot\" for empty aliases",
+  "gui.archweaver.fakeplayer.marker": "Bot",
   "commands.archweaver.fakeplayer.invalid_alias": "Aliases may contain up to 32 characters, without control characters or formatting codes",
   "commands.archweaver.fakeplayer.alias_set": "Set the alias of fake player %1$s to %2$s",
   "commands.archweaver.fakeplayer.alias_cleared": "Cleared the alias of fake player %s",

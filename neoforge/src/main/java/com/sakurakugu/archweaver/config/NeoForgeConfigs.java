@@ -24,6 +24,7 @@ public final class NeoForgeConfigs {
         private final ModConfigSpec.IntValue maxPlayerLoadingChunks;
         private final ModConfigSpec.BooleanValue containerTransferButtons;
         private final ModConfigSpec.BooleanValue fakePlayerAliasFirst;
+        private final ModConfigSpec.BooleanValue fakePlayerEmptyAliasMarker;
 
         private Backend(boolean ignored) {
             ModConfigSpec.Builder builder = new ModConfigSpec.Builder();
@@ -45,7 +46,8 @@ public final class NeoForgeConfigs {
             builder.pop();
             builder.push("ui");
             containerTransferButtons = builder.comment("普通容器是否显示物品转移按钮。").define("enableContainerTransferButtons", true);
-            fakePlayerAliasFirst = builder.comment("假人别名是否在 Tab 中优先显示，并在头顶显示于真实名称上方。").define("fakePlayerAliasFirst", false);
+            fakePlayerAliasFirst = builder.comment("假人别名是否在 Tab 中优先显示，并在头顶与假人列表中显示于真实名称上方。").define("fakePlayerAliasFirst", false);
+            fakePlayerEmptyAliasMarker = builder.comment("别名为空的假人是否用「假人」占位，作用于头顶名牌与假人列表。").define("fakePlayerEmptyAliasMarker", true);
             builder.pop();
             spec = builder.build();
         }
@@ -61,9 +63,11 @@ public final class NeoForgeConfigs {
         public int maxPlayerLoadingChunks() { return maxPlayerLoadingChunks.get(); }
         public boolean containerTransferButtons() { return containerTransferButtons.get(); }
         public boolean fakePlayerAliasFirst() { return fakePlayerAliasFirst.get(); }
+        public boolean fakePlayerEmptyAliasMarker() { return fakePlayerEmptyAliasMarker.get(); }
         public void setRestoreFakePlayers(boolean value) { restoreFakePlayers.set(value); }
         public void setContainerTransferButtons(boolean value) { containerTransferButtons.set(value); }
         public void setFakePlayerAliasFirst(boolean value) { fakePlayerAliasFirst.set(value); }
+        public void setFakePlayerEmptyAliasMarker(boolean value) { fakePlayerEmptyAliasMarker.set(value); }
         public void save() { spec.save(); }
     }
 

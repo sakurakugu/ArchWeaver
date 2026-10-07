@@ -16,17 +16,19 @@ import net.minecraft.network.RegistryFriendlyByteBuf;
 
 class ChunkMapSnapshotPayloadTest {
     @Test
-    void nameTagSyncTransmitsIdentityChineseAliasClearAndBothOrders() {
+    void nameTagSyncTransmitsIdentityChineseAliasClearMarkerAndBothOrders() {
         UUID playerId = UUID.randomUUID();
         for (String alias : List.of("矿场 一号", "矿".repeat(32), "")) {
             for (boolean aliasFirst : List.of(false, true)) {
-                var original = new FakePlayerAliasPayload(playerId, alias, aliasFirst);
-                var buffer = new RegistryFriendlyByteBuf(Unpooled.buffer(), RegistryAccess.EMPTY);
-                try {
-                    FakePlayerAliasPayload.STREAM_CODEC.encode(buffer, original);
-                    assertEquals(original, FakePlayerAliasPayload.STREAM_CODEC.decode(buffer));
-                } finally {
-                    buffer.release();
+                for (boolean emptyAliasMarker : List.of(false, true)) {
+                    var original = new FakePlayerAliasPayload(playerId, alias, aliasFirst, emptyAliasMarker);
+                    var buffer = new RegistryFriendlyByteBuf(Unpooled.buffer(), RegistryAccess.EMPTY);
+                    try {
+                        FakePlayerAliasPayload.STREAM_CODEC.encode(buffer, original);
+                        assertEquals(original, FakePlayerAliasPayload.STREAM_CODEC.decode(buffer));
+                    } finally {
+                        buffer.release();
+                    }
                 }
             }
         }

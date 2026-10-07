@@ -58,8 +58,13 @@ public final class ModNetworking {
                 if (context.player() instanceof ServerPlayer player
                     && ArchWeaverConfig.canUseCommands(player.createCommandSourceStack())
                     && ArchWeaverConfig.toggleGlobalSetting(payload.settingIndex())) {
-                    if (payload.settingIndex() == ArchWeaverConfig.GlobalSetting.FAKE_PLAYER_ALIAS_FIRST.ordinal()) {
-                        com.sakurakugu.archweaver.entity.FakePlayerAliasSync.refreshAll(player.level().getServer());
+                    // 别名与顺序没变、只换了显示开关时只重发头顶名牌，改动 Tab 顺序时才连 Tab 一起刷新。
+                    switch (ArchWeaverConfig.GlobalSetting.values()[payload.settingIndex()]) {
+                        case FAKE_PLAYER_ALIAS_FIRST ->
+                            com.sakurakugu.archweaver.entity.FakePlayerAliasSync.refreshAll(player.level().getServer());
+                        case FAKE_PLAYER_EMPTY_ALIAS_MARKER ->
+                            com.sakurakugu.archweaver.entity.FakePlayerAliasSync.resyncViewers(player.level().getServer());
+                        default -> { }
                     }
                     PacketDistributor.sendToPlayer(player, ChunkMapSnapshotPayload.create(player,
                         ChunkLoaderManager.data(player.level().getServer()), ChunkMapOpenTarget.NONE));

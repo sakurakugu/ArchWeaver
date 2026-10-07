@@ -44,7 +44,10 @@ public abstract class EntityRendererAliasMixin {
             collector.submitNameTag(pose, attachment, offset, name, seeThrough, lightCoords, distance, camera);
             return;
         }
-        Component aliasName = Component.literal(alias.alias()).withStyle(ChatFormatting.GRAY);
+        // 别名为空时收到的包一定带着占位标记，用「假人」占据原别名那一行。
+        Component aliasName = alias.alias().isEmpty()
+            ? Component.translatable("gui.archweaver.fakeplayer.marker").withStyle(ChatFormatting.GRAY)
+            : Component.literal(alias.alias()).withStyle(ChatFormatting.GRAY);
         Component lower = alias.aliasFirst() ? name : aliasName;
         Component upper = alias.aliasFirst() ? aliasName : name;
         pose.pushPose();

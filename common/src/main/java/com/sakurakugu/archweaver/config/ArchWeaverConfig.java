@@ -35,6 +35,9 @@ public final class ArchWeaverConfig {
     public static boolean containerTransferButtons() { return backend.containerTransferButtons(); }
     public static boolean fakePlayerAliasFirst() { return backend.fakePlayerAliasFirst(); }
 
+    /** 别名为空的假人是否用「假人」占位，作用于头顶名牌和假人列表。 */
+    public static boolean fakePlayerEmptyAliasMarker() { return backend.fakePlayerEmptyAliasMarker(); }
+
     /** 返回全局界面可即时调整的布尔配置快照。 */
     public static int globalSettingsMask() {
         int mask = 0;
@@ -54,13 +57,15 @@ public final class ArchWeaverConfig {
     public enum GlobalSetting {
         RESTORE_FAKE_PLAYERS,
         CONTAINER_TRANSFER_BUTTONS,
-        FAKE_PLAYER_ALIAS_FIRST;
+        FAKE_PLAYER_ALIAS_FIRST,
+        FAKE_PLAYER_EMPTY_ALIAS_MARKER;
 
         public boolean enabled() {
             return switch (this) {
                 case RESTORE_FAKE_PLAYERS -> ArchWeaverConfig.restoreFakePlayers();
                 case CONTAINER_TRANSFER_BUTTONS -> ArchWeaverConfig.containerTransferButtons();
                 case FAKE_PLAYER_ALIAS_FIRST -> ArchWeaverConfig.fakePlayerAliasFirst();
+                case FAKE_PLAYER_EMPTY_ALIAS_MARKER -> ArchWeaverConfig.fakePlayerEmptyAliasMarker();
             };
         }
 
@@ -69,6 +74,7 @@ public final class ArchWeaverConfig {
                 case RESTORE_FAKE_PLAYERS -> backend.setRestoreFakePlayers(!enabled());
                 case CONTAINER_TRANSFER_BUTTONS -> backend.setContainerTransferButtons(!enabled());
                 case FAKE_PLAYER_ALIAS_FIRST -> backend.setFakePlayerAliasFirst(!enabled());
+                case FAKE_PLAYER_EMPTY_ALIAS_MARKER -> backend.setFakePlayerEmptyAliasMarker(!enabled());
             }
         }
     }
@@ -86,9 +92,11 @@ public final class ArchWeaverConfig {
         public int maxPlayerLoadingChunks() { return 65536; }
         public boolean containerTransferButtons() { return true; }
         public boolean fakePlayerAliasFirst() { return false; }
+        public boolean fakePlayerEmptyAliasMarker() { return true; }
         public void setRestoreFakePlayers(boolean value) { }
         public void setContainerTransferButtons(boolean value) { }
         public void setFakePlayerAliasFirst(boolean value) { }
+        public void setFakePlayerEmptyAliasMarker(boolean value) { }
         public void save() { }
     }
 }

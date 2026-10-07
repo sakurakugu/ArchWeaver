@@ -9,22 +9,28 @@ import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.resources.DefaultPlayerSkin;
 import net.minecraft.network.chat.Component;
 
-/** 假人列表行：左侧头像，右侧上方别名、下方真实名称。 */
+/** 假人列表行：左侧头像，右侧两行文本，上下顺序跟随全局的「别名优先」设置。 */
 public final class FakePlayerListButton extends Button {
     private final UUID id;
     private final Component alias;
     private final Component name;
+    private final boolean aliasFirst;
     private final boolean selected;
 
-    public FakePlayerListButton(int x, int y, int width, int height, UUID id, String alias,
-                                String name, boolean selected, OnPress onPress) {
+    public FakePlayerListButton(int x, int y, int width, int height, UUID id, String alias, String name,
+                                boolean aliasFirst, boolean emptyAliasMarker, boolean selected, OnPress onPress) {
         super(x, y, width, height, Component.literal(name), onPress, DEFAULT_NARRATION);
         this.id = id;
-        this.alias = alias.isEmpty()
-            ? Component.translatable("gui.archweaver.fakeplayer.info.alias_unset") : Component.literal(alias);
+        this.aliasFirst = aliasFirst;
+        // 别名为空时优先显示「假人」占位，未开启占位才退回「无别名」。
+        this.alias = !alias.isEmpty() ? Component.literal(alias)
+            : Component.translatable(emptyAliasMarker
+                ? "gui.archweaver.fakeplayer.marker" : "gui.archweaver.fakeplayer.info.alias_unset");
         this.name = Component.literal(name);
         this.selected = selected;
-        Component description = this.alias.copy().append("\n").append(this.name);
+        Component description = aliasFirst
+            ? this.alias.copy().append("\n").append(this.name)
+            : this.name.copy().append("\n").append(this.alias);
         setMessage(description);
         setTooltip(Tooltip.create(description));
     }
@@ -45,8 +51,9 @@ public final class FakePlayerListButton extends Button {
         if (right <= left) {
             return;
         }
-        drawLine(graphics, alias, left, right, getY() + 5, selected ? 0xFF55FF55 : 0xFFFFFFFF);
-        drawLine(graphics, name, left, right, getY() + 19, 0xFFD0D0D0);
+        // 优先的那一行沿用原来的高亮色，另一行保持暗灰，因此「别名优先」开启时与旧外观一致。
+        drawLine(graphics, aliasFirst ? alias : name, left, right, getY() + 5, selected ? 0xFF55FF55 : 0xFFFFFFFF);
+        drawLine(graphics, aliasFirst ? name : alias, left, right, getY() + 19, 0xFFD0D0D0);
     }
 
     private void drawLine(GuiGraphicsExtractor graphics, Component text, int left, int right, int top, int color) {

@@ -7,6 +7,7 @@ import com.sakurakugu.archweaver.client.ui.SolidButton;
 import com.sakurakugu.archweaver.client.ui.FakePlayerListButton;
 import com.sakurakugu.archweaver.client.ui.TitlePanel;
 import com.sakurakugu.archweaver.client.ui.ToggleSwitchButton;
+import com.sakurakugu.archweaver.config.ArchWeaverConfig;
 import com.sakurakugu.archweaver.network.ChunkMapSnapshotPayload;
 import com.sakurakugu.archweaver.network.ChunkMapOpenTarget;
 import com.sakurakugu.archweaver.network.OpenFakePlayerInventoryPayload;
@@ -36,7 +37,7 @@ public final class MainPageScreen extends Screen {
     private UUID selectedFake; // 选中的假人 ID，没有选中时为 null。
     private int selectedRegion = -1; // 选中的管理区域下标，没有选中时为 -1。
     private View view = View.FAKE_PLAYERS; // 中间内容区当前显示的页面。
-    private final Button[] settingButtons = new Button[com.sakurakugu.archweaver.config.ArchWeaverConfig.GlobalSetting.values().length]; // 全局设置开关按钮，点击后统一置灰。
+    private final Button[] settingButtons = new Button[ArchWeaverConfig.GlobalSetting.values().length]; // 全局设置开关按钮，点击后统一置灰。
 
     public MainPageScreen(ChunkMapSnapshotPayload snapshot) {
         this(snapshot, View.FAKE_PLAYERS);
@@ -104,8 +105,10 @@ public final class MainPageScreen extends Screen {
                 var fake = snapshot.fakePlayers().get(index);
                 addRenderableWidget(new FakePlayerListButton(centerLeft + PANEL_PADDING,
                     listTop + index * (ROW_HEIGHT + ROW_GAP), listWidth, ROW_HEIGHT,
-                    fake.id(), fake.alias(), fake.name(), fake.id().equals(selectedFake),
-                    button -> selectFake(fakeIndex)));
+                    fake.id(), fake.alias(), fake.name(),
+                    globalSetting(ArchWeaverConfig.GlobalSetting.FAKE_PLAYER_ALIAS_FIRST),
+                    globalSetting(ArchWeaverConfig.GlobalSetting.FAKE_PLAYER_EMPTY_ALIAS_MARKER),
+                    fake.id().equals(selectedFake), button -> selectFake(fakeIndex)));
             }
             // 生成假人收成加号，钉在列表左上角；预设管理紧随其后，占满工具行剩余宽度。
             addRenderableWidget(new SolidButton(centerLeft + PANEL_PADDING, toolbarY(),
@@ -163,7 +166,7 @@ public final class MainPageScreen extends Screen {
             int settingIndex = index;
             settingButtons[index] = addRenderableWidget(new ToggleSwitchButton(centerLeft + PANEL_PADDING,
                 contentTop() + PANEL_PADDING + index * 32, buttonWidth, 24, settingLabel(index), 0xFFFFFFFF,
-                () -> (snapshot.globalSettingsMask() & (1 << settingIndex)) != 0,
+                () -> globalSetting(ArchWeaverConfig.GlobalSetting.values()[settingIndex]),
                 button -> toggleSetting(settingIndex)));
         }
     }
@@ -289,11 +292,17 @@ public final class MainPageScreen extends Screen {
         for (Button button : settingButtons) if (button != null) button.active = false;
     }
 
+    /** 读取快照里某一项全局设置的开关状态。 */
+    private boolean globalSetting(ArchWeaverConfig.GlobalSetting setting) {
+        return (snapshot.globalSettingsMask() & (1 << setting.ordinal())) != 0;
+    }
+
     private Component settingLabel(int index) {
-        String key = switch (com.sakurakugu.archweaver.config.ArchWeaverConfig.GlobalSetting.values()[index]) {
+        String key = switch (ArchWeaverConfig.GlobalSetting.values()[index]) {
             case RESTORE_FAKE_PLAYERS -> "restore_players";
             case CONTAINER_TRANSFER_BUTTONS -> "container_transfer_buttons";
             case FAKE_PLAYER_ALIAS_FIRST -> "alias_first";
+            case FAKE_PLAYER_EMPTY_ALIAS_MARKER -> "empty_alias_marker";
         };
         return Component.translatable("gui.archweaver.fakeplayer.global.setting." + key);
     }

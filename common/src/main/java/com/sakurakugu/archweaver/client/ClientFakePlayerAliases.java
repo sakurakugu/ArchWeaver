@@ -14,7 +14,8 @@ public final class ClientFakePlayerAliases {
     }
 
     public static void accept(FakePlayerAliasPayload payload) {
-        if (payload.alias().isEmpty()) ALIASES.remove(payload.playerId());
+        // 别名为空但需要显示「假人」占位时同样保留，只有明确清除的包才移除。
+        if (payload.alias().isEmpty() && !payload.emptyAliasMarker()) ALIASES.remove(payload.playerId());
         else ALIASES.put(payload.playerId(), payload);
     }
 
