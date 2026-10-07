@@ -80,6 +80,11 @@ Example:
 
 > Omitted arguments inherit the command source's information (player or command block). If saved player data exists and no game mode is specified, the saved game mode is used.
 
+### Simulation Loading
+
+- `/player <name> simulation auto`: follow the server simulation distance automatically.
+- `/player <name> simulation custom <distance>`: switch to custom mode and set the simulation distance in chunks; the distance must be a nonnegative integer, no greater than the server simulation distance, with an absolute maximum of 32.
+
 ### Interfaces and Inventory
 
 - `/player <name> gui`: open the full inventory: 36 main inventory slots, 4 armor slots, and 1 offhand slot.
@@ -174,9 +179,9 @@ Manual loading regions created by commands are centered on the command source's 
 - `/chunkloader disable <name>`: remove the region's tickets while keeping its configuration.
 - `/chunkloader enable <name>`: recreate tickets from the saved configuration.
 - `/chunkloader remove <name>`: remove the tickets and delete the region's configuration.
-- `/chunkloader fake <fake-player> info`: view the fake player's simulation loading status and distance.
-- `/chunkloader fake <fake-player> mode auto`: follow the server simulation distance automatically.
-- `/chunkloader fake <fake-player> mode custom <distance>`: switch to manual mode and set the simulation distance in chunks.
+- `/chunkloader player <player> info`: view the fake player's simulation loading status and distance.
+- `/chunkloader player <player> simulation auto`: follow the server simulation distance automatically.
+- `/chunkloader player <player> simulation custom <distance>`: switch to custom mode and set the simulation distance in chunks, with the same distance limits as `/player`.
 
 Each chunk in a manual region receives a level 31 force-loading ticket. Tickets propagate outward according to vanilla rules: the first surrounding ring is level 32, which continues block ticking but does not tick entities.
 

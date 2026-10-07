@@ -3,6 +3,7 @@ package com.sakurakugu.archweaver.command;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
+import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
 import com.sakurakugu.archweaver.chunkloading.ChunkLoaderManager;
 import com.sakurakugu.archweaver.chunkloading.FakePlayerSimulationService;
@@ -14,6 +15,7 @@ import com.sakurakugu.archweaver.entity.FakeServerPlayer;
 import com.sakurakugu.archweaver.network.ChunkMapOpenTarget;
 import com.sakurakugu.archweaver.network.ChunkMapSnapshotPayload;
 import com.sakurakugu.archweaver.network.OpenMainPagePayload;
+import java.util.function.Function;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.commands.SharedSuggestionProvider;
@@ -49,14 +51,9 @@ public final class ChunkLoaderCommand {
                 .executes(context -> setEnabled(context, true))))
             .then(Commands.literal("disable").then(anchorArgument()
                 .executes(context -> setEnabled(context, false))))
-            .then(Commands.literal("fake").then(fakeArgument()
-                .then(Commands.literal("info").executes(ChunkLoaderCommand::fakeInfo))
-                .then(Commands.literal("mode").then(Commands.literal("auto")
-                    .executes(context -> setFakeMode(context, FakePlayerSimulationMode.FOLLOW_SERVER, 0)))
-                    .then(Commands.literal("custom").then(Commands.argument("distance",
-                        IntegerArgumentType.integer(0, 32))
-                        .executes(context -> setFakeMode(context, FakePlayerSimulationMode.CUSTOM,
-                            IntegerArgumentType.getInteger(context, "distance"))))))))
+            .then(Commands.literal("player").then(playerArgument()
+                .then(Commands.literal("info").executes(ChunkLoaderCommand::playerInfo))
+                .then(simulationCommand(ChunkLoaderCommand::getFake))))
             .then(Commands.literal("remove").then(anchorArgument().executes(ChunkLoaderCommand::remove))));
     }
 
@@ -138,26 +135,40 @@ public final class ChunkLoaderCommand {
         return 1;
     }
 
-    private static int setFakeMode(CommandContext<CommandSourceStack> context, FakePlayerSimulationMode mode,
-                                   int distance) {
-        FakeServerPlayer fake = getFake(context);
+    /** 两个命令入口共用模拟策略分支，目标解析沿用各自的名称参数。 */
+    static LiteralArgumentBuilder<CommandSourceStack> simulationCommand(
+        Function<CommandContext<CommandSourceStack>, FakeServerPlayer> target
+    ) {
+        return Commands.literal("simulation")
+            .then(Commands.literal("auto")
+                .executes(context -> setSimulation(context, target.apply(context),
+                    FakePlayerSimulationMode.FOLLOW_SERVER, 0)))
+            .then(Commands.literal("custom").then(Commands.argument("distance",
+                IntegerArgumentType.integer(0, 32))
+                .executes(context -> setSimulation(context, target.apply(context),
+                    FakePlayerSimulationMode.CUSTOM, IntegerArgumentType.getInteger(context, "distance")))));
+    }
+
+    private static int setSimulation(CommandContext<CommandSourceStack> context, FakeServerPlayer fake,
+                                     FakePlayerSimulationMode mode,
+                                     int distance) {
         if (fake == null) return 0;
         var result = FakePlayerSimulationService.setPolicy(context.getSource().getServer(), fake.getUUID(), mode, distance);
         if (!result.successful()) {
-            return failure(context, Component.translatable("commands.archweaver.chunkloader.fake_mode_failed", result.reason()));
+            return failure(context, Component.translatable("commands.archweaver.chunkloader.simulation.failed", result.reason()));
         }
         if (mode != FakePlayerSimulationMode.CUSTOM) {
             context.getSource().sendSuccess(() -> Component.translatable(
-                "commands.archweaver.chunkloader.fake_mode_set", fake.getName().getString(),
+                "commands.archweaver.chunkloader.simulation.set", fake.getName().getString(),
                 simulationModeLabel(mode)), true);
         } else {
             context.getSource().sendSuccess(() -> Component.translatable(
-                "commands.archweaver.chunkloader.fake_mode_set_custom", fake.getName().getString(), distance), true);
+                "commands.archweaver.chunkloader.simulation.set_custom", fake.getName().getString(), distance), true);
         }
         return 1;
     }
 
-    private static int fakeInfo(CommandContext<CommandSourceStack> context) {
+    private static int playerInfo(CommandContext<CommandSourceStack> context) {
         FakeServerPlayer fake = getFake(context);
         if (fake == null) return 0;
         var policy = ChunkLoaderManager.data(context.getSource().getServer()).policy(fake.getUUID()).orElse(null);
@@ -169,15 +180,15 @@ public final class ChunkLoaderCommand {
         };
         Component modeLabel = simulationModeLabel(mode);
         context.getSource().sendSuccess(() -> Component.translatable(
-            "commands.archweaver.chunkloader.fake_mode_info", fake.getName().getString(), modeLabel, distance), false);
+            "commands.archweaver.chunkloader.simulation.info", fake.getName().getString(), modeLabel, distance), false);
         return 1;
     }
 
     private static Component simulationModeLabel(FakePlayerSimulationMode mode) {
         return Component.translatable(switch (mode) {
-            case FOLLOW_SERVER -> "commands.archweaver.chunkloader.fake_mode_auto";
-            case DISABLED -> "commands.archweaver.chunkloader.fake_mode_disabled";
-            case CUSTOM -> "commands.archweaver.chunkloader.fake_mode_custom";
+            case FOLLOW_SERVER -> "commands.archweaver.chunkloader.simulation.auto";
+            case DISABLED -> "commands.archweaver.chunkloader.simulation.disabled";
+            case CUSTOM -> "commands.archweaver.chunkloader.simulation.custom";
         });
     }
 
@@ -199,14 +210,14 @@ public final class ChunkLoaderCommand {
                 .map(ManualLoadRegion::name), builder));
     }
 
-    private static com.mojang.brigadier.builder.RequiredArgumentBuilder<CommandSourceStack, String> fakeArgument() {
-        return Commands.argument("fake", StringArgumentType.word()).suggests((context, builder) ->
+    private static com.mojang.brigadier.builder.RequiredArgumentBuilder<CommandSourceStack, String> playerArgument() {
+        return Commands.argument("player", StringArgumentType.word()).suggests((context, builder) ->
             SharedSuggestionProvider.suggest(FakePlayerManager.all(context.getSource().getServer()).stream()
                 .map(fake -> fake.getGameProfile().name()), builder));
     }
 
     private static FakeServerPlayer getFake(CommandContext<CommandSourceStack> context) {
-        String name = StringArgumentType.getString(context, "fake");
+        String name = StringArgumentType.getString(context, "player");
         FakeServerPlayer fake = FakePlayerManager.find(context.getSource().getServer(), name);
         if (fake == null) {
             context.getSource().sendFailure(Component.translatable("commands.archweaver.fakeplayer.not_found", name));

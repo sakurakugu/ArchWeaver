@@ -102,6 +102,7 @@ public final class FakePlayerCommand {
             .then(Commands.literal("default").executes(FakePlayerCommand::resetSettings))
             .then(Commands.literal("reset").executes(FakePlayerCommand::resetSettings)));
         target.then(automationCommand());
+        target.then(ChunkLoaderCommand.simulationCommand(FakePlayerCommand::getFake));
         target.then(Commands.literal("possess").executes(FakePlayerCommand::possess));
         target.then(Commands.literal("unpossess").executes(FakePlayerCommand::unpossessTarget));
         target.then(dropCommand("drop", false));

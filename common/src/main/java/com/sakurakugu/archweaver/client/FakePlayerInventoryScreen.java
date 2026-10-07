@@ -644,11 +644,11 @@ public final class FakePlayerInventoryScreen extends AbstractContainerScreen<Fak
         SegmentedSwitchButton mode = addRenderableWidget(new SegmentedSwitchButton(
             left + 6, top + 24, simulationPanel.contentWidth() - 12, 18,
             Component.translatable("gui.archweaver.fakeplayer.simulation.auto"),
-            Component.translatable("gui.archweaver.fakeplayer.simulation.manual"),
+            Component.translatable("gui.archweaver.fakeplayer.simulation.custom"),
             () -> simulationMode == FakePlayerSimulationMode.CUSTOM,
-            manual -> {
-                simulationMode = manual ? FakePlayerSimulationMode.CUSTOM : FakePlayerSimulationMode.FOLLOW_SERVER;
-                if (distanceControl[0] != null) distanceControl[0].active = manual;
+            custom -> {
+                simulationMode = custom ? FakePlayerSimulationMode.CUSTOM : FakePlayerSimulationMode.FOLLOW_SERVER;
+                if (distanceControl[0] != null) distanceControl[0].active = custom;
             }));
         mode.setTooltip(Tooltip.create(Component.translatable("gui.archweaver.fakeplayer.simulation.mode_tooltip")));
         IntegerSliderButton slider = addRenderableWidget(new IntegerSliderButton(
