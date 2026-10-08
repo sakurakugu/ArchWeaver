@@ -25,18 +25,20 @@ public final class PixelGui {
         graphics.fill(right - 2, y + 1, right - 1, y + 2, 0xFF8B8B8B);
     }
 
-    /** 绘制地图顶部二态开关，左右位置使用灰阶滑块区分。 */
+    /**
+     * 绘制地图顶部多档开关，左右位置使用灰阶滑块区分。
+     * segmentCount 为档位数量，selectedIndex 为选中档，hoveredIndex 为指针所在档（-1 表示未悬停）。
+     */
     public static void drawLargeSwitch(
         GuiGraphicsExtractor graphics, int x, int y, int width, int height,
-        boolean enabled, boolean hovered
+        int segmentCount, int selectedIndex, int hoveredIndex
     ) {
-        // 悬停时只高亮选中的手柄，轨道边框保持原色。
+        // 悬停时只高亮鼠标所在档，轨道边框保持原色。
         drawSolidControl(graphics, x, y, width, height, false);
         int right = x + width;
         int bottom = y + height;
-        int middle = x + width / 2;
 
-        // 轨道只保留最外侧边框，避免手柄两端和中线出现空隙。
+        // 轨道只保留最外侧边框，避免手柄两端和档位分界处出现空隙。
         int trackLeft = x + 1;
         int trackTop = y + 1;
         int trackRight = right - 1;
@@ -47,9 +49,32 @@ public final class PixelGui {
         graphics.fill(trackLeft, trackBottom - 1, trackRight, trackBottom, 0xFFA5AEAA);
         graphics.fill(trackRight - 1, trackTop, trackRight, trackBottom, 0xFFA5AEAA);
 
-        // 手柄直接占满对应半区，左右端点及中线都不额外缩进。
-        drawSolidControl(graphics, enabled ? middle : x, y,
-            enabled ? right - middle : middle - x, height, hovered);
+        // 手柄直接占满选中档，开关端点及档位分界处都不额外缩进。
+        Segment handle = segment(x, width, segmentCount, selectedIndex);
+        drawSolidControl(graphics, handle.left(), y, handle.width(), height,
+            hoveredIndex == selectedIndex);
+
+        // 指针停在未选中的档位时，用白色描边预览点击后将选中的档位。
+        if (hoveredIndex >= 0 && hoveredIndex != selectedIndex) {
+            Segment hover = segment(x, width, segmentCount, hoveredIndex);
+            graphics.fill(hover.left(), y, hover.right(), y + 1, 0xFFFFFFFF);
+            graphics.fill(hover.left(), bottom - 1, hover.right(), bottom, 0xFFFFFFFF);
+            graphics.fill(hover.left(), y + 1, hover.left() + 1, bottom - 1, 0xFFFFFFFF);
+            graphics.fill(hover.right() - 1, y + 1, hover.right(), bottom - 1, 0xFFFFFFFF);
+        }
+    }
+
+    /** 多档开关中某一档的水平范围。 */
+    public record Segment(int left, int right) {
+        public int width() {
+            return right - left;
+        }
+    }
+
+    /** 多档开关第 index 档的范围，各档按档位数量均分。 */
+    public static Segment segment(int x, int width, int segmentCount, int index) {
+        return new Segment(x + width * index / segmentCount,
+            x + width * (index + 1) / segmentCount);
     }
 
     /** 绘制原版物品栏槽位使用的凹陷边框。 */

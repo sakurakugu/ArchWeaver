@@ -129,9 +129,9 @@ public final class MainPageScreen extends Screen {
             int filterHalf = Math.max(1, (listWidth - 2) / 2);
             int secondHalf = Math.max(1, listWidth - filterHalf - 2);
             addRenderableWidget(new SolidButton(centerLeft + PANEL_PADDING, toolbarY(),
-                filterHalf, TOOLBAR_HEIGHT, Component.literal(targetTypeFilter.label()), button -> cycleTargetType()));
+                filterHalf, TOOLBAR_HEIGHT, targetTypeFilter.label(), button -> cycleTargetType()));
             addRenderableWidget(new SolidButton(centerLeft + PANEL_PADDING + filterHalf + 2, toolbarY(),
-                secondHalf, TOOLBAR_HEIGHT, Component.literal(loadFilter.label()), button -> cycleLoadFilter()));
+                secondHalf, TOOLBAR_HEIGHT, loadFilter.label(), button -> cycleLoadFilter()));
             addRenderableWidget(new SolidButton(centerLeft + PANEL_PADDING + filterHalf + 2, footerY(),
                 secondHalf, FOOTER_HEIGHT,
                 Component.translatable("gui.archweaver.main.presets"), button -> openPresets()));
@@ -300,19 +300,19 @@ public final class MainPageScreen extends Screen {
         if (fake.type() == ChunkMapSnapshotPayload.TargetType.PLAYER && !fake.loaded()) {
             addRenderableWidget(new SolidButton(x + PANEL_PADDING, footerY() - FOOTER_HEIGHT - GAP,
                 Math.max(1, w - PANEL_PADDING * 2), FOOTER_HEIGHT,
-                Component.literal("加载假人"), button -> fakeLifecycle(fake, FakePlayerLifecyclePayload.Action.LOAD)));
+                Component.translatable("gui.archweaver.main.load_fake_player"), button -> fakeLifecycle(fake, FakePlayerLifecyclePayload.Action.LOAD)));
         } else if (fake.type() == ChunkMapSnapshotPayload.TargetType.PLAYER) {
             addRenderableWidget(new SolidButton(x + PANEL_PADDING, footerY() - FOOTER_HEIGHT - GAP,
                 Math.max(1, w - PANEL_PADDING * 2), FOOTER_HEIGHT,
-                Component.literal("卸载假人"), button -> fakeLifecycle(fake, FakePlayerLifecyclePayload.Action.UNLOAD)));
+                Component.translatable("gui.archweaver.main.unload_fake_player"), button -> fakeLifecycle(fake, FakePlayerLifecyclePayload.Action.UNLOAD)));
         } else if (fake.type() == ChunkMapSnapshotPayload.TargetType.MANNEQUIN && !fake.loaded()) {
             addRenderableWidget(new SolidButton(x + PANEL_PADDING, footerY() - FOOTER_HEIGHT - GAP,
                 Math.max(1, w - PANEL_PADDING * 2), FOOTER_HEIGHT,
-                Component.literal("加载玩偶"), button -> lifecycle(fake, MannequinLifecyclePayload.Action.LOAD)));
+                Component.translatable("gui.archweaver.main.load_mannequin"), button -> lifecycle(fake, MannequinLifecyclePayload.Action.LOAD)));
         } else if (fake.type() == ChunkMapSnapshotPayload.TargetType.MANNEQUIN) {
             addRenderableWidget(new SolidButton(x + PANEL_PADDING, footerY() - FOOTER_HEIGHT - GAP,
                 Math.max(1, w - PANEL_PADDING * 2), FOOTER_HEIGHT,
-                Component.literal("卸载玩偶"), button -> lifecycle(fake, MannequinLifecyclePayload.Action.UNLOAD)));
+                Component.translatable("gui.archweaver.main.unload_mannequin"), button -> lifecycle(fake, MannequinLifecyclePayload.Action.UNLOAD)));
         }
     }
 
@@ -435,7 +435,9 @@ public final class MainPageScreen extends Screen {
         graphics.text(font, Component.translatable("gui.archweaver.main.world", DimensionDisplay.name(fake.dimension())), x + PANEL_PADDING, y + 18, 0xFFFFFFFF, false);
         graphics.text(font, Component.translatable("gui.archweaver.main.position", fake.x(), fake.y(), fake.z()), x + PANEL_PADDING, y + 36, 0xFFFFFFFF, false);
         if (fake.type() == ChunkMapSnapshotPayload.TargetType.MANNEQUIN || fake.type() == ChunkMapSnapshotPayload.TargetType.PLAYER) {
-            graphics.text(font, Component.literal(fake.loaded() ? "已加载" : "未加载"), x + PANEL_PADDING, y + 54, 0xFFFFFFFF, false);
+            graphics.text(font, Component.translatable(fake.loaded()
+                ? "gui.archweaver.main.filter.loaded" : "gui.archweaver.main.filter.unloaded"),
+                x + PANEL_PADDING, y + 54, 0xFFFFFFFF, false);
         } else {
             graphics.text(font, Component.translatable("gui.archweaver.main.loading", fake.loadingActive() ? fake.loadingDistance() : 0), x + PANEL_PADDING, y + 54, 0xFFFFFFFF, false);
             graphics.text(font, Component.translatable("gui.archweaver.main.simulation", fake.simulationDistance()), x + PANEL_PADDING, y + 72, 0xFFFFFFFF, false);
@@ -470,16 +472,20 @@ public final class MainPageScreen extends Screen {
     }
 
     private enum TargetTypeFilter {
-        ALL("全部"), PLAYER("玩家"), MANNEQUIN("玩偶");
-        private final String label;
-        TargetTypeFilter(String label) { this.label = label; }
-        String label() { return label; }
+        ALL("gui.archweaver.main.filter.all"),
+        PLAYER("gui.archweaver.main.filter.player"),
+        MANNEQUIN("gui.archweaver.main.filter.mannequin");
+        private final String translationKey;
+        TargetTypeFilter(String translationKey) { this.translationKey = translationKey; }
+        Component label() { return Component.translatable(translationKey); }
     }
 
     private enum LoadFilter {
-        REGISTERED("已登记"), LOADED("已加载"), UNLOADED("未加载");
-        private final String label;
-        LoadFilter(String label) { this.label = label; }
-        String label() { return label; }
+        REGISTERED("gui.archweaver.main.filter.registered"),
+        LOADED("gui.archweaver.main.filter.loaded"),
+        UNLOADED("gui.archweaver.main.filter.unloaded");
+        private final String translationKey;
+        LoadFilter(String translationKey) { this.translationKey = translationKey; }
+        Component label() { return Component.translatable(translationKey); }
     }
 }

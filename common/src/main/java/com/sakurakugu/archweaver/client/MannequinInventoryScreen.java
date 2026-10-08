@@ -9,6 +9,8 @@ import com.sakurakugu.archweaver.network.SetFakePlayerAliasPayload;
 import net.minecraft.client.gui.components.Button;
 import com.sakurakugu.archweaver.client.ui.InventorySlotButton;
 import com.sakurakugu.archweaver.client.ui.OverlayPanelManager;
+import com.sakurakugu.archweaver.client.ui.PixelGui;
+import com.sakurakugu.archweaver.client.ui.PixelGlyph;
 import com.sakurakugu.archweaver.client.ui.RotationPad;
 import com.sakurakugu.archweaver.client.ui.SegmentedSwitchButton;
 import com.sakurakugu.archweaver.client.ui.SolidButton;
@@ -33,7 +35,6 @@ import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
-import net.minecraft.client.gui.screens.inventory.InventoryScreen;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.network.chat.Component;
@@ -45,19 +46,29 @@ import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.PlayerModelPart;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import org.joml.Quaternionf;
+import org.joml.Vector3f;
 
-/** 玩偶采用原版玩家背包外观，两侧提供设置、姿势、外观与实时信息。 */
+/** 玩偶背包中央展示当前姿态的大预览，两侧提供装备和设置。 */
 public final class MannequinInventoryScreen extends AbstractContainerScreen<MannequinInventoryMenu> {
     private static final Identifier BACKGROUND = Identifier.withDefaultNamespace("textures/gui/container/inventory.png");
+    private static final Identifier CONTAINER_BACKGROUND = Identifier.withDefaultNamespace("textures/gui/container/generic_54.png");
     private static final FontDescription EFFECT_DURATION_FONT = new FontDescription.Resource(
         Identifier.fromNamespaceAndPath(ArchWeaverMod.MOD_ID, "effect_duration")); // 时间专用字体，将星号字形调整为与数字等高。
     private static final Pose[] POSES = {Pose.STANDING, Pose.CROUCHING, Pose.SWIMMING, Pose.FALL_FLYING, Pose.SLEEPING};
-    private static final String[] POSE_NAMES = {"站立", "潜行", "游泳", "鞘翅飞行", "睡眠"};
-    // 移除按钮和主手槽沿用假人页面的动作按钮列，位置与假人的移除、附身按钮一一对应。
-    private static final int ACTION_BUTTON_LEFT = 76; // 移除按钮的左边偏移，单位为像素。
+    private static final String[] POSE_KEYS = {"standing", "crouching", "swimming", "fall_flying", "sleeping"};
+    // 移除按钮位于双手装备列上方，不占用中央预览。
+    private static final int ACTION_BUTTON_LEFT = MannequinInventoryMenu.HAND_SLOT_LEFT - 1;
     private static final int ACTION_BUTTON_TOP = 7; // 移除按钮的顶边偏移，单位为像素。
-    private static final int MAIN_HAND_SLOT_LEFT = 76; // 主手槽框的左边偏移，槽位落在副手槽正上方。
-    private static final int MAIN_HAND_SLOT_TOP = 43; // 主手槽框的顶边偏移，单位为像素。
+    private static final int PREVIEW_LEFT = 26;
+    private static final int PREVIEW_RIGHT = 150;
+    private static final int PREVIEW_TOP = 7;
+    private static final int PREVIEW_BOTTOM = 118;
+    private static final int PREVIEW_SCALE = 52; // 放大模型，并给伸展的四肢留出空间。
+    // 预览正下方的旋转滑条：压到很窄的一条，横向占满整个模型区域，只转画面中的模型，不动实体朝向。
+    private static final int PREVIEW_ROTATION_SLIDER_HEIGHT = 8; // 滑条高度，只占一条细边。
+    private static final int PREVIEW_ROTATION_MIN = -180; // 滑条取值下界（含），与上界合起来正好一周。
+    private static final int PREVIEW_ROTATION_MAX = 179; // 滑条取值上界（含）。
     private static final int SIDE_BAR_HEIGHT = 264; // 左侧面板竖排后占用的高度，窄窗口按它把标签整体上移。
     // 视角与朝向面板沿用假人页面的尺寸与内部排布。
     private static final int LOOK_PANEL_WIDTH = 94; // 面板宽度，单位为像素。
@@ -70,6 +81,16 @@ public final class MannequinInventoryScreen extends AbstractContainerScreen<Mann
     private static final int LOOK_INPUT_WIDTH = 52; // 角度输入框的宽度，单位为像素。
     private static final int LOOK_PITCH_INPUT_TOP = 192; // 俯仰角输入框相对面板顶边的偏移。
     private static final int LOOK_YAW_INPUT_TOP = 212; // 偏航角输入框相对面板顶边的偏移。
+    // 四肢角度面板：每个肢体的 X、Y、Z 三条滑动条竖排成一列，名称行右端放该肢体的重置按钮。
+    private static final int LIMB_SLIDER_HEIGHT = 16; // 单条滑动条的高度，单位为像素。
+    private static final int LIMB_SLIDER_STEP = 18; // 同一肢体相邻两条滑动条的偏移，含 2 像素间隙。
+    private static final int LIMB_LABEL_TOP = 25; // 肢体名称相对面板顶边的偏移。
+    private static final int LIMB_RESET_SIZE = 16; // 名称行重置按钮的边长，边框内正好放下 12 像素图标。
+    private static final int LIMB_RESET_TOP = 22; // 重置按钮相对面板顶边的偏移，与名称行垂直居中。
+    private static final int LIMB_SLIDER_TOP = 40; // 第一组滑动条相对面板顶边的偏移，让开上方的重置按钮。
+    private static final int LIMB_GROUP_STEP = 72; // 同一面板内第二组肢体相对第一组名称行的偏移。
+    private static final int LIMB_PANEL_HEIGHT = LIMB_SLIDER_TOP + LIMB_GROUP_STEP
+        + LIMB_SLIDER_STEP * 2 + LIMB_SLIDER_HEIGHT + 7; // 两组滑动条加底部内边距后的面板高度。
     // 药水效果网格：固定显示三行三列，超出部分整行滚动。
     private static final int EFFECTS_COLUMNS = 3; // 网格列数。
     private static final int EFFECTS_VISIBLE_ROWS = 3; // 同时显示的行数。
@@ -81,13 +102,21 @@ public final class MannequinInventoryScreen extends AbstractContainerScreen<Mann
     private static final int EFFECT_GRID_HEIGHT = EFFECTS_VISIBLE_ROWS * EFFECT_CELL_HEIGHT; // 网格可见区域高度。
     private static final int EFFECT_SCROLLBAR_GAP = 2; // 网格与滚动条之间的间距。
     private static final int EFFECT_SCROLLBAR_WIDTH = 4; // 始终预留的滚动条宽度。
-    private static final int EFFECTS_PANEL_TOP = 60; // 药水效果面板紧接姿势与四肢角度标签下方。
+    private static final int EFFECTS_PANEL_TOP = 34; // 药水效果面板紧接玩偶设置标签下方。
     private static final int EFFECTS_PANEL_WIDTH = EFFECT_GRID_PADDING * 2
         + EFFECT_GRID_WIDTH + EFFECT_SCROLLBAR_GAP + EFFECT_SCROLLBAR_WIDTH; // 由网格宽度推出的面板宽度。
     private static final int EFFECTS_PANEL_HEIGHT = EFFECT_GRID_TOP + EFFECT_GRID_HEIGHT
         + EFFECT_GRID_PADDING; // 底部边距与左侧相同，不再额外留空。
     private static final String LOOK_PANEL_ID = "look"; // 视角与朝向面板的唯一标识。
     private static final String EFFECTS_PANEL_ID = "effects"; // 药水效果面板的唯一标识。
+    // 皮肤部件面板：七个开关竖排，行距与按钮等高，靠开关图形自身的上下留白分隔。
+    private static final int SKIN_TOGGLE_TOP = 25; // 第一个开关相对面板顶边的偏移。
+    private static final int SKIN_TOGGLE_HEIGHT = 18; // 单个开关按钮的高度，单位为像素。
+    private static final int SKIN_TOGGLE_STEP = 18; // 相邻开关的偏移，按钮之间不再留空隙。
+    private static final int SKIN_PANEL_BOTTOM_PADDING = 7; // 最后一个开关下方的内边距，与左列其他面板一致。
+    private static final int SKIN_PANEL_HEIGHT = SKIN_TOGGLE_TOP
+        + SKIN_TOGGLE_STEP * (PlayerModelPart.values().length - 1) + SKIN_TOGGLE_HEIGHT
+        + SKIN_PANEL_BOTTOM_PADDING; // 全部开关加底部内边距后的面板高度。
     // 玩偶信息面板：身份两行固定在上方，生物行为开启时按生命、护甲、氧气依次排开，
     // 坐标行始终跟在三行之后，与假人页面的坐标行位置一致；三行都不显示时坐标行上移、面板收缩。
     private static final int INFO_PANEL_WIDTH = 132; // 面板宽度，单位为像素。
@@ -102,12 +131,13 @@ public final class MannequinInventoryScreen extends AbstractContainerScreen<Mann
         + INFO_POSITION_HEIGHT + INFO_PANEL_BOTTOM_PADDING; // 生命、护甲、氧气都在时的面板高度，用于初始化时锚定面板。
     private OverlayPanelManager panels;
     private OverlayPanelManager rightPanels;
-    private OverlayPanelManager.Panel settingsPanel, posePanel, skinPanel, effectsPanel, lookPanel, infoPanel;
+    private OverlayPanelManager.Panel settingsPanel, posePanel, armsPanel, legsPanel, skinPanel, effectsPanel, lookPanel, infoPanel;
     private EditBox nameInput, aliasInput;
     private TargetPositionDisplay positionDisplay; // 坐标行，位置随信息区实际高度下移。
     private Button copyPositionButton; // 坐标复制按钮，始终与坐标行同一行。
     private String syncedName, syncedAlias;
     private SolidDropdownButton<Pose> presetButton;
+    private SolidButton resetAnglesButton;
     private RotationPad viewPad; // 视角摇杆，用于调整俯仰角与偏航角。
     private RotationPad directionPad; // 方向摇杆，用于调整身体朝向。
     private ToggleSwitchButton bodyFollowsHeadButton; // “头身联动”开关。
@@ -121,9 +151,10 @@ public final class MannequinInventoryScreen extends AbstractContainerScreen<Mann
     private double effectsScrollbarGrabOffset; // 鼠标按下位置相对滚动条滑块顶部的偏移。
     private final int[][] angles = new int[4][3];
     private final IntegerSliderButton[][] angleSliders = new IntegerSliderButton[4][3];
+    private int previewRotation; // 预览正下方滑条控制的画面旋转角度，只参与这一处渲染，不影响实体朝向。
 
     public MannequinInventoryScreen(MannequinInventoryMenu menu, Inventory inventory, Component title) {
-        super(menu, inventory, title, 176, 166);
+        super(menu, inventory, title, MannequinInventoryMenu.IMAGE_WIDTH, MannequinInventoryMenu.IMAGE_HEIGHT);
     }
 
     @Override protected void init() {
@@ -136,72 +167,115 @@ public final class MannequinInventoryScreen extends AbstractContainerScreen<Mann
         rightPanels = new OverlayPanelManager(font);
         // 顶栏只放玩家/玩偶二态切换：当前是玩偶，选到玩家一侧即转换实体类型。
         addTopBar();
+        addPreviewRotationSlider();
         // 复刻假人页面的移除按钮：只卸载玩偶实体，登记记录保留，回列表页后仍可重新加载。
         addRenderableWidget(new InventorySlotButton(leftPos + ACTION_BUTTON_LEFT, topPos + ACTION_BUTTON_TOP,
-            new ItemStack(Items.BARRIER), Component.literal("移除玩偶"), button -> {
+            new ItemStack(Items.BARRIER), Component.translatable("gui.archweaver.mannequin.remove"), button -> {
                 PlatformNetworking.sendToServer(new MannequinLifecyclePayload(menu.mannequinName(),
                     MannequinLifecyclePayload.Action.UNLOAD));
                 ClientScreenNavigation.back(this);
             }));
-        settingsPanel = panel("settings", 8, 100, 70, "玩偶设置", Items.ARMOR_STAND);
+        settingsPanel = panel("settings", 8, 100, 70,
+            Component.translatable("gui.archweaver.mannequin.settings"), Items.ARMOR_STAND);
         var immovable = addRenderableWidget(new ToggleSwitchButton(settingsPanel.getX() + 6, settingsPanel.getY() + 25,
             settingsPanel.contentWidth() - 12, 18,
-            Component.literal("不可移动"), () -> menu.mannequin() != null && ((MannequinInvoker) menu.mannequin()).archweaver$getImmovable(),
+            Component.translatable("gui.archweaver.mannequin.immovable"), () -> menu.mannequin() != null && ((MannequinInvoker) menu.mannequin()).archweaver$getImmovable(),
             button -> { if (menu.mannequin() != null) send(MannequinSettingsPayload.Action.IMMOVABLE, 0,
                 !((MannequinInvoker) menu.mannequin()).archweaver$getImmovable()); }));
         var biological = addRenderableWidget(new ToggleSwitchButton(settingsPanel.getX() + 6, settingsPanel.getY() + 45,
             settingsPanel.contentWidth() - 12, 18,
-            Component.literal("生物行为"), () -> menu.mannequin() != null && !menu.mannequin().isNoGravity(),
+            Component.translatable("gui.archweaver.mannequin.biological_behavior"), () -> menu.mannequin() != null && !menu.mannequin().isNoGravity(),
             button -> { if (menu.mannequin() != null) send(MannequinSettingsPayload.Action.BIOLOGICAL_BEHAVIOR, 0, menu.mannequin().isNoGravity()); }));
         settingsPanel.bindContents(immovable, biological);
-        int poseWidth = Math.min(196, Math.max(132, leftPos - 4));
-        int sliderWidth = (poseWidth - 16) / 3;
-        posePanel = panel("pose", 34, poseWidth, 200, "姿势与四肢角度", Items.STICK);
+        // 视角与朝向排在右侧标签最上方，注册顺序与面板自上而下一致。
+        addLookPanel();
+        int poseWidth = LOOK_PANEL_WIDTH; // 与视角与朝向同宽，右列面板宽度统一且不再随窗口变化。
+        posePanel = rightPanel("pose", 34, poseWidth, 70,
+            Component.translatable("gui.archweaver.mannequin.pose"), Items.DIAMOND_CHESTPLATE);
         List<AbstractWidget> poseControls = new ArrayList<>();
-        presetButton = addRenderableWidget(new SolidDropdownButton<>(posePanel.getX() + 6, posePanel.getY() + 25, poseWidth - 12, 18,
-            List.of(POSES), POSES[poseIndex()], pose -> Component.literal("姿势：" + POSE_NAMES[List.of(POSES).indexOf(pose)]),
+        presetButton = addRenderableWidget(new SolidDropdownButton<>(posePanel.getX() + 6, posePanel.getY() + 25,
+            poseWidth - 30, 18,
+            List.of(POSES), POSES[poseIndex()], pose -> Component.translatable(
+                "gui.archweaver.mannequin.pose." + POSE_KEYS[List.of(POSES).indexOf(pose)]),
             pose -> send(MannequinSettingsPayload.Action.POSE, List.of(POSES).indexOf(pose), true)));
         poseControls.add(presetButton);
-        poseControls.add(addRenderableWidget(new SolidButton(posePanel.getX() + 6, posePanel.getY() + 177, poseWidth - 12, 18,
-            Component.literal("重置角度"), button -> {
+        resetAnglesButton = addRenderableWidget(new SolidButton(posePanel.getX() + poseWidth - 24, posePanel.getY() + 25,
+            18, 18, PixelGlyph.RESET, Component.translatable("gui.archweaver.mannequin.reset_angles"), button -> {
                 for (int limb = 0; limb < 4; limb++) {
                     java.util.Arrays.fill(angles[limb], 0);
                     for (IntegerSliderButton slider : angleSliders[limb]) slider.setRange(-180, 180, 0);
                     sendLimb(limb);
                 }
-            })));
-        String[] names = {"左臂", "右臂", "左腿", "右腿"};
+            }));
+        poseControls.add(resetAnglesButton);
+        posePanel.setContentRenderer((graphics, x, y) -> presetButton.setSelected(POSES[poseIndex()]));
+        posePanel.bindContents(poseControls.toArray(AbstractWidget[]::new));
+
+        armsPanel = rightPanel("arms", 60, poseWidth, LIMB_PANEL_HEIGHT,
+            Component.translatable("gui.archweaver.mannequin.arms"), Items.IRON_SWORD);
+        legsPanel = rightPanel("legs", 86, poseWidth, LIMB_PANEL_HEIGHT,
+            Component.translatable("gui.archweaver.mannequin.legs"), Items.LEATHER_BOOTS);
+        List<AbstractWidget> armsControls = new ArrayList<>();
+        List<AbstractWidget> legsControls = new ArrayList<>();
+        String[] names = {"left_arm", "right_arm", "left_leg", "right_leg"};
         for (int limb = 0; limb < 4; limb++) {
             MannequinSavedData.Angles rotation = ClientMannequinAngles.get(menu.mannequinId(), limb);
             angles[limb] = new int[] {Math.round(rotation.x()), Math.round(rotation.y()), Math.round(rotation.z())};
+            OverlayPanelManager.Panel targetPanel = limb < 2 ? armsPanel : legsPanel;
+            int group = limb % 2; // 同一面板内该肢体所属的组，决定名称行与滑动条的位置。
+            int limbIndex = limb; // 回调里需要 effectively final 的肢体序号。
+            int[] limbAngles = angles[limb];
+            IntegerSliderButton[] limbSliders = angleSliders[limb];
+            List<AbstractWidget> groupControls = limb < 2 ? armsControls : legsControls;
             for (int axis = 0; axis < 3; axis++) {
-                int l = limb, a = axis;
-                angleSliders[limb][axis] = addRenderableWidget(new IntegerSliderButton(posePanel.getX() + 6 + axis * (sliderWidth + 2),
-                    posePanel.getY() + 60 + limb * 30, sliderWidth, 18, -180, 180, angles[limb][axis],
-                    value -> Component.literal("XYZ".charAt(a) + ": " + value + "°"), value -> { angles[l][a] = value; sendLimb(l); }));
-                poseControls.add(angleSliders[limb][axis]);
+                int a = axis;
+                IntegerSliderButton slider = addRenderableWidget(new IntegerSliderButton(targetPanel.getX() + 6,
+                    targetPanel.getY() + LIMB_SLIDER_TOP + group * LIMB_GROUP_STEP + axis * LIMB_SLIDER_STEP,
+                    targetPanel.contentWidth() - 12, LIMB_SLIDER_HEIGHT, -180, 180, limbAngles[axis],
+                    value -> Component.literal("XYZ".charAt(a) + ": " + value + "°"),
+                    value -> { limbAngles[a] = value; sendLimb(limbIndex); }));
+                limbSliders[axis] = slider;
+                groupControls.add(slider);
             }
+            // 名称行右端的重置按钮只清零当前肢体，其余肢体保持不动。
+            groupControls.add(addRenderableWidget(new SolidButton(
+                targetPanel.getX() + targetPanel.contentWidth() - 6 - LIMB_RESET_SIZE,
+                targetPanel.getY() + LIMB_RESET_TOP + group * LIMB_GROUP_STEP,
+                LIMB_RESET_SIZE, LIMB_RESET_SIZE, PixelGlyph.RESET,
+                Component.translatable("gui.archweaver.mannequin.reset_limb",
+                    Component.translatable("gui.archweaver.mannequin." + names[limbIndex])), button -> {
+                    java.util.Arrays.fill(limbAngles, 0);
+                    for (IntegerSliderButton slider : limbSliders) slider.setRange(-180, 180, 0);
+                    sendLimb(limbIndex);
+                })));
         }
-        posePanel.setContentRenderer((graphics, x, y) -> {
-            presetButton.setSelected(POSES[poseIndex()]);
-            for (int i = 0; i < 4; i++) graphics.text(font, Component.literal(names[i]), x + 6, y + 49 + i * 30, 0xFF404040, false);
+        armsPanel.setContentRenderer((graphics, x, y) -> {
+            graphics.text(font, Component.translatable("gui.archweaver.mannequin." + names[0]), x + 6, y + LIMB_LABEL_TOP, 0xFF404040, false);
+            graphics.text(font, Component.translatable("gui.archweaver.mannequin." + names[1]), x + 6, y + LIMB_LABEL_TOP + LIMB_GROUP_STEP, 0xFF404040, false);
         });
-        posePanel.bindContents(poseControls.toArray(AbstractWidget[]::new));
+        legsPanel.setContentRenderer((graphics, x, y) -> {
+            graphics.text(font, Component.translatable("gui.archweaver.mannequin." + names[2]), x + 6, y + LIMB_LABEL_TOP, 0xFF404040, false);
+            graphics.text(font, Component.translatable("gui.archweaver.mannequin." + names[3]), x + 6, y + LIMB_LABEL_TOP + LIMB_GROUP_STEP, 0xFF404040, false);
+        });
+        armsPanel.bindContents(armsControls.toArray(AbstractWidget[]::new));
+        legsPanel.bindContents(legsControls.toArray(AbstractWidget[]::new));
         // 药水效果排在皮肤部件之前注册，标签顺序与面板自上而下一致。
         addEffectsPanel();
-        skinPanel = panel("skin", 86, 100, 174, "皮肤部件", Items.LEATHER_CHESTPLATE);
+        skinPanel = panel("skin", 60, 100, SKIN_PANEL_HEIGHT,
+            Component.translatable("gui.archweaver.fakeplayer.skin_parts.title"), Items.LEATHER_CHESTPLATE);
         List<AbstractWidget> skinControls = new ArrayList<>();
         PlayerModelPart[] parts = PlayerModelPart.values();
         for (int i = 0; i < parts.length; i++) {
             PlayerModelPart part = parts[i];
-            skinControls.add(addRenderableWidget(new ToggleSwitchButton(skinPanel.getX() + 6, skinPanel.getY() + 25 + i * 20,
-                skinPanel.contentWidth() - 12, 18,
-                part.getName(), () -> menu.mannequin() != null && menu.mannequin().isModelPartShown(part),
+            skinControls.add(addRenderableWidget(new ToggleSwitchButton(skinPanel.getX() + 6,
+                skinPanel.getY() + SKIN_TOGGLE_TOP + i * SKIN_TOGGLE_STEP,
+                skinPanel.contentWidth() - 12, SKIN_TOGGLE_HEIGHT,
+                Component.translatable("gui.archweaver.fakeplayer.skin_parts." + part.getId()),
+                () -> menu.mannequin() != null && menu.mannequin().isModelPartShown(part),
                 button -> { if (menu.mannequin() != null) PlatformNetworking.sendToServer(new AvatarSkinPartPayload(menu.containerId,
                     menu.mannequinId(), part, !menu.mannequin().isModelPartShown(part))); })));
         }
         skinPanel.bindContents(skinControls.toArray(AbstractWidget[]::new));
-        addLookPanel();
         addInfoPanel();
         panels.restoreOpenPanel(open);
         rightPanels.restoreOpenPanel(openRight);
@@ -228,9 +302,13 @@ public final class MannequinInventoryScreen extends AbstractContainerScreen<Mann
     }
 
     private OverlayPanelManager.Panel panel(String id, int top, int width, int height, String title, net.minecraft.world.item.Item icon) {
+        return panel(id, top, width, height, Component.literal(title), icon);
+    }
+
+    private OverlayPanelManager.Panel panel(String id, int top, int width, int height, Component title, net.minecraft.world.item.Item icon) {
         int anchorY = Math.max(4, Math.min(topPos, this.height - SIDE_BAR_HEIGHT));
         var panel = panels.addLeftPanel(id, leftPos - width, anchorY,
-            new OverlayPanelManager.Layout(top, width, height, 21, 24), Component.literal(title));
+            new OverlayPanelManager.Layout(top, width, height, 21, 24), title);
         addRenderableWidget(panel);
         addRenderableWidget(panel.createTab(new ItemStack(icon)));
         return panel;
@@ -238,9 +316,13 @@ public final class MannequinInventoryScreen extends AbstractContainerScreen<Mann
 
     /** 右侧面板与左侧一样在窄窗口里整体上移，保证整个面板可见。 */
     private OverlayPanelManager.Panel rightPanel(String id, int top, int width, int height, String title, net.minecraft.world.item.Item icon) {
+        return rightPanel(id, top, width, height, Component.literal(title), icon);
+    }
+
+    private OverlayPanelManager.Panel rightPanel(String id, int top, int width, int height, Component title, net.minecraft.world.item.Item icon) {
         int anchorY = Math.max(4, Math.min(topPos, this.height - (top + height) - 4));
         var panel = rightPanels.addRightPanel(id, leftPos + imageWidth, anchorY,
-            new OverlayPanelManager.Layout(top, width, height, 21, 24), Component.literal(title));
+            new OverlayPanelManager.Layout(top, width, height, 21, 24), title);
         addRenderableWidget(panel);
         addRenderableWidget(panel.createTab(new ItemStack(icon)));
         return panel;
@@ -248,7 +330,8 @@ public final class MannequinInventoryScreen extends AbstractContainerScreen<Mann
 
     /** 信息面板复用原版描述作为别名，皮肤档案独立保留。 */
     private void addInfoPanel() {
-        infoPanel = rightPanel("info", 34, INFO_PANEL_WIDTH, INFO_PANEL_HEIGHT, "玩偶信息", Items.NAME_TAG);
+        infoPanel = rightPanel("info", 112, INFO_PANEL_WIDTH, INFO_PANEL_HEIGHT,
+            Component.translatable("gui.archweaver.mannequin.info"), Items.NAME_TAG);
         int x = infoPanel.getX(), y = infoPanel.getY();
         nameInput = addRenderableWidget(new EditBox(font, x + 6, y + INFO_NAME_ROW, 86, 16,
             Component.translatable("gui.archweaver.fakeplayer.info.name")));
@@ -347,7 +430,8 @@ public final class MannequinInventoryScreen extends AbstractContainerScreen<Mann
 
     /** 视角与朝向面板：视角摇杆、方向摇杆、头身联动开关与角度输入框。 */
     private void addLookPanel() {
-        lookPanel = rightPanel(LOOK_PANEL_ID, 8, LOOK_PANEL_WIDTH, LOOK_PANEL_HEIGHT, "视角与朝向", Items.COMPASS);
+        lookPanel = rightPanel(LOOK_PANEL_ID, 8, LOOK_PANEL_WIDTH, LOOK_PANEL_HEIGHT,
+            Component.translatable("gui.archweaver.mannequin.look"), Items.COMPASS);
         int x = lookPanel.getX();
         int y = lookPanel.getY();
         lookPanel.setContentRenderer(this::drawLookPanelContents);
@@ -440,7 +524,7 @@ public final class MannequinInventoryScreen extends AbstractContainerScreen<Mann
 
     private void addEffectsPanel() {
         effectsPanel = panel(EFFECTS_PANEL_ID, EFFECTS_PANEL_TOP, EFFECTS_PANEL_WIDTH, EFFECTS_PANEL_HEIGHT,
-            "药水效果", Items.POTION);
+            Component.translatable("gui.archweaver.mannequin.effects"), Items.POTION);
         effectsPanel.setContentRenderer(this::drawEffectsPanelContents);
     }
 
@@ -485,7 +569,8 @@ public final class MannequinInventoryScreen extends AbstractContainerScreen<Mann
             drawEffectCellBackground(graphics, cellLeft, cellTop, effect.isAmbient());
             graphics.blitSprite(RenderPipelines.GUI_TEXTURED, Gui.getMobEffectSprite(effect.getEffect()),
                 cellLeft + 7, cellTop + 2, 18, 18);
-            Component duration = effectDurationComponent(effect);
+            // 图标下方继续隐藏超长持续时间；真实值只在悬停提示中显示。
+            Component duration = effectMaskedDurationComponent(effect);
             graphics.text(font, duration,
                 cellLeft + (EFFECT_CELL_WIDTH - font.width(duration)) / 2, cellTop + 21, 0xFFFFFFFF, true);
         }
@@ -578,16 +663,20 @@ public final class MannequinInventoryScreen extends AbstractContainerScreen<Mann
         tooltip.add(effect.getEffect().value().getDisplayName());
         tooltip.add(Component.translatable("gui.archweaver.fakeplayer.effects.level", effect.getAmplifier() + 1));
         tooltip.add(Component.translatable("gui.archweaver.fakeplayer.effects.duration",
-            effectDurationComponent(effect)));
+            effectRealDurationComponent(effect)));
         if (effect.isAmbient()) {
             tooltip.add(Component.translatable("gui.archweaver.fakeplayer.effects.ambient"));
         }
         graphics.setTooltipForNextFrame(font, tooltip, Optional.empty(), mouseX, mouseY);
     }
 
-    private Component effectDurationComponent(MobEffectInstance effect) {
+    private Component effectMaskedDurationComponent(MobEffectInstance effect) {
         return Component.literal(formatEffectDuration(effect))
             .withStyle(style -> style.withFont(EFFECT_DURATION_FONT));
+    }
+
+    private Component effectRealDurationComponent(MobEffectInstance effect) {
+        return Component.literal(formatRealEffectDuration(effect));
     }
 
     private String formatEffectDuration(MobEffectInstance effect) {
@@ -600,6 +689,16 @@ public final class MannequinInventoryScreen extends AbstractContainerScreen<Mann
         return minutes >= 100
             ? String.format(java.util.Locale.ROOT, "**:%02d", seconds)
             : String.format(java.util.Locale.ROOT, "%02d:%02d", minutes, seconds);
+    }
+
+    private String formatRealEffectDuration(MobEffectInstance effect) {
+        if (effect.isInfiniteDuration()) {
+            return "∞";
+        }
+        int totalSeconds = Math.max(0, effect.getDuration()) / 20;
+        int minutes = totalSeconds / 60;
+        int seconds = totalSeconds % 60;
+        return String.format(java.util.Locale.ROOT, "%02d:%02d", minutes, seconds);
     }
 
     private int poseIndex() {
@@ -686,25 +785,76 @@ public final class MannequinInventoryScreen extends AbstractContainerScreen<Mann
     @Override public void extractBackground(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
         if (!ClientScreenNavigation.extractBackground(this, graphics, partialTick)) super.extractBackground(graphics, mouseX, mouseY, partialTick);
         topBar().draw(graphics);
-        graphics.blit(RenderPipelines.GUI_TEXTURED, BACKGROUND, leftPos, topPos, 0.0F, 0.0F, 176, 166, 256, 256);
-        // 玩偶没有合成能力，清除原版合成区并在其中显示名称。
-        graphics.fill(leftPos + 96, topPos + 7, leftPos + 172, topPos + 78, 0xFFC6C6C6);
-        graphics.text(font, Component.literal(menu.mannequinName()), leftPos + 97, topPos + 8, 0xFF404040, false);
-        // 主手槽的槽框与副手槽同列并紧贴其上，槽位本身由 MannequinInventoryMenu 放置。
-        graphics.blit(RenderPipelines.GUI_TEXTURED, BACKGROUND,
-            leftPos + MAIN_HAND_SLOT_LEFT, topPos + MAIN_HAND_SLOT_TOP, 7.0F, 7.0F, 18, 18, 256, 256);
+        drawInventoryBackground(graphics);
         // 空槽里的“主”字由 MannequinInventoryMenu 的 getNoItemIcon 提供，原版会按空槽图标绘制。
-        graphics.text(font, Component.literal("主手"), leftPos + 99, topPos + 48, 0xFF404040, false);
-        graphics.text(font, playerInventoryTitle, leftPos + 8, topPos + 74, 0xFF404040, false);
+        graphics.text(font, playerInventoryTitle, leftPos + 8,
+            topPos + MannequinInventoryMenu.VIEWER_SECTION_TOP + 3, 0xFF404040, false);
         // 从下到上绘制：展开的面板要盖住其上方标签的下沿。
         skinPanel.drawBackground(graphics);
         effectsPanel.drawBackground(graphics);
-        posePanel.drawBackground(graphics);
         settingsPanel.drawBackground(graphics);
         infoPanel.drawBackground(graphics);
+        legsPanel.drawBackground(graphics);
+        armsPanel.drawBackground(graphics);
+        posePanel.drawBackground(graphics);
         lookPanel.drawBackground(graphics);
-        if (menu.mannequin() != null) InventoryScreen.extractEntityInInventoryFollowsMouse(graphics,
-            leftPos + 26, topPos + 8, leftPos + 75, topPos + 78, 30, 0.0625F, mouseX, mouseY, menu.mannequin());
+        drawMannequinPreview(graphics);
+    }
+
+    /** 拼接原版容器边框与完整的玩家物品栏区域，上半部分只绘制预览和装备槽。 */
+    private void drawInventoryBackground(GuiGraphicsExtractor graphics) {
+        int sectionTop = MannequinInventoryMenu.VIEWER_SECTION_TOP;
+        graphics.fill(leftPos + 7, topPos + 7, leftPos + imageWidth - 7, topPos + sectionTop, 0xFFC6C6C6);
+        graphics.blit(RenderPipelines.GUI_TEXTURED, CONTAINER_BACKGROUND,
+            leftPos, topPos, 0.0F, 0.0F, imageWidth, 7, 256, 256);
+        graphics.blit(RenderPipelines.GUI_TEXTURED, CONTAINER_BACKGROUND,
+            leftPos, topPos + 7, 0.0F, 7.0F, 7, sectionTop - 7, 256, 256);
+        graphics.blit(RenderPipelines.GUI_TEXTURED, CONTAINER_BACKGROUND,
+            leftPos + imageWidth - 7, topPos + 7, 169.0F, 7.0F, 7, sectionTop - 7, 256, 256);
+        // 使用与玩家背包相同的 96 像素区域，标题不再与脚部装备槽重叠。
+        graphics.blit(RenderPipelines.GUI_TEXTURED, CONTAINER_BACKGROUND,
+            leftPos, topPos + sectionTop, 0.0F, 126.0F, imageWidth, 96, 256, 256);
+        PixelGui.drawInventorySlotBackground(graphics, leftPos + PREVIEW_LEFT, topPos + PREVIEW_TOP,
+            PREVIEW_RIGHT - PREVIEW_LEFT, PREVIEW_BOTTOM - PREVIEW_TOP, 0xFF000000);
+        for (int index = 0; index < 6; index++) {
+            var slot = menu.getSlot(index);
+            graphics.blit(RenderPipelines.GUI_TEXTURED, BACKGROUND,
+                leftPos + slot.x - 1, topPos + slot.y - 1, 7.0F, 7.0F, 18, 18, 256, 256);
+        }
+    }
+
+    /**
+     * 挂在预览区域正下方的细滑条，拖动它让画面里的模型绕竖轴转一整圈，方便查看模型的各个面。
+     *
+     * <p>只改预览这一处的渲染朝向，不写回实体，也不发任何包：世界里的玩偶朝向保持原样。
+     */
+    private void addPreviewRotationSlider() {
+        // 预览下沿（PREVIEW_BOTTOM）与物品栏标题（VIEWER_SECTION_TOP）之间空出的那一条，滑条在里面垂直居中。
+        int top = (PREVIEW_BOTTOM + MannequinInventoryMenu.VIEWER_SECTION_TOP - PREVIEW_ROTATION_SLIDER_HEIGHT) / 2;
+        addRenderableWidget(new IntegerSliderButton(
+            leftPos + PREVIEW_LEFT, topPos + top,
+            PREVIEW_RIGHT - PREVIEW_LEFT, PREVIEW_ROTATION_SLIDER_HEIGHT,
+            PREVIEW_ROTATION_MIN, PREVIEW_ROTATION_MAX, previewRotation,
+            value -> Component.empty(),
+            value -> previewRotation = value));
+    }
+
+    /** 直接提取实体渲染状态，保留姿势、四肢角度、头部俯仰和身体朝向。 */
+    private void drawMannequinPreview(GuiGraphicsExtractor graphics) {
+        var mannequin = menu.mannequin();
+        if (mannequin == null) return;
+        var renderer = minecraft.getEntityRenderDispatcher().getRenderer(mannequin);
+        var state = renderer.createRenderState(mannequin, 1.0F);
+        state.shadowPieces.clear();
+        state.outlineColor = 0;
+        state.nameTag = null;
+        Vector3f translation = new Vector3f(0.0F, state.boundingBoxHeight / 2.0F + 0.0625F, 0.0F);
+        // 先绕模型自身竖轴转 previewRotation，再用原有的 Z 翻转把模型摆正，得到纯画面上的转台效果。
+        Quaternionf rotation = new Quaternionf().rotateZ((float) Math.PI)
+            .rotateY((float) Math.toRadians(previewRotation));
+        graphics.entity(state, PREVIEW_SCALE, translation, rotation, null,
+            leftPos + PREVIEW_LEFT + 1, topPos + PREVIEW_TOP + 1,
+            leftPos + PREVIEW_RIGHT - 1, topPos + PREVIEW_BOTTOM - 1);
     }
 
     @Override protected void extractLabels(GuiGraphicsExtractor graphics, int mouseX, int mouseY) {

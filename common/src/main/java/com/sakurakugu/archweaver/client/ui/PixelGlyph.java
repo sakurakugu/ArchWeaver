@@ -94,6 +94,21 @@ public enum PixelGlyph {
             graphics.fill(x + 3, y + 10, x + 8, y + 11, color);
         }
     },
+    RESET(12, 12) { // 重置图标：圆角方框轮廓，右侧留出缺口，宽高均 12。
+        @Override
+        protected void draw(GuiGraphicsExtractor graphics, int x, int y, int color) {
+            graphics.fill(x + 2, y + 1, x + 10, y + 3, color);
+            graphics.fill(x + 1, y + 2, x + 2, y + 10, color);
+            graphics.fill(x + 10, y + 2, x + 11, y + 6, color);
+            graphics.fill(x + 2, y + 3, x + 3, y + 11, color);
+            graphics.fill(x + 9, y + 3, x + 10, y + 6, color);
+            graphics.fill(x + 8, y + 4, x + 9, y + 5, color);
+            graphics.fill(x + 11, y + 4, x + 12, y + 5, color);
+            graphics.fill(x + 9, y + 8, x + 11, y + 10, color);
+            graphics.fill(x + 3, y + 9, x + 9, y + 11, color);
+            graphics.fill(x + 9, y + 10, x + 10, y + 11, color);
+        }
+    },
     ADD(12, 12) { // 加号图标：一条竖杠加两条横臂，宽高均 12。
         @Override
         protected void draw(GuiGraphicsExtractor graphics, int x, int y, int color) {

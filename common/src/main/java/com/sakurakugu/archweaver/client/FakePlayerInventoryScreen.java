@@ -429,7 +429,8 @@ public final class FakePlayerInventoryScreen extends AbstractContainerScreen<Fak
         var layout = nextPanelLayout(EFFECTS_PANEL_LAYOUT, SIMULATION_PANEL_LAYOUT.width(), 174);
         int left = leftPos - layout.width();
         int top = topPos + layout.top();
-        skinPanel = leftPanelManager.addLeftPanel("skin_parts", left, topPos, layout, Component.literal("皮肤部件"));
+        skinPanel = leftPanelManager.addLeftPanel("skin_parts", left, topPos, layout,
+            Component.translatable("gui.archweaver.fakeplayer.skin_parts.title"));
         addRenderableWidget(skinPanel);
         addRenderableWidget(skinPanel.createTab(new ItemStack(Items.LEATHER_CHESTPLATE)));
         List<AbstractWidget> controls = new ArrayList<>();
@@ -438,7 +439,8 @@ public final class FakePlayerInventoryScreen extends AbstractContainerScreen<Fak
             PlayerModelPart part = parts[i];
             controls.add(addRenderableWidget(new ToggleSwitchButton(left + 6, top + 25 + i * 20,
                 skinPanel.contentWidth() - 12, 18,
-                part.getName(), () -> modelPartShown(part),
+                Component.translatable("gui.archweaver.fakeplayer.skin_parts." + part.getId()),
+                () -> modelPartShown(part),
                 button -> PlatformNetworking.sendToServer(new AvatarSkinPartPayload(menu.containerId,
                     menu.targetUuid(), part, !modelPartShown(part))))));
         }
@@ -1182,7 +1184,8 @@ public final class FakePlayerInventoryScreen extends AbstractContainerScreen<Fak
             drawEffectCellBackground(graphics, cellLeft, cellTop, effect.isAmbient());
             graphics.blitSprite(RenderPipelines.GUI_TEXTURED, Gui.getMobEffectSprite(effect.getEffect()),
                 cellLeft + 7, cellTop + 2, 18, 18);
-            Component duration = effectDurationComponent(effect);
+            // 与玩偶一致：图标下方隐藏超长持续时间，真实值只在悬停提示中显示。
+            Component duration = effectMaskedDurationComponent(effect);
             graphics.text(font, duration,
                 cellLeft + (EFFECT_CELL_WIDTH - font.width(duration)) / 2, cellTop + 21, 0xFFFFFFFF, true);
         }
@@ -1283,7 +1286,7 @@ public final class FakePlayerInventoryScreen extends AbstractContainerScreen<Fak
         tooltip.add(effectName);
         tooltip.add(Component.translatable("gui.archweaver.fakeplayer.effects.level", effect.getAmplifier() + 1));
         tooltip.add(Component.translatable("gui.archweaver.fakeplayer.effects.duration",
-            effectDurationComponent(effect)));
+            effectRealDurationComponent(effect)));
         if (effect.isAmbient()) {
             tooltip.add(Component.translatable("gui.archweaver.fakeplayer.effects.ambient"));
         }
@@ -1313,8 +1316,12 @@ public final class FakePlayerInventoryScreen extends AbstractContainerScreen<Fak
         return effects;
     }
 
-    private Component effectDurationComponent(MobEffectInstance effect) {
+    private Component effectMaskedDurationComponent(MobEffectInstance effect) {
         return Component.literal(formatEffectDuration(effect)).withStyle(style -> style.withFont(EFFECT_DURATION_FONT));
+    }
+
+    private Component effectRealDurationComponent(MobEffectInstance effect) {
+        return Component.literal(formatRealEffectDuration(effect));
     }
 
     private String formatEffectDuration(MobEffectInstance effect) {
@@ -1327,6 +1334,16 @@ public final class FakePlayerInventoryScreen extends AbstractContainerScreen<Fak
         return minutes >= 100
             ? String.format(Locale.ROOT, "**:%02d", seconds)
             : String.format(Locale.ROOT, "%02d:%02d", minutes, seconds);
+    }
+
+    private String formatRealEffectDuration(MobEffectInstance effect) {
+        if (effect.isInfiniteDuration()) {
+            return "∞";
+        }
+        int totalSeconds = Math.max(0, effect.getDuration()) / 20;
+        int minutes = totalSeconds / 60;
+        int seconds = totalSeconds % 60;
+        return String.format(Locale.ROOT, "%02d:%02d", minutes, seconds);
     }
 
     private void drawInfoPanelContents(GuiGraphicsExtractor graphics, int left, int top) {

@@ -30,6 +30,21 @@ import com.sakurakugu.archweaver.mixin.MannequinInvoker;
 
 /** 玩偶专用装备栏，只暴露六个装备槽和查看者背包。 */
 public final class MannequinInventoryMenu extends AbstractContainerMenu implements TargetInfoMenu {
+    // 菜单槽位和客户端背景共用布局，物品栏标题独占玩家背包上方的完整一行。
+    public static final int IMAGE_WIDTH = 176;
+    // 预览下沿与物品栏之间空出 11 像素的一条，给预览底部的朝向滑条留位置。
+    public static final int VIEWER_SECTION_TOP = 129;
+    public static final int IMAGE_HEIGHT = VIEWER_SECTION_TOP + 96;
+    public static final int ARMOR_SLOT_LEFT = 8;
+    public static final int ARMOR_SLOT_TOP = 26;
+    public static final int HAND_SLOT_LEFT = 153;
+    public static final int MAIN_HAND_SLOT_TOP = 62;
+    public static final int OFF_HAND_SLOT_TOP = 80;
+    // 玩家物品栏的 36 格相对物品栏背景上移 4 像素，正好嵌进背景贴图画好的凹槽；窗口高度和标题不动。
+    private static final int VIEWER_SLOT_LIFT = 4;
+    private static final int VIEWER_ROWS_TOP = VIEWER_SECTION_TOP + 18 - VIEWER_SLOT_LIFT;
+    private static final int VIEWER_HOTBAR_TOP = VIEWER_SECTION_TOP + 76 - VIEWER_SLOT_LIFT;
+
     private TargetInfoPayload targetInfo;
     // 空的主手槽显示“主”字，做法和原版空盔甲槽一样，交给 getNoItemIcon 返回精灵。
     private static final Identifier MAIN_HAND_ICON =
@@ -70,13 +85,14 @@ public final class MannequinInventoryMenu extends AbstractContainerMenu implemen
         if (mannequin != null) mannequin.setUUID(uuid);
         EquipmentSlot[] slots = {EquipmentSlot.HEAD, EquipmentSlot.CHEST, EquipmentSlot.LEGS,
             EquipmentSlot.FEET, EquipmentSlot.MAINHAND, EquipmentSlot.OFFHAND};
-        // 盔甲槽沿用原版玩家背包左列，主手紧贴副手槽正上方，六个装备槽都保持可见。
-        for (int i = 0; i < 4; i++) addSlot(new EquipmentSlotSlot(this::mannequin, slots[i], i, 8, 8 + i * 18));
-        addSlot(new EquipmentSlotSlot(this::mannequin, EquipmentSlot.MAINHAND, 4, 77, 44));
-        addSlot(new EquipmentSlotSlot(this::mannequin, EquipmentSlot.OFFHAND, 5, 77, 62));
+        // 盔甲在预览左侧，双手在右侧，中央留给完整的大玩偶。
+        for (int i = 0; i < 4; i++) addSlot(new EquipmentSlotSlot(this::mannequin, slots[i], i,
+            ARMOR_SLOT_LEFT, ARMOR_SLOT_TOP + i * 18));
+        addSlot(new EquipmentSlotSlot(this::mannequin, EquipmentSlot.MAINHAND, 4, HAND_SLOT_LEFT, MAIN_HAND_SLOT_TOP));
+        addSlot(new EquipmentSlotSlot(this::mannequin, EquipmentSlot.OFFHAND, 5, HAND_SLOT_LEFT, OFF_HAND_SLOT_TOP));
         for (int row = 0; row < 3; row++) for (int col = 0; col < 9; col++)
-            addSlot(new Slot(inventory, col + row * 9 + 9, 8 + col * 18, 84 + row * 18));
-        for (int col = 0; col < 9; col++) addSlot(new Slot(inventory, col, 8 + col * 18, 142));
+            addSlot(new Slot(inventory, col + row * 9 + 9, 8 + col * 18, VIEWER_ROWS_TOP + row * 18));
+        for (int col = 0; col < 9; col++) addSlot(new Slot(inventory, col, 8 + col * 18, VIEWER_HOTBAR_TOP));
         captureSettings();
         addDataSlots(settings);
     }
