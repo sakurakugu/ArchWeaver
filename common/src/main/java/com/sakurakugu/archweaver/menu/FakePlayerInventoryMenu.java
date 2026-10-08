@@ -33,6 +33,7 @@ import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.entity.player.PlayerModelPart;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.ContainerInput;
 import net.minecraft.world.inventory.CraftingContainer;
@@ -146,6 +147,8 @@ public final class FakePlayerInventoryMenu extends AbstractContainerMenu {
     private final DataSlot simulationMode;
     private final DataSlot simulationDistance;
     private final DataSlot simulationDistanceLimit;
+    private int skinModelPartsSnapshot = 127;
+    private final DataSlot skinModelParts;
 
     public FakePlayerInventoryMenu(int containerId, Inventory inventory, RegistryFriendlyByteBuf data) {
         this(
@@ -173,6 +176,7 @@ public final class FakePlayerInventoryMenu extends AbstractContainerMenu {
             data.readVarInt(),
             data.readVarInt()
         );
+        skinModelPartsSnapshot = data.readUnsignedByte();
     }
 
     public FakePlayerInventoryMenu(
@@ -331,6 +335,10 @@ public final class FakePlayerInventoryMenu extends AbstractContainerMenu {
             () -> target == null ? simulationDistanceLimitSnapshot
                 : FakePlayerSimulationService.maxSimulationDistance(target.server()),
             value -> simulationDistanceLimitSnapshot = value);
+        // 通过菜单同步皮肤部件，远处或其他维度未被追踪的目标也能正确显示开关状态。
+        this.skinModelParts = syncedValue(
+            () -> target == null ? skinModelPartsSnapshot : target.archweaver$modelParts(),
+            value -> skinModelPartsSnapshot = value);
         this.automationMaskSnapshot = automationMask;
         this.continuousControlMaskSnapshot = continuousControlMask;
         this.continuousIntervals[0] = attackInterval;
@@ -435,6 +443,10 @@ public final class FakePlayerInventoryMenu extends AbstractContainerMenu {
                 setter.accept(value);
             }
         });
+    }
+
+    public boolean isModelPartShown(PlayerModelPart part) {
+        return (skinModelParts.get() & part.getMask()) != 0;
     }
 
     private void addTargetInventorySlots(Container inventory, LivingEntity owner) {

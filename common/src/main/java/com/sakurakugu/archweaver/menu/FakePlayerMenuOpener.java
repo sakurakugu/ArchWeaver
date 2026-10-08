@@ -9,6 +9,8 @@ import com.sakurakugu.archweaver.entity.FakePlayerActions;
 import com.sakurakugu.archweaver.entity.FakePlayerManager;
 import com.sakurakugu.archweaver.entity.FakePlayerPossession;
 import com.sakurakugu.archweaver.entity.FakeServerPlayer;
+import com.sakurakugu.archweaver.entity.MannequinManager;
+import java.util.UUID;
 import com.sakurakugu.archweaver.persistence.FakePlayerPersistence;
 import com.sakurakugu.archweaver.persistence.FakePlayerSavedData;
 import java.util.List;
@@ -103,6 +105,24 @@ public final class FakePlayerMenuOpener {
         openStorage(viewer, fake, FakePlayerInventoryMenu.View.ENDER_CHEST);
     }
 
+    public static void openMannequinInventory(ServerPlayer viewer, UUID id) {
+        var mannequin = MannequinManager.loaded(viewer.level().getServer(), id).orElse(null);
+        if (mannequin == null) return;
+        MannequinManager.syncAnglesTo(viewer);
+        viewer.openMenu(new ManagementMenuProvider(
+            (containerId, inventory, player) -> new MannequinInventoryMenu(containerId, inventory, mannequin),
+            Component.literal(mannequin.getName().getString())), data -> {
+                data.writeVarInt(mannequin.getId());
+                data.writeUUID(mannequin.getUUID());
+                data.writeUtf(mannequin.getName().getString(), 64);
+                net.minecraft.world.item.component.ResolvableProfile.STREAM_CODEC.encode(data, mannequin.getProfile());
+                data.writeEnum(mannequin.getPose());
+                data.writeBoolean(((com.sakurakugu.archweaver.mixin.MannequinInvoker) mannequin).archweaver$getImmovable());
+                data.writeBoolean(mannequin.isNoGravity());
+                data.writeByte(((com.sakurakugu.archweaver.entity.AvatarModelParts) mannequin).archweaver$modelParts());
+            });
+    }
+
     private static void openStorage(ServerPlayer viewer, FakeServerPlayer fake, FakePlayerInventoryMenu.View view) {
         if (!canManage(viewer, fake)) {
             return;
@@ -152,6 +172,7 @@ public final class FakePlayerMenuOpener {
                 data.writeVarInt(simulation.mode().ordinal());
                 data.writeVarInt(simulation.simulationDistance());
                 data.writeVarInt(FakePlayerSimulationService.maxSimulationDistance(viewer.level().getServer()));
+                data.writeByte(fake.archweaver$modelParts());
             }
         );
     }

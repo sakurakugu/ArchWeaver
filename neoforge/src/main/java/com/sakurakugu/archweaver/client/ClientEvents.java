@@ -19,5 +19,6 @@ public final class ClientEvents {
         event.register(ModMenus.GLOBAL_FAKE_PLAYER.get(), GlobalFakePlayerScreen::new);
         event.register(ModMenus.PRESET_MANAGEMENT.get(), PresetManagementScreen::new);
         event.register(ModMenus.FAKE_PLAYER_INVENTORY.get(), FakePlayerInventoryScreen::new);
+        event.register(ModMenus.MANNEQUIN_INVENTORY.get(), MannequinInventoryScreen::new);
     }
 }

@@ -11,7 +11,11 @@
     "PlayerListInvoker",
     "ServerGamePacketListenerMixin",
     "FakePlayerChunkMapMixin",
-    "TickRateManagerMixin"
+    "TickRateManagerMixin",
+    "MannequinInvoker",
+    "AvatarModelPartsMixin",
+    "MannequinBehaviorMixin",
+    "MannequinMovementMixin"
   ],
   "client": [
     "AbstractClientPlayerMixin",
@@ -19,7 +23,10 @@
     "EntityNameMixin",
     "EntityRendererNameMixin",
     "EntityRenderStateAliasMixin",
-    "EntityRendererAliasMixin"
+    "EntityRendererAliasMixin",
+    "MannequinRenderStateMixin",
+    "MannequinAvatarRendererMixin",
+    "MannequinModelMixin"
   ],
   "injectors": {
     "defaultRequire": 1

@@ -9,6 +9,7 @@ public final class ModMenus {
     public static final Handle<GlobalFakePlayerMenu> GLOBAL_FAKE_PLAYER = new Handle<>();
     public static final Handle<PresetManagementMenu> PRESET_MANAGEMENT = new Handle<>();
     public static final Handle<FakePlayerInventoryMenu> FAKE_PLAYER_INVENTORY = new Handle<>();
+    public static final Handle<MannequinInventoryMenu> MANNEQUIN_INVENTORY = new Handle<>();
 
     private ModMenus() {
     }

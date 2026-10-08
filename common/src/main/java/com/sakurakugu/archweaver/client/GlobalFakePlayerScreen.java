@@ -19,6 +19,8 @@ public final class GlobalFakePlayerScreen extends ResponsiveContainerScreen<Glob
     private static final int BUTTON_HEIGHT = 24; // 生成按钮高度，单位为像素。
     private EditBox nameInput; // 假人名称输入框，最长 16 个字符。
     private Button spawnButton; // 生成假人按钮，名称合法时才可点击。
+    private Button typeButton;
+    private boolean mannequinMode;
 
     public GlobalFakePlayerScreen(GlobalFakePlayerMenu menu, Inventory inventory, Component title) {
         super(menu, inventory, title, PANEL_WIDTH, PANEL_HEIGHT);
@@ -34,6 +36,7 @@ public final class GlobalFakePlayerScreen extends ResponsiveContainerScreen<Glob
         clearWidgets();
         nameInput = null;
         spawnButton = null;
+        typeButton = null;
         int margin = size(50);
         int fieldWidth = Math.max(1, responsiveWidth() - margin * 2);
         nameInput = addRenderableWidget(new EditBox(
@@ -43,8 +46,10 @@ public final class GlobalFakePlayerScreen extends ResponsiveContainerScreen<Glob
         nameInput.setMaxLength(16);
         nameInput.setHint(Component.translatable("gui.archweaver.fakeplayer.global.spawn_name"));
         nameInput.setResponder(value -> updateSpawnButton());
+        typeButton = addRenderableWidget(new SolidButton(leftPos + margin, topPos + s(116), fieldWidth, size(20),
+            typeLabel(), button -> { mannequinMode = !mannequinMode; typeButton.setMessage(typeLabel()); }));
         spawnButton = addRenderableWidget(
-            new SolidButton(leftPos + margin, topPos + s(120), fieldWidth, size(BUTTON_HEIGHT),
+            new SolidButton(leftPos + margin, topPos + s(142), fieldWidth, size(BUTTON_HEIGHT),
                 Component.translatable("gui.archweaver.fakeplayer.global.spawn"), button -> submitSpawn())
         );
         updateSpawnButton();
@@ -67,9 +72,13 @@ public final class GlobalFakePlayerScreen extends ResponsiveContainerScreen<Glob
 
     private void submitSpawn() {
         if (spawnButton != null && spawnButton.active && nameInput != null) {
-            PlatformNetworking.sendToServer(new SpawnFakePlayerPayload(menu.containerId, nameInput.getValue()));
+            PlatformNetworking.sendToServer(new SpawnFakePlayerPayload(menu.containerId, nameInput.getValue(), mannequinMode));
             spawnButton.active = false;
         }
+    }
+
+    private Component typeLabel() {
+        return Component.literal("生成类型：" + (mannequinMode ? "玩偶" : "玩家"));
     }
 
     @Override

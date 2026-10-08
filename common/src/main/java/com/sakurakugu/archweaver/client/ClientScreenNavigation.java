@@ -178,6 +178,7 @@ public final class ClientScreenNavigation {
 
     private static boolean isOverlay(Screen screen) {
         return screen instanceof GlobalFakePlayerScreen || screen instanceof PresetManagementScreen
+            || screen instanceof MannequinInventoryScreen
             || screen instanceof FakePlayerInventoryScreen || screen instanceof ChunkMapSettingsScreen
             || screen instanceof ChunkMapManagementScreen;
     }
@@ -187,6 +188,8 @@ public final class ClientScreenNavigation {
     }
 
     private static boolean replacesPage(Screen current, Screen next) {
+        if (current instanceof FakePlayerInventoryScreen && next instanceof MannequinInventoryScreen
+            || current instanceof MannequinInventoryScreen && next instanceof FakePlayerInventoryScreen) return true;
         if (current == null || current.getClass() != next.getClass()) return false;
         if (current instanceof FakePlayerInventoryScreen inventory
             && next instanceof FakePlayerInventoryScreen nextInventory) {
@@ -290,7 +293,7 @@ public final class ClientScreenNavigation {
         if (current == null || sourceEntry == null) return null;
         if (next instanceof MainPageScreen) return null;
         if (replacesPage(current, next)) return sourceEntry.parent();
-        if (current instanceof GlobalFakePlayerScreen && next instanceof FakePlayerInventoryScreen) {
+        if (current instanceof GlobalFakePlayerScreen && (next instanceof FakePlayerInventoryScreen || next instanceof MannequinInventoryScreen)) {
             return sourceEntry.parent();
         }
         if (current instanceof FakePlayerInventoryScreen
@@ -308,6 +311,7 @@ public final class ClientScreenNavigation {
         if (screen instanceof FakePlayerInventoryScreen inventory) {
             return Route.inventory(inventory.getMenu().targetName());
         }
+        if (screen instanceof MannequinInventoryScreen) return Route.main();
         if (screen instanceof GlobalFakePlayerScreen) return Route.main();
         if (screen instanceof PresetManagementScreen) return Route.main();
         return Route.close();

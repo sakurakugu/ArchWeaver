@@ -21,7 +21,8 @@ import net.minecraft.world.level.storage.ValueOutput;
 import net.minecraft.world.phys.Vec3;
 
 /** 没有真实客户端连接、但参与原版服务端玩家逻辑的假玩家实体。 */
-public final class FakeServerPlayer extends ServerPlayer {
+public final class FakeServerPlayer extends ServerPlayer implements AvatarModelParts {
+    private int skinModelParts = 127;
     private final MinecraftServer server;
     private final FakePlayerActions actions;
     private final FakePlayerAutomation automation;
@@ -69,12 +70,15 @@ public final class FakeServerPlayer extends ServerPlayer {
     protected void readAdditionalSaveData(ValueInput input) {
         super.readAdditionalSaveData(input);
         alias = FakePlayerAlias.normalize(input.getStringOr("archweaver_alias", ""));
+        skinModelParts = input.getIntOr("archweaver_skin_parts", 127) & 127;
+        getEntityData().set(DATA_PLAYER_MODE_CUSTOMISATION, (byte) skinModelParts);
     }
 
     @Override
     protected void addAdditionalSaveData(ValueOutput output) {
         super.addAdditionalSaveData(output);
         output.putString("archweaver_alias", alias);
+        output.putInt("archweaver_skin_parts", archweaver$modelParts());
     }
 
     @Override
@@ -111,7 +115,13 @@ public final class FakeServerPlayer extends ServerPlayer {
 
     public void showAllSkinLayers() {
         // 该位掩码对应披风、外套、袖子、裤腿和帽子等全部皮肤附加层。
-        getEntityData().set(DATA_PLAYER_MODE_CUSTOMISATION, (byte) 0x7f);
+        getEntityData().set(DATA_PLAYER_MODE_CUSTOMISATION, (byte) skinModelParts);
+    }
+
+    @Override public int archweaver$modelParts() { return getEntityData().get(DATA_PLAYER_MODE_CUSTOMISATION) & 127; }
+    @Override public void archweaver$setModelParts(int mask) {
+        skinModelParts = mask & 127;
+        getEntityData().set(DATA_PLAYER_MODE_CUSTOMISATION, (byte) skinModelParts);
     }
 
     @Override

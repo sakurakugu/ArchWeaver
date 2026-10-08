@@ -13,6 +13,14 @@ In command syntax, `<name>` indicates a required argument and `[option]` indicat
 - `/fakeplayer spawn <name>`: equivalent to the command above.
 - `/fakeplayer kill <name>`: save and remove a fake player without death drops.
 
+### Mannequins
+
+- `/fakeplayer mannequin`: spawn a mannequin with an automatically generated name at the command source's position.
+- `/fakeplayer mannequin <name>`: spawn a mannequin with the specified name at the command source's position.
+- `/fakeplayer mannequin spawn <name>`: spawn a mannequin with the specified name, or load it when the name is registered but currently unloaded.
+- `/fakeplayer mannequin kill <name>`: save its position, equipment, skin parts, and pose, then unload the mannequin entity; the registration is kept.
+- `/fakeplayer mannequin delete <name>`: drop the mannequin's equipment and held items, then unload it and permanently delete its registration.
+
 ### Possession and Interfaces
 
 - `/fakeplayer possess <name>`: possess the specified fake player.
@@ -92,7 +100,7 @@ Example:
 - `/player <name> config default` / `/player <name> config reset`: reset action and input settings to defaults without changing inventory or other data.
 - `/player <name> possess`: possess the fake player.
 - `/player <name> unpossess`: exit possession if currently possessing this fake player.
-- `/player <name> alias [alias]`: set the fake player's display alias, supporting spaces, up to 32 characters.
+- `/player <name> alias [alias]`: set the fake player's display alias, supporting spaces and non-ASCII characters, up to 32 characters.
 
 Automation command:
 

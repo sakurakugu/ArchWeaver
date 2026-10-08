@@ -19,7 +19,11 @@ import com.sakurakugu.archweaver.entity.FakePlayerManager;
 import com.sakurakugu.archweaver.entity.FakePlayerPossession;
 import com.sakurakugu.archweaver.entity.ProfileResolver;
 import com.sakurakugu.archweaver.entity.FakeServerPlayer;
+import com.sakurakugu.archweaver.entity.MannequinManager;
+import com.sakurakugu.archweaver.chunkloading.ChunkLoaderManager;
 import com.sakurakugu.archweaver.menu.FakePlayerMenuOpener;
+import com.sakurakugu.archweaver.network.ChunkMapOpenTarget;
+import com.sakurakugu.archweaver.network.ChunkMapSnapshotPayload;
 import com.sakurakugu.archweaver.network.OpenMainPagePayload;
 import com.sakurakugu.archweaver.persistence.FakePlayerPersistence;
 import com.sakurakugu.archweaver.platform.PlatformNetworking;
@@ -63,6 +67,7 @@ public final class FakePlayerCommand {
                     .then(fakeNameArgument().executes(FakePlayerCommand::possess)))
                 .then(Commands.literal("unpossess").executes(FakePlayerCommand::unpossess))
                 .then(Commands.literal("list").executes(FakePlayerCommand::list))
+                .then(mannequinCommand())
                 .then(guiCommand("gui"))
                 .then(PresetCommand.presetCommand())
                 .then(PresetCommand.groupCommand())
@@ -77,6 +82,89 @@ public final class FakePlayerCommand {
                 .requires(ArchWeaverConfig::canUseCommands)
                 .then(playerTargetCommand())
         );
+    }
+
+    private static LiteralArgumentBuilder<CommandSourceStack> mannequinCommand() {
+        return Commands.literal("mannequin")
+            .executes(context -> spawnMannequin(context, nextMannequinName(context)))
+            .then(Commands.argument("name", StringArgumentType.word())
+                .executes(context -> spawnMannequin(context, name(context))))
+            .then(Commands.literal("spawn")
+                .then(Commands.argument("name", StringArgumentType.word())
+                    .executes(context -> spawnMannequin(context, name(context)))))
+            .then(Commands.literal("kill")
+                .then(mannequinNameArgument().executes(FakePlayerCommand::killMannequin)))
+            .then(Commands.literal("delete")
+                .then(mannequinNameArgument().executes(FakePlayerCommand::deleteMannequin)));
+    }
+
+    private static String nextMannequinName(CommandContext<CommandSourceStack> context) {
+        int index = 1;
+        while (MannequinManager.find(context.getSource().getServer(), "mannequin-" + index).isPresent()) index++;
+        return "mannequin-" + index;
+    }
+
+    private static RequiredArgumentBuilder<CommandSourceStack, String> mannequinNameArgument() {
+        return Commands.argument("name", StringArgumentType.word())
+            .suggests((context, builder) -> SharedSuggestionProvider.suggest(
+                MannequinManager.registered(context.getSource().getServer()).stream()
+                    .map(value -> value.name()), builder));
+    }
+
+    private static int spawnMannequin(CommandContext<CommandSourceStack> context, String name) {
+        CommandSourceStack source = context.getSource();
+        if (!name.matches("[A-Za-z0-9_-]{1,16}")) {
+            source.sendFailure(Component.translatable("commands.archweaver.fakeplayer.invalid_name"));
+            return 0;
+        }
+        try {
+            var record = MannequinManager.find(source.getServer(), name).orElse(null);
+            if (record != null) {
+                if (MannequinManager.loaded(source.getServer(), record.uuid()).isPresent()) {
+                    source.sendFailure(Component.translatable("commands.archweaver.fakeplayer.duplicate", name));
+                    return 0;
+                }
+                MannequinManager.load(source.getServer(), record.uuid());
+                source.sendSuccess(() -> Component.literal("已加载玩偶 " + record.name()), true);
+            } else {
+                var mannequin = MannequinManager.spawn(source.getServer(), source.getLevel(), name,
+                    source.getPosition(), source.getRotation().y);
+                source.sendSuccess(() -> Component.literal("已生成玩偶 " + mannequin.getName().getString()), true);
+            }
+            refreshList(source);
+            return 1;
+        } catch (IllegalArgumentException exception) {
+            source.sendFailure(Component.translatable("commands.archweaver.fakeplayer.duplicate", name));
+            return 0;
+        } catch (RuntimeException exception) {
+            ArchWeaverMod.LOGGER.error("生成玩偶 {} 失败", name, exception);
+            source.sendFailure(Component.literal("玩偶生成失败"));
+            return 0;
+        }
+    }
+
+    private static int killMannequin(CommandContext<CommandSourceStack> context) {
+        String name = name(context);
+        var record = MannequinManager.find(context.getSource().getServer(), name).orElse(null);
+        if (record == null || !MannequinManager.unload(context.getSource().getServer(), record.uuid())) {
+            context.getSource().sendFailure(Component.literal("找不到已加载玩偶 " + name));
+            return 0;
+        }
+        context.getSource().sendSuccess(() -> Component.literal("已卸载玩偶 " + record.name()), true);
+        refreshList(context.getSource());
+        return 1;
+    }
+
+    private static int deleteMannequin(CommandContext<CommandSourceStack> context) {
+        String name = name(context);
+        var record = MannequinManager.find(context.getSource().getServer(), name).orElse(null);
+        if (record == null || !MannequinManager.remove(context.getSource().getServer(), record.uuid(), true)) {
+            context.getSource().sendFailure(Component.literal("找不到玩偶 " + name));
+            return 0;
+        }
+        context.getSource().sendSuccess(() -> Component.literal("已删除玩偶 " + record.name()), true);
+        refreshList(context.getSource());
+        return 1;
     }
 
     /** {@code /player <名称> <动作>} 与 {@code /fakeplayer player <名称> <动作>} 共用的目标参数与动作分支。 */
@@ -527,6 +615,20 @@ public final class FakePlayerCommand {
 
     /** 使用菜单查看者当前的位置、朝向与游戏模式生成假人。 */
     public static void spawnFromMenu(ServerPlayer player, String name) {
+        spawnFromMenu(player, name, false);
+    }
+
+    public static void spawnFromMenu(ServerPlayer player, String name, boolean mannequin) {
+        if (mannequin) {
+            try {
+                MannequinManager.spawn(player.level().getServer(), (ServerLevel) player.level(), name, player.position(), player.getYRot());
+                player.sendSystemMessage(Component.literal("已生成玩偶 " + name));
+                refreshList(player.createCommandSourceStack());
+            } catch (RuntimeException exception) {
+                player.sendSystemMessage(Component.literal("玩偶生成失败"));
+            }
+            return;
+        }
         CommandSourceStack source = player.createCommandSourceStack();
         GameType gameType = player.gameMode.getGameModeForPlayer();
         boolean flying = player.getAbilities().flying;
@@ -631,6 +733,7 @@ public final class FakePlayerCommand {
                 server, level, profile, position, rotation, gameType, flying);
             source.sendSuccess(() -> Component.translatable(
                 "commands.archweaver.fakeplayer.spawned", fake.getGameProfile().name()), true);
+            refreshList(source);
         } catch (IllegalArgumentException exception) {
             source.sendFailure(Component.translatable("commands.archweaver.fakeplayer.duplicate", profile.name()));
         } catch (RuntimeException exception) {
@@ -650,6 +753,11 @@ public final class FakePlayerCommand {
             default -> "commands.archweaver.fakeplayer.profile_not_found";
         };
         source.sendFailure(Component.translatable(key, name));
+    }
+
+    /** 命令或控制台修改列表后立即通知所有有管理权限的查看者。 */
+    private static void refreshList(CommandSourceStack source) {
+        com.sakurakugu.archweaver.entity.TargetListSync.refresh(source.getServer());
     }
 
     private static <T> T argumentOrDefault(ArgumentSupplier<T> supplier, T fallback) throws CommandSyntaxException {

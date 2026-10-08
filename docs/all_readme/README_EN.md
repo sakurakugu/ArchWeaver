@@ -2,7 +2,7 @@
 
 English | [简体中文](../../README.md)
 
-A utility mod for Minecraft 26.1.2 / NeoForge, currently featuring fake player management and chunk loading. It supports spawning fake players, managing their inventories, movement, interactions, and presets.
+A utility mod for Minecraft 26.1.2 / NeoForge, currently featuring fake player management and chunk loading. It supports spawning fake players and mannequins, inventory management, pose control, and more.
 
 ![ArchWeaver icon](../../common/src/main/resources/icon.png)
 
@@ -51,6 +51,12 @@ This project produces two separate JARs:
 | Shulker replenishment | Also search shulker boxes in the main inventory when replenishing. Requires ordinary replenishment to be enabled.                                       |
 | Auto tool replacement | When a tool in either hand has at most 10 durability remaining, replace it with the same item type with the most remaining durability in the inventory. |
 | Auto fishing          | Reel in about 5 ticks after a vanilla fishing bobber gets a bite, then wait 10 ticks before casting again.                                              |
+
+### Mannequins
+
+- Mannequins extend the vanilla `minecraft:mannequin`.
+- A mannequin is decorative by default; it has equipment slots and a skin.
+- Mannequins support preset poses and per-limb X/Y/Z angle sliders.
 
 ### Chunk Loading
 
@@ -113,6 +119,8 @@ maxPlayerLoadingChunks = 65536
 
 [ui]
 enableContainerTransferButtons = true
+fakePlayerAliasFirst = false
+fakePlayerEmptyAliasMarker = true
 ```
 
 | Setting                               | Description                                                                                                             |
@@ -126,6 +134,8 @@ enableContainerTransferButtons = true
 | `chunkloading.maxTickingChunks`       | Total fully simulated chunk budget for all manual force-loading regions, from `1` to `16384`.                           |
 | `chunkloading.maxPlayerLoadingChunks` | Deduplicated simulation chunk budget for all online fake players in custom mode, from `-1` to `65536`; `-1` means unlimited. |
 | `ui.enableContainerTransferButtons`   | Show item transfer buttons in ordinary containers. Fake player inventories always show them.                            |
+| `ui.fakePlayerAliasFirst`             | Show fake player aliases first in the Tab list, and above the real name on name tags and in the fake player list.       |
+| `ui.fakePlayerEmptyAliasMarker`       | Show the "Bot" placeholder for fake players with an empty alias, on name tags and in the fake player list.              |
 
 Profile strategies:
 
@@ -159,6 +169,7 @@ Fake player and chunk loading data is stored in the following locations, relativ
 | Data                                                    | Location                                                               | Description                                                                                                                                                               |
 | ------------------------------------------------------- | ---------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Identity (UUID and name)                                | `data/archweaver/fake_players.dat`                                     | Resident list used to restore fake players by identity after a server restart.                                                                                            |
+| Restart-respawn switch                                  | `data/archweaver/fake_players.dat`                                     | Saved per fake player; the global setting in the config file is the default for newly spawned fake players.                                                               |
 | Automation settings (four toggles)                      | `data/archweaver/fake_players.dat`                                     | Saved with resident records and presets, and restored after restart.                                                                                                      |
 | Continuous actions, movement input, sneaking, etc.      | Preset snapshots                                                       | Saved with presets. Resident restoration does not carry these settings; operators must set them again after startup.                                                      |
 | Inventory, position, abilities, experience, etc.        | `playerdata/<UUID>.dat`                                                | Saved and restored by vanilla player data handling.                                                                                                                       |

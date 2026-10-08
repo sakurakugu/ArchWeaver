@@ -8,6 +8,8 @@ import com.sakurakugu.archweaver.chunkloading.FakePlayerSimulationService;
 import com.sakurakugu.archweaver.chunkloading.ManualLoadRegion;
 import com.sakurakugu.archweaver.entity.FakePlayerManager;
 import com.sakurakugu.archweaver.entity.FakePlayerPossession;
+import com.sakurakugu.archweaver.entity.MannequinManager;
+import com.sakurakugu.archweaver.persistence.MannequinSavedData;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
@@ -101,7 +103,8 @@ public record ChunkMapSnapshotPayload(
             .limit(MAX_REGIONS)
             .map(RegionSummary::from)
             .toList();
-        List<FakePlayerView> fakeViews = FakePlayerManager.all(player.level().getServer()).stream()
+        List<FakePlayerView> fakeViews = new ArrayList<>();
+        FakePlayerManager.all(player.level().getServer()).stream()
             .limit(MAX_FAKE_PLAYERS)
             .map(fake -> {
                 FakePlayerLoadPolicy policy = data.policy(fake.getUUID())
@@ -121,8 +124,23 @@ public record ChunkMapSnapshotPayload(
                     policy.mode(), simulationDistance,
                     activeRange != null, activeRange == null ? "" : activeRange.dimension(),
                     activeRange == null ? 0 : activeRange.chunkX(), activeRange == null ? 0 : activeRange.chunkZ(),
-                    activeRange == null ? 0 : activeRange.distance());
-            }).toList();
+                    activeRange == null ? 0 : activeRange.distance(), TargetType.PLAYER, true, true);
+            }).forEach(fakeViews::add);
+        if (fakeViews.size() < MAX_FAKE_PLAYERS) {
+            for (MannequinSavedData.Record record : MannequinManager.registered(player.level().getServer())) {
+                if (fakeViews.size() >= MAX_FAKE_PLAYERS) break;
+                var mannequin = MannequinManager.loaded(player.level().getServer(), record.uuid()).orElse(null);
+                String dimensionValue = mannequin == null ? record.dimension()
+                    : mannequin.level().dimension().identifier().toString();
+                int x = mannequin == null ? net.minecraft.util.Mth.floor(record.x()) : mannequin.getBlockX();
+                int y = mannequin == null ? net.minecraft.util.Mth.floor(record.y()) : mannequin.getBlockY();
+                int z = mannequin == null ? net.minecraft.util.Mth.floor(record.z()) : mannequin.getBlockZ();
+                float yaw = mannequin == null ? record.yaw() : mannequin.getYRot();
+                fakeViews.add(new FakePlayerView(record.uuid(), record.name(), "", dimensionValue, x, y, z, yaw,
+                    mannequin != null, false, false, FakePlayerSimulationMode.DISABLED, 0,
+                    false, "", 0, 0, 0, TargetType.MANNEQUIN, true, mannequin != null));
+            }
+        }
         return new ChunkMapSnapshotPayload(openTarget,
             com.sakurakugu.archweaver.config.ArchWeaverConfig.globalSettingsMask(),
             com.sakurakugu.archweaver.config.ArchWeaverConfig.maxChunkLoadingRadius(), data.revision(),
@@ -245,11 +263,24 @@ public record ChunkMapSnapshotPayload(
         }
     }
 
+    public enum TargetType { PLAYER, MANNEQUIN }
+
     public record FakePlayerView(UUID id, String name, String alias, String dimension, int x, int y, int z, float yaw,
                                  boolean online, boolean possessed, boolean possessedByViewer,
                                  FakePlayerSimulationMode mode, int simulationDistance,
                                  boolean loadingActive, String loadingDimension, int loadingChunkX,
-                                 int loadingChunkZ, int loadingDistance) {
+                                 int loadingChunkZ, int loadingDistance, TargetType type,
+                                 boolean registered, boolean loaded) {
+        public FakePlayerView(UUID id, String name, String alias, String dimension, int x, int y, int z, float yaw,
+                              boolean online, boolean possessed, boolean possessedByViewer,
+                              FakePlayerSimulationMode mode, int simulationDistance,
+                              boolean loadingActive, String loadingDimension, int loadingChunkX,
+                              int loadingChunkZ, int loadingDistance) {
+            this(id, name, alias, dimension, x, y, z, yaw, online, possessed, possessedByViewer, mode,
+                simulationDistance, loadingActive, loadingDimension, loadingChunkX, loadingChunkZ,
+                loadingDistance, TargetType.PLAYER, true, online);
+        }
+
         private FakePlayerView(RegistryFriendlyByteBuf buffer) {
             this(buffer.readUUID(), buffer.readUtf(32),
                 buffer.readUtf(com.sakurakugu.archweaver.entity.FakePlayerAlias.MAX_LENGTH),
@@ -257,7 +288,8 @@ public record ChunkMapSnapshotPayload(
                 buffer.readInt(), buffer.readFloat(), buffer.readBoolean(), buffer.readBoolean(),
                 buffer.readBoolean(),
                 buffer.readEnum(FakePlayerSimulationMode.class), buffer.readVarInt(),
-                buffer.readBoolean(), buffer.readUtf(256), buffer.readInt(), buffer.readInt(), buffer.readVarInt());
+                buffer.readBoolean(), buffer.readUtf(256), buffer.readInt(), buffer.readInt(), buffer.readVarInt(),
+                buffer.readEnum(TargetType.class), buffer.readBoolean(), buffer.readBoolean());
             if (!Float.isFinite(yaw)) throw new IllegalArgumentException("假玩家朝向非法");
             if (simulationDistance < 0 || simulationDistance > ChunkLoaderSavedData.MAX_SIMULATION_DISTANCE) {
                 throw new IllegalArgumentException("假玩家模拟距离非法");
@@ -280,14 +312,15 @@ public record ChunkMapSnapshotPayload(
             buffer.writeEnum(mode); buffer.writeVarInt(simulationDistance);
             buffer.writeBoolean(loadingActive); buffer.writeUtf(loadingDimension, 256);
             buffer.writeInt(loadingChunkX); buffer.writeInt(loadingChunkZ); buffer.writeVarInt(loadingDistance);
+            buffer.writeEnum(type); buffer.writeBoolean(registered); buffer.writeBoolean(loaded);
         }
 
         public boolean canOpenInventory() {
-            return !possessed || possessedByViewer;
+            return loaded && (type == TargetType.MANNEQUIN || !possessed || possessedByViewer);
         }
 
         public boolean loadsChunk(String dimension, int chunkX, int chunkZ) {
-            if (!online || mode == FakePlayerSimulationMode.DISABLED) return false;
+            if (type == TargetType.MANNEQUIN || !online || mode == FakePlayerSimulationMode.DISABLED) return false;
             if (mode == FakePlayerSimulationMode.FOLLOW_SERVER) {
                 int centerChunkX = x >> 4;
                 int centerChunkZ = z >> 4;

@@ -24,6 +24,9 @@ import com.sakurakugu.archweaver.entity.FakePlayerAlias;
 import com.sakurakugu.archweaver.network.FakePlayerSimulationPayload;
 import com.sakurakugu.archweaver.network.FakePlayerViewRotationPayload;
 import com.sakurakugu.archweaver.network.ToggleFakePlayerRestorePayload;
+import com.sakurakugu.archweaver.network.TargetTypePayload;
+import com.sakurakugu.archweaver.network.AvatarSkinPartPayload;
+import net.minecraft.world.entity.player.PlayerModelPart;
 import com.sakurakugu.archweaver.platform.PlatformNetworking;
 import com.sakurakugu.archweaver.client.ui.HotbarSelector;
 import com.sakurakugu.archweaver.client.ui.IntegerSliderButton;
@@ -65,6 +68,7 @@ import java.util.Optional;
 
 /** 绘制假人完整物品栏；末影箱使用原版三行容器界面。 */
 public final class FakePlayerInventoryScreen extends AbstractContainerScreen<FakePlayerInventoryMenu> {
+    private OverlayPanelManager.Panel skinPanel;
     private static final FontDescription EFFECT_DURATION_FONT = new FontDescription.Resource(
         Identifier.fromNamespaceAndPath(ArchWeaverMod.MOD_ID, "effect_duration")); // 时间专用字体，将星号字形调整为与数字等高。
     private static final Identifier CONTAINER_BACKGROUND =
@@ -294,6 +298,7 @@ public final class FakePlayerInventoryScreen extends AbstractContainerScreen<Fak
             ? restoredEffectsPanelOpen : effectsPanel.isOpen();
         boolean restorePanelOpen = restorePanel == null
             ? restoredRestorePanelOpen : restorePanel.isOpen();
+        boolean skinPanelOpen = skinPanel != null && skinPanel.isOpen();
         super.init();
         if (menu.view() == FakePlayerInventoryMenu.View.ENDER_CHEST) {
             addTransferButtons(ENDER_CHEST_TRANSFER_BUTTON_TOP);
@@ -316,6 +321,9 @@ public final class FakePlayerInventoryScreen extends AbstractContainerScreen<Fak
             restoreStateInitialized = true;
         }
         addRestorePanel();
+        addRenderableWidget(new ToggleSwitchButton(leftPos + 8, topPos - 18, 160, 18,
+            Component.literal("玩偶模式"), () -> false,
+            button -> PlatformNetworking.sendToServer(new TargetTypePayload(menu.containerId, menu.targetUuid(), true))));
         addRenderableWidget(
             new InventorySlotButton(
                 leftPos + ACTION_BUTTON_LEFT,
@@ -363,6 +371,7 @@ public final class FakePlayerInventoryScreen extends AbstractContainerScreen<Fak
         addAimPanel();
         addSimulationPanel();
         addEffectsPanel();
+        addSkinPartPanel();
         addAutomationPanel();
         addMountPanel();
         addContinuousPanel();
@@ -371,6 +380,7 @@ public final class FakePlayerInventoryScreen extends AbstractContainerScreen<Fak
         simulationPanel.setOpen(simulationPanelOpen);
         effectsPanel.setOpen(effectsPanelOpen);
         restorePanel.setOpen(restorePanelOpen);
+        if (skinPanelOpen) skinPanel.setOpen(true);
     }
 
     private void addRestorePanel() {
@@ -391,6 +401,29 @@ public final class FakePlayerInventoryScreen extends AbstractContainerScreen<Fak
             }));
         addRenderableWidget(restorePanel.createTab(new ItemStack(Items.CLOCK)));
         restorePanel.bindContents(toggle);
+    }
+
+    private void addSkinPartPanel() {
+        var layout = nextPanelLayout(EFFECTS_PANEL_LAYOUT, 112, 174);
+        int left = leftPos - layout.width();
+        int top = topPos + layout.top();
+        skinPanel = leftPanelManager.addLeftPanel("skin_parts", left, topPos, layout, Component.literal("皮肤部件"));
+        addRenderableWidget(skinPanel);
+        addRenderableWidget(skinPanel.createTab(new ItemStack(Items.LEATHER_CHESTPLATE)));
+        List<AbstractWidget> controls = new ArrayList<>();
+        PlayerModelPart[] parts = PlayerModelPart.values();
+        for (int i = 0; i < parts.length; i++) {
+            PlayerModelPart part = parts[i];
+            controls.add(addRenderableWidget(new ToggleSwitchButton(left + 6, top + 25 + i * 20, 100, 18,
+                part.getName(), () -> modelPartShown(part),
+                button -> PlatformNetworking.sendToServer(new AvatarSkinPartPayload(menu.containerId,
+                    menu.targetUuid(), part, !modelPartShown(part))))));
+        }
+        skinPanel.bindContents(controls.toArray(AbstractWidget[]::new));
+    }
+
+    private boolean modelPartShown(PlayerModelPart part) {
+        return menu.isModelPartShown(part);
     }
 
     private void createPanels() {
@@ -1095,6 +1128,7 @@ public final class FakePlayerInventoryScreen extends AbstractContainerScreen<Fak
         continuousPanel.drawBackground(graphics);
         aimPanel.drawBackground(graphics);
         effectsPanel.drawBackground(graphics);
+        skinPanel.drawBackground(graphics);
         simulationPanel.drawBackground(graphics);
         restorePanel.drawBackground(graphics);
 

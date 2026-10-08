@@ -17,6 +17,8 @@ public final class NeoForgeMenus {
         () -> IMenuTypeExtension.create(PresetManagementMenu::new));
     private static final DeferredHolder<net.minecraft.world.inventory.MenuType<?>, net.minecraft.world.inventory.MenuType<FakePlayerInventoryMenu>> INVENTORY = MENUS.register("inventory",
         () -> IMenuTypeExtension.create(FakePlayerInventoryMenu::new));
+    private static final DeferredHolder<net.minecraft.world.inventory.MenuType<?>, net.minecraft.world.inventory.MenuType<MannequinInventoryMenu>> MANNEQUIN_INVENTORY = MENUS.register("mannequin_inventory",
+        () -> IMenuTypeExtension.create(MannequinInventoryMenu::new));
 
     private NeoForgeMenus() {
     }
@@ -27,5 +29,6 @@ public final class NeoForgeMenus {
         ModMenus.GLOBAL_FAKE_PLAYER.install(GLOBAL);
         ModMenus.PRESET_MANAGEMENT.install(PRESET);
         ModMenus.FAKE_PLAYER_INVENTORY.install(INVENTORY);
+        ModMenus.MANNEQUIN_INVENTORY.install(MANNEQUIN_INVENTORY);
     }
 }

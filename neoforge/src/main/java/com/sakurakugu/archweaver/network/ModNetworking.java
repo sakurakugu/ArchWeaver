@@ -9,7 +9,11 @@ import com.sakurakugu.archweaver.menu.ChunkLoaderActions;
 import com.sakurakugu.archweaver.menu.GlobalFakePlayerMenu;
 import com.sakurakugu.archweaver.menu.FakePlayerInventoryMenu;
 import com.sakurakugu.archweaver.menu.FakePlayerManagementActions;
+import com.sakurakugu.archweaver.menu.TargetTypeActions;
 import com.sakurakugu.archweaver.entity.FakePlayerPossession;
+import com.sakurakugu.archweaver.entity.MannequinManager;
+import net.minecraft.world.entity.Pose;
+import net.minecraft.world.entity.player.PlayerModelPart;
 import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
 import net.neoforged.neoforge.network.registration.PayloadRegistrar;
@@ -26,6 +30,22 @@ public final class ModNetworking {
 
     public static void register(RegisterPayloadHandlersEvent event) {
         PayloadRegistrar registrar = event.registrar("2");
+        registrar.playToServer(TargetTypePayload.TYPE, TargetTypePayload.STREAM_CODEC,
+            (payload, context) -> {
+                if (context.player() instanceof ServerPlayer player && ArchWeaverConfig.canUseCommands(player.createCommandSourceStack())) {
+                    try {
+                        TargetTypeActions.convert(player, payload);
+                    } catch (RuntimeException exception) {
+                        player.sendSystemMessage(Component.literal("类型切换失败：请检查同名目标是否存在或目标是否被控制"));
+                        com.sakurakugu.archweaver.ArchWeaverMod.LOGGER.warn("切换目标类型失败", exception);
+                    }
+                }
+            });
+        registrar.playToServer(AvatarSkinPartPayload.TYPE, AvatarSkinPartPayload.STREAM_CODEC,
+            (payload, context) -> {
+                if (context.player() instanceof ServerPlayer player && ArchWeaverConfig.canUseCommands(player.createCommandSourceStack()))
+                    TargetTypeActions.setSkinPart(player, payload);
+            });
         registrar.playToServer(
             OpenFakePlayerPagePayload.TYPE,
             OpenFakePlayerPagePayload.STREAM_CODEC,
@@ -45,9 +65,66 @@ public final class ModNetworking {
             (payload, context) -> {
                 if (context.player() instanceof ServerPlayer player
                     && ArchWeaverConfig.canUseCommands(player.createCommandSourceStack())) {
-                    var fake = com.sakurakugu.archweaver.entity.FakePlayerManager.find(
-                        player.level().getServer(), payload.targetName());
-                    if (fake != null) FakePlayerMenuOpener.openInventory(player, fake);
+                    if (payload.mannequin()) {
+                        var record = MannequinManager.find(player.level().getServer(), payload.targetName()).orElse(null);
+                        if (record != null) FakePlayerMenuOpener.openMannequinInventory(player, record.uuid());
+                    } else {
+                        var fake = com.sakurakugu.archweaver.entity.FakePlayerManager.find(
+                            player.level().getServer(), payload.targetName());
+                        if (fake != null) FakePlayerMenuOpener.openInventory(player, fake);
+                    }
+                }
+            }
+        );
+        registrar.playToServer(
+            MannequinLifecyclePayload.TYPE,
+            MannequinLifecyclePayload.STREAM_CODEC,
+            (payload, context) -> {
+                if (context.player() instanceof ServerPlayer player
+                    && ArchWeaverConfig.canUseCommands(player.createCommandSourceStack())) {
+                    var record = MannequinManager.find(player.level().getServer(), payload.name()).orElse(null);
+                    if (record != null) {
+                        if (payload.action() == MannequinLifecyclePayload.Action.LOAD) {
+                            MannequinManager.load(player.level().getServer(), record.uuid());
+                        } else {
+                            MannequinManager.unload(player.level().getServer(), record.uuid());
+                        }
+                        com.sakurakugu.archweaver.entity.TargetListSync.refresh(player.level().getServer());
+                    }
+                }
+            }
+        );
+        registrar.playToServer(
+            MannequinSettingsPayload.TYPE,
+            MannequinSettingsPayload.STREAM_CODEC,
+            (payload, context) -> {
+                if (context.player() instanceof ServerPlayer player
+                    && ArchWeaverConfig.canUseCommands(player.createCommandSourceStack())) {
+                    if (!(player.containerMenu instanceof com.sakurakugu.archweaver.menu.MannequinInventoryMenu menu)
+                        || !menu.mannequinId().equals(payload.id()) || menu.mannequin() == null || !menu.stillValid(player)) return;
+                    try {
+                        switch (payload.action()) {
+                            case IMMOVABLE -> MannequinManager.setImmovable(player.level().getServer(), payload.id(), payload.enabled());
+                            case BIOLOGICAL_BEHAVIOR -> MannequinManager.setBiologicalBehavior(player.level().getServer(), payload.id(), payload.enabled());
+                            case POSE -> {
+                                Pose[] poses = {Pose.STANDING, Pose.CROUCHING, Pose.SWIMMING, Pose.FALL_FLYING, Pose.SLEEPING};
+                                if (payload.value() < 0 || payload.value() >= poses.length) return;
+                                MannequinManager.setPose(player.level().getServer(), payload.id(), poses[payload.value()]);
+                            }
+                            case SKIN_PART -> {
+                                PlayerModelPart[] parts = PlayerModelPart.values();
+                                if (payload.value() < 0 || payload.value() >= parts.length) return;
+                                MannequinManager.setModelPart(player.level().getServer(), payload.id(), parts[payload.value()], payload.enabled());
+                            }
+                            case LIMB_ANGLE -> MannequinManager.setLimbAngles(player.level().getServer(), payload.id(),
+                                payload.value(), payload.x(), payload.y(), payload.z());
+                        }
+                    } catch (RuntimeException ignored) {
+                        return;
+                    }
+                    PacketDistributor.sendToAllPlayers(MannequinManager.anglesPayload(player.level().getServer(), payload.id()));
+                    PacketDistributor.sendToPlayer(player, ChunkMapSnapshotPayload.create(player,
+                        ChunkLoaderManager.data(player.level().getServer()), ChunkMapOpenTarget.NONE));
                 }
             }
         );
@@ -109,7 +186,7 @@ public final class ModNetworking {
                     && player.containerMenu instanceof GlobalFakePlayerMenu
                     && player.containerMenu.containerId == payload.containerId()
                     && ArchWeaverConfig.canUseCommands(player.createCommandSourceStack())) {
-                    FakePlayerCommand.spawnFromMenu(player, payload.name());
+                    FakePlayerCommand.spawnFromMenu(player, payload.name(), payload.mannequin());
                 }
             }
         );
@@ -216,5 +293,6 @@ public final class ModNetworking {
         registrar.playToClient(PossessionStatePayload.TYPE, PossessionStatePayload.STREAM_CODEC);
         registrar.playToClient(BodyRotationPayload.TYPE, BodyRotationPayload.STREAM_CODEC);
         registrar.playToClient(FakePlayerAliasPayload.TYPE, FakePlayerAliasPayload.STREAM_CODEC);
+        registrar.playToClient(MannequinAnglesPayload.TYPE, MannequinAnglesPayload.STREAM_CODEC);
     }
 }

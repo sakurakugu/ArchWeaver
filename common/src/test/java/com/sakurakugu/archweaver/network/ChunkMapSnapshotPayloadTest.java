@@ -16,6 +16,27 @@ import net.minecraft.network.RegistryFriendlyByteBuf;
 
 class ChunkMapSnapshotPayloadTest {
     @Test
+    void mannequinSnapshotPreservesLifecycleWithoutProvidingSimulation() {
+        for (boolean loaded : List.of(false, true)) {
+            var mannequin = new ChunkMapSnapshotPayload.FakePlayerView(UUID.randomUUID(), "Display", "",
+                "minecraft:overworld", -1, 64, 0, 45, loaded, false, false, FakePlayerSimulationMode.DISABLED, 0,
+                false, "", 0, 0, 0, ChunkMapSnapshotPayload.TargetType.MANNEQUIN, true, loaded);
+            var original = new ChunkMapSnapshotPayload(ChunkMapOpenTarget.NONE, 0, 32, 1, false,
+                "minecraft:overworld", 0, 0, List.of(), List.of(), List.of(mannequin));
+            var buffer = new RegistryFriendlyByteBuf(Unpooled.buffer(), RegistryAccess.EMPTY);
+            try {
+                ChunkMapSnapshotPayload.STREAM_CODEC.encode(buffer, original);
+                var decoded = ChunkMapSnapshotPayload.STREAM_CODEC.decode(buffer).fakePlayers().getFirst();
+                assertEquals(mannequin, decoded);
+                assertEquals(loaded, decoded.canOpenInventory());
+                assertFalse(decoded.loadsChunk("minecraft:overworld", -1, 0));
+            } finally {
+                buffer.release();
+            }
+        }
+    }
+
+    @Test
     void nameTagSyncTransmitsIdentityChineseAliasClearMarkerAndBothOrders() {
         UUID playerId = UUID.randomUUID();
         for (String alias : List.of("矿场 一号", "矿".repeat(32), "")) {

@@ -7,6 +7,9 @@ import com.sakurakugu.archweaver.chunkloading.ChunkLoaderManager;
 import com.sakurakugu.archweaver.chunkloading.FakePlayerSimulationService;
 import com.sakurakugu.archweaver.config.ArchWeaverConfig;
 import com.sakurakugu.archweaver.entity.FakePlayerManager;
+import com.sakurakugu.archweaver.entity.MannequinManager;
+import com.sakurakugu.archweaver.platform.PlatformNetworking;
+import net.minecraft.world.entity.decoration.Mannequin;
 import com.sakurakugu.archweaver.entity.FakePlayerAliasSync;
 import com.sakurakugu.archweaver.entity.FakePlayerPossession;
 import com.sakurakugu.archweaver.entity.FakeServerPlayer;
@@ -56,10 +59,12 @@ public final class CommonEvents {
     @SubscribeEvent
     public static void serverTick(ServerTickEvent.Post event) {
         FakePlayerSimulationService.tick(event.getServer());
+        if (event.getServer().getTickCount() % 100 == 0) MannequinManager.captureAll(event.getServer());
     }
 
     @SubscribeEvent
     public static void serverStopping(ServerStoppingEvent event) {
+        MannequinManager.captureAll(event.getServer());
         // 原版即将保存 playerdata，必须先把真人恢复到附身前的位置。
         FakePlayerPossession.stopAll(event.getServer());
         // 区块票据必须在 level 关闭前撤销，随服务端一起丢弃的还有模拟范围的运行时状态。
@@ -93,11 +98,25 @@ public final class CommonEvents {
 
     @SubscribeEvent
     public static void interact(PlayerInteractEvent.EntityInteract event) {
-        // 仅服务端真实玩家右键假玩家时打开物品栏管理页面。
-        if (!(event.getEntity() instanceof ServerPlayer viewer) || !(event.getTarget() instanceof FakeServerPlayer fake)) {
+        // 仅服务端真实玩家右键受管理目标时打开物品栏管理页面。
+        if (!(event.getEntity() instanceof ServerPlayer viewer)) {
             return;
         }
         if (!ArchWeaverConfig.canUseCommands(viewer.createCommandSourceStack())) {
+            return;
+        }
+
+        if (event.getTarget() instanceof Mannequin mannequin
+            && mannequin.entityTags().contains(MannequinManager.MANAGED_TAG)
+            && MannequinManager.data(viewer.level().getServer()).find(mannequin.getUUID()).isPresent()) {
+            FakePlayerMenuOpener.openMannequinInventory(viewer, mannequin.getUUID());
+            // 阻止原版继续处理右键实体，避免同时触发玩偶自身的交互。
+            event.setCancellationResult(InteractionResult.SUCCESS);
+            event.setCanceled(true);
+            return;
+        }
+
+        if (!(event.getTarget() instanceof FakeServerPlayer fake)) {
             return;
         }
         if (!FakePlayerPossession.canOpenMenu(viewer, fake)) {
@@ -116,6 +135,7 @@ public final class CommonEvents {
     @SubscribeEvent
     public static void playerLoggedIn(PlayerEvent.PlayerLoggedInEvent event) {
         if (event.getEntity() instanceof ServerPlayer player) {
+            if (!(player instanceof FakeServerPlayer)) MannequinManager.syncAnglesTo(player);
             FakePlayerPossession.syncTo(player);
             if (player instanceof FakeServerPlayer fake) FakePlayerAliasSync.broadcast(fake);
             else FakePlayerAliasSync.syncTo(player);
@@ -124,6 +144,10 @@ public final class CommonEvents {
 
     @SubscribeEvent
     public static void startTrackingFakePlayer(PlayerEvent.StartTracking event) {
+        if (event.getEntity() instanceof ServerPlayer viewer && event.getTarget() instanceof Mannequin mannequin
+            && MannequinManager.data(viewer.level().getServer()).find(mannequin.getUUID()).isPresent()) {
+            PlatformNetworking.sendToPlayer(viewer, MannequinManager.anglesPayload(viewer.level().getServer(), mannequin.getUUID()));
+        }
         if (event.getEntity() instanceof ServerPlayer viewer
             && event.getTarget() instanceof FakeServerPlayer fake) {
             fake.actions().syncBodyRotation(viewer);
