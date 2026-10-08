@@ -43,7 +43,8 @@ This project produces two separate JARs:
 3. Fake player information, including game mode, name, alias, and coordinates.
 4. Inventory, armor, offhand, and ender chest management.
 5. Possession: take control of a fake player's inventory and viewpoint. This does not transfer everything, such as advancements.
-6. Automation: these features run on the server and apply only to fake players, unlike client mods such as Tweakeroo.
+6. Lifecycle management.
+7. Automation: these features run on the server and apply only to fake players, unlike client mods such as Tweakeroo.
 
 | Setting               | Behavior                                                                                                                                                |
 | --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -123,19 +124,19 @@ fakePlayerAliasFirst = false
 fakePlayerEmptyAliasMarker = true
 ```
 
-| Setting                               | Description                                                                                                             |
-| ------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
-| `commands.permissionLevel`            | Minimum vanilla permission level for `/fakeplayer` and `/player`, from `0` to `4`.                                      |
-| `profiles.allowOfflineProfiles`       | Allow offline UUIDs when neither cached nor online profiles are available.                                              |
-| `profiles.strategy`                   | Profile resolution strategy: `ONLINE_PREFERRED`, `CACHE_ONLY`, or `OFFLINE_ONLY`.                                       |
+| Setting                               | Description                                                                                                                                  |
+| ------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| `commands.permissionLevel`            | Minimum vanilla permission level for `/fakeplayer` and `/player`, from `0` to `4`.                                                           |
+| `profiles.allowOfflineProfiles`       | Allow offline UUIDs when neither cached nor online profiles are available.                                                                   |
+| `profiles.strategy`                   | Profile resolution strategy: `ONLINE_PREFERRED`, `CACHE_ONLY`, or `OFFLINE_ONLY`.                                                            |
 | `persistence.restoreFakePlayers`      | Default restart-restoration setting for newly spawned fake players; each fake player can override it in the inventory screen's left sidebar. |
-| `chunkloading.maxRadius`              | Maximum radius for a single loading region, from `0` to `32`; `0` means only the center chunk.                          |
-| `chunkloading.maxForcedChunks`        | Total force-loaded chunk budget for all enabled manual regions, from `1` to `65536`.                                    |
-| `chunkloading.maxTickingChunks`       | Total fully simulated chunk budget for all manual force-loading regions, from `1` to `16384`.                           |
-| `chunkloading.maxPlayerLoadingChunks` | Deduplicated simulation chunk budget for all online fake players in custom mode, from `-1` to `65536`; `-1` means unlimited. |
-| `ui.enableContainerTransferButtons`   | Show item transfer buttons in ordinary containers. Fake player inventories always show them.                            |
-| `ui.fakePlayerAliasFirst`             | Show fake player aliases first in the Tab list, and above the real name on name tags and in the fake player list.       |
-| `ui.fakePlayerEmptyAliasMarker`       | Show the "Bot" placeholder for fake players with an empty alias, on name tags and in the fake player list.              |
+| `chunkloading.maxRadius`              | Maximum radius for a single loading region, from `0` to `32`; `0` means only the center chunk.                                               |
+| `chunkloading.maxForcedChunks`        | Total force-loaded chunk budget for all enabled manual regions, from `1` to `65536`.                                                         |
+| `chunkloading.maxTickingChunks`       | Total fully simulated chunk budget for all manual force-loading regions, from `1` to `16384`.                                                |
+| `chunkloading.maxPlayerLoadingChunks` | Deduplicated simulation chunk budget for all online fake players in custom mode, from `-1` to `65536`; `-1` means unlimited.                 |
+| `ui.enableContainerTransferButtons`   | Show item transfer buttons in ordinary containers. Fake player inventories always show them.                                                 |
+| `ui.fakePlayerAliasFirst`             | Show fake player aliases first in the Tab list, and above the real name on name tags and in the fake player list.                            |
+| `ui.fakePlayerEmptyAliasMarker`       | Show the "Bot" placeholder for fake players with an empty alias, on name tags and in the fake player list.                                   |
 
 Profile strategies:
 

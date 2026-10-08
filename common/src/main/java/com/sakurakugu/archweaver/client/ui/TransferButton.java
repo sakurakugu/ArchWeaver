@@ -11,7 +11,9 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
+import net.minecraft.world.inventory.ChestMenu;
 import net.minecraft.world.inventory.ContainerInput;
+import net.minecraft.world.inventory.ShulkerBoxMenu;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
 
@@ -34,10 +36,17 @@ public final class TransferButton extends Button {
         updateTooltip(false, false);
     }
 
+    /** 支持快速转移的原版容器界面：物品栏标题位置与箱子一致，按钮才能用同一套偏移。 */
+    public static boolean supports(AbstractContainerScreen<?> screen) {
+        AbstractContainerMenu menu = screen.getMenu();
+        return menu instanceof ChestMenu || menu instanceof ShulkerBoxMenu;
+    }
+
     /** 在任意容器界面添加通用快速转移按钮。 */
     public static List<TransferButton> forContainer(AbstractContainerScreen<?> screen) {
         Player player = Minecraft.getInstance().player;
-        if (player == null || screen.getMenu().slots.stream().noneMatch(slot -> slot.container == player.getInventory())
+        if (player == null || !supports(screen)
+            || screen.getMenu().slots.stream().noneMatch(slot -> slot.container == player.getInventory())
             || screen.getMenu().slots.stream().noneMatch(slot -> slot.container != player.getInventory())) {
             return List.of();
         }

@@ -10,6 +10,8 @@ import com.sakurakugu.archweaver.entity.FakePlayerManager;
 import com.sakurakugu.archweaver.entity.FakePlayerPossession;
 import com.sakurakugu.archweaver.entity.MannequinManager;
 import com.sakurakugu.archweaver.persistence.MannequinSavedData;
+import com.sakurakugu.archweaver.persistence.FakePlayerSavedData;
+import com.sakurakugu.archweaver.persistence.FakePlayerPersistence;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
@@ -127,6 +129,16 @@ public record ChunkMapSnapshotPayload(
                     activeRange == null ? 0 : activeRange.distance(), TargetType.PLAYER, true, true);
             }).forEach(fakeViews::add);
         if (fakeViews.size() < MAX_FAKE_PLAYERS) {
+            var server = player.level().getServer();
+            for (FakePlayerSavedData.Resident resident : FakePlayerPersistence.data(server).residents()) {
+                if (fakeViews.size() >= MAX_FAKE_PLAYERS) break;
+                if (FakePlayerManager.find(server, resident.name()) != null) continue;
+                fakeViews.add(new FakePlayerView(resident.uuid(), resident.name(), "", "", 0, 0, 0, 0,
+                    false, false, false, FakePlayerSimulationMode.DISABLED, 0,
+                    false, "", 0, 0, 0, TargetType.PLAYER, true, false));
+            }
+        }
+        if (fakeViews.size() < MAX_FAKE_PLAYERS) {
             for (MannequinSavedData.Record record : MannequinManager.registered(player.level().getServer())) {
                 if (fakeViews.size() >= MAX_FAKE_PLAYERS) break;
                 var mannequin = MannequinManager.loaded(player.level().getServer(), record.uuid()).orElse(null);
@@ -135,7 +147,7 @@ public record ChunkMapSnapshotPayload(
                 int x = mannequin == null ? net.minecraft.util.Mth.floor(record.x()) : mannequin.getBlockX();
                 int y = mannequin == null ? net.minecraft.util.Mth.floor(record.y()) : mannequin.getBlockY();
                 int z = mannequin == null ? net.minecraft.util.Mth.floor(record.z()) : mannequin.getBlockZ();
-                float yaw = mannequin == null ? record.yaw() : mannequin.getYRot();
+                float yaw = mannequin == null ? record.look().viewYaw() : mannequin.getYRot();
                 fakeViews.add(new FakePlayerView(record.uuid(), record.name(), "", dimensionValue, x, y, z, yaw,
                     mannequin != null, false, false, FakePlayerSimulationMode.DISABLED, 0,
                     false, "", 0, 0, 0, TargetType.MANNEQUIN, true, mannequin != null));

@@ -18,10 +18,12 @@ import net.minecraft.world.entity.player.PlayerModelPart;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.item.component.ResolvableProfile;
 import net.minecraft.world.phys.Vec3;
+import com.sakurakugu.archweaver.network.BodyRotationPayload;
 import com.sakurakugu.archweaver.network.MannequinAnglesPayload;
 import com.sakurakugu.archweaver.platform.PlatformNetworking;
 import net.minecraft.server.level.ServerPlayer;
 import com.sakurakugu.archweaver.ArchWeaverMod;
+import net.minecraft.util.Mth;
 import net.minecraft.util.ProblemReporter;
 import net.minecraft.world.level.storage.TagValueOutput;
 import net.minecraft.world.level.storage.TagValueInput;
@@ -30,6 +32,8 @@ import net.minecraft.core.BlockPos;
 /** 管理原版 mannequin 实体及其登记生命周期。 */
 public final class MannequinManager {
     public static final String MANAGED_TAG = "archweaver.mannequin";
+    /** 头部相对身体的转动上限，与原版 {@code getMaxHeadRotationRelativeToBody} 保持一致，超出会被原版拉回。 */
+    private static final float MAX_HEAD_YAW_OFFSET = 50.0F;
     private MannequinManager() { }
 
     public static MannequinSavedData data(MinecraftServer server) {
@@ -47,6 +51,7 @@ public final class MannequinManager {
         entity.setCustomName(net.minecraft.network.chat.Component.literal(name));
         entity.setCustomNameVisible(true);
         entity.snapTo(position.x, position.y, position.z, yaw, 0);
+        applyLook(entity, 0.0F, yaw, yaw);
         ((MannequinInvoker) entity).archweaver$setProfile(ResolvableProfile.createResolved(new GameProfile(net.minecraft.core.UUIDUtil.createOfflinePlayerUUID(name), name)));
         ((MannequinInvoker) entity).archweaver$setImmovable(true);
         entity.setNoGravity(true);
@@ -54,9 +59,39 @@ public final class MannequinManager {
         var initial = MannequinSavedData.Record.create(uuid, name,
             level.dimension().identifier().toString(), position.x, position.y, position.z, yaw);
         data(server).put(new MannequinSavedData.Record(initial.uuid(), initial.name(), initial.dimension(), initial.x(),
-            initial.y(), initial.z(), initial.yaw(), initial.pose(), initial.immovable(), initial.biologicalBehavior(),
+            initial.y(), initial.z(), initial.look(), initial.pose(), initial.immovable(), initial.biologicalBehavior(),
             entity.getProfile(), initial.modelCustomisation(), initial.leftArm(), initial.rightArm(), initial.leftLeg(), initial.rightLeg()));
         return entity;
+    }
+
+    public static String alias(Mannequin entity) {
+        return MannequinIdentity.alias(((MannequinInvoker) entity).archweaver$getDescription());
+    }
+
+    public static void setAlias(MinecraftServer server, UUID id, String alias) {
+        Mannequin entity = loaded(server, id).orElseThrow(() -> new IllegalArgumentException("not_loaded"));
+        var description = MannequinIdentity.description(alias);
+        ((MannequinInvoker) entity).archweaver$setDescription(description);
+        ((MannequinInvoker) entity).archweaver$setHideDescription(false);
+        capture(server, entity);
+    }
+
+    /** 改名只更新登记和名牌，不触碰原版皮肤档案。 */
+    public static void rename(MinecraftServer server, UUID id, String name) {
+        if (!name.matches("[A-Za-z0-9_-]{1,16}")) throw new IllegalArgumentException("invalid_name");
+        Mannequin entity = loaded(server, id).orElseThrow(() -> new IllegalArgumentException("not_loaded"));
+        var old = data(server).find(id).orElseThrow();
+        if (find(server, name).filter(other -> !other.uuid().equals(id)).isPresent()
+            || server.getPlayerList().getPlayers().stream().anyMatch(player -> player.getGameProfile().name().equalsIgnoreCase(name))
+            || com.sakurakugu.archweaver.persistence.FakePlayerPersistence.data(server).residents().stream()
+                .anyMatch(player -> player.name().equalsIgnoreCase(name) && !player.uuid().equals(entity.getProfile().partialProfile().id())))
+            throw new IllegalArgumentException("duplicate");
+        entity.setCustomName(net.minecraft.network.chat.Component.literal(name));
+        data(server).put(new MannequinSavedData.Record(old.uuid(), name, old.dimension(), old.x(), old.y(), old.z(),
+            old.look(), old.pose(), old.immovable(), old.biologicalBehavior(), old.profile(), old.modelCustomisation(),
+            old.leftArm(), old.rightArm(), old.leftLeg(), old.rightLeg()));
+        capture(server, entity);
+        TargetListSync.refresh(server);
     }
 
     public static List<MannequinSavedData.Record> registered(MinecraftServer server) {
@@ -99,7 +134,9 @@ public final class MannequinManager {
         entity.addTag(MANAGED_TAG);
         entity.setCustomName(net.minecraft.network.chat.Component.literal(record.name()));
         entity.setCustomNameVisible(true);
-        entity.snapTo(record.x(), record.y(), record.z(), record.yaw(), 0);
+        entity.snapTo(record.x(), record.y(), record.z(), record.look().viewYaw(), 0);
+        applyLook(entity, record.look().pitch(), record.look().viewYaw(), record.look().bodyYaw());
+        ((MannequinLook) entity).archweaver$setBodyFollowsHead(record.look().bodyFollowsHead());
         entity.setPose(Pose.valueOf(record.pose()));
         ((MannequinInvoker) entity).archweaver$setProfile(record.profile());
         ((AvatarModelParts) entity).archweaver$setModelParts(record.modelCustomisation());
@@ -116,7 +153,7 @@ public final class MannequinManager {
         MannequinSavedData.Record old = data(server).find(id).orElse(null);
         if (old != null) data(server).put(new MannequinSavedData.Record(old.uuid(), old.name(),
             entity.level().dimension().identifier().toString(), entity.getX(), entity.getY(), entity.getZ(),
-            entity.getYRot(), entity.getPose().name(), ((MannequinInvoker) entity).archweaver$getImmovable(),
+            look(entity), entity.getPose().name(), ((MannequinInvoker) entity).archweaver$getImmovable(),
             !entity.isNoGravity(), old.profile(), ((AvatarModelParts) entity).archweaver$modelParts(),
             old.leftArm(), old.rightArm(), old.leftLeg(), old.rightLeg()));
         entity.discard();
@@ -181,17 +218,88 @@ public final class MannequinManager {
             limb == 2 ? angles : old.leftLeg(), limb == 3 ? angles : old.rightLeg()));
     }
 
+    /** 设置玩偶的视角；开启头身联动时，超出头部转动上限的转动交给身体。 */
+    public static void setViewRotation(MinecraftServer server, UUID id, int pitch, int yaw) {
+        Mannequin entity = loaded(server, id).orElseThrow(() -> new IllegalArgumentException("not_loaded"));
+        float bodyYaw = entity.yBodyRot;
+        float requestedOffset = Mth.wrapDegrees(yaw - bodyYaw);
+        float offset = Mth.clamp(requestedOffset, -MAX_HEAD_YAW_OFFSET, MAX_HEAD_YAW_OFFSET);
+        if (((MannequinLook) entity).archweaver$bodyFollowsHead() && requestedOffset != offset) {
+            // 头部到达转动边缘后，剩余角度交给身体，头部继续保持在边缘。
+            bodyYaw = yaw - offset;
+        }
+        applyLook(entity, Mth.clamp((float) pitch, -90.0F, 90.0F), bodyYaw + offset, bodyYaw);
+        store(server, entity);
+        broadcastBodyRotation(entity);
+    }
+
+    /** 转动玩偶身体并同步平移视角，保持头部相对身体的偏移。 */
+    public static void setBodyRotation(MinecraftServer server, UUID id, int yaw) {
+        Mannequin entity = loaded(server, id).orElseThrow(() -> new IllegalArgumentException("not_loaded"));
+        // 视角按相同的角度差平移，避免头部停留在原来的世界方向；偏移夹紧后不会超出原版头部转动上限。
+        float offset = Mth.clamp(Mth.wrapDegrees(entity.getYRot() - entity.yBodyRot),
+            -MAX_HEAD_YAW_OFFSET, MAX_HEAD_YAW_OFFSET);
+        applyLook(entity, entity.getXRot(), yaw + offset, yaw);
+        store(server, entity);
+        broadcastBodyRotation(entity);
+    }
+
+    /** 切换头身联动：开启后视角转到边缘会带动身体。 */
+    public static void toggleBodyFollowsHead(MinecraftServer server, UUID id) {
+        Mannequin entity = loaded(server, id).orElseThrow(() -> new IllegalArgumentException("not_loaded"));
+        MannequinLook look = (MannequinLook) entity;
+        look.archweaver$setBodyFollowsHead(!look.archweaver$bodyFollowsHead());
+        store(server, entity);
+    }
+
+    /** 身体朝向不属于原版同步字段，改动后要逐个通知正在追踪的观察者。 */
+    public static void sendBodyRotation(ServerPlayer viewer, Mannequin entity) {
+        if (viewer.connection.hasChannel(BodyRotationPayload.TYPE)) {
+            PlatformNetworking.sendToPlayer(viewer, new BodyRotationPayload(entity.getId(), entity.yBodyRot));
+        }
+    }
+
+    private static void broadcastBodyRotation(Mannequin entity) {
+        if (!(entity.level() instanceof ServerLevel level)) {
+            return;
+        }
+        for (ServerPlayer viewer : level.getChunkSource().chunkMap.getPlayers(entity.chunkPosition(), false)) {
+            sendBodyRotation(viewer, entity);
+        }
+    }
+
+    /** 视角与身体朝向都写进原版旋转字段，渲染和同步沿用原版逻辑。 */
+    private static void applyLook(Mannequin entity, float pitch, float viewYaw, float bodyYaw) {
+        entity.setXRot(pitch);
+        entity.setYRot(viewYaw);
+        entity.setYHeadRot(viewYaw);
+        entity.setYBodyRot(bodyYaw);
+        entity.yHeadRotO = viewYaw;
+        entity.yBodyRotO = bodyYaw;
+    }
+
+    /** 用实体当前状态刷新登记记录，记录里没有对应实体字段的设置保持原值。 */
+    private static void store(MinecraftServer server, Mannequin entity) {
+        MannequinSavedData.Record old = data(server).find(entity.getUUID()).orElse(null);
+        if (old == null) {
+            return;
+        }
+        data(server).put(copy(old, entity, old.immovable(), old.biologicalBehavior(), old.pose(),
+            old.modelCustomisation(), old.leftArm(), old.rightArm(), old.leftLeg(), old.rightLeg()));
+    }
+
     public static MannequinAnglesPayload anglesPayload(MinecraftServer server, UUID id) {
         MannequinSavedData.Record record = data(server).find(id).orElseThrow();
         return new MannequinAnglesPayload(id, record.leftArm(), record.rightArm(), record.leftLeg(), record.rightLeg());
     }
 
-    /** 把所有已登记玩偶的当前姿势发送给一个观察者。 */
+    /** 把所有已登记玩偶的当前姿势和身体朝向发送给一个观察者。 */
     public static void syncAnglesTo(ServerPlayer player) {
         MinecraftServer server = player.level().getServer();
         for (MannequinSavedData.Record record : data(server).records()) {
             PlatformNetworking.sendToPlayer(player, new MannequinAnglesPayload(record.uuid(), record.leftArm(),
                 record.rightArm(), record.leftLeg(), record.rightLeg()));
+            loaded(server, record.uuid()).ifPresent(entity -> sendBodyRotation(player, entity));
         }
     }
 
@@ -200,8 +308,14 @@ public final class MannequinManager {
                                                    MannequinSavedData.Angles leftArm, MannequinSavedData.Angles rightArm,
                                                    MannequinSavedData.Angles leftLeg, MannequinSavedData.Angles rightLeg) {
         return new MannequinSavedData.Record(old.uuid(), old.name(), entity.level().dimension().identifier().toString(),
-            entity.getX(), entity.getY(), entity.getZ(), entity.getYRot(), pose, immovable, biological,
+            entity.getX(), entity.getY(), entity.getZ(), look(entity), pose, immovable, biological,
             old.profile(), mask, leftArm, rightArm, leftLeg, rightLeg);
+    }
+
+    /** 从实体读出视角与朝向，登记记录只是镜像保存，实体才是编辑时的数据源。 */
+    private static MannequinSavedData.Look look(Mannequin entity) {
+        return new MannequinSavedData.Look(entity.getYRot(), entity.getXRot(), entity.yBodyRot,
+            ((MannequinLook) entity).archweaver$bodyFollowsHead());
     }
 
     public static boolean remove(MinecraftServer server, UUID id) {

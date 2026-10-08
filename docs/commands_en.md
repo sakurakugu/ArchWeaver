@@ -64,7 +64,9 @@ All `/player` commands use `/player <name> <action>`. The form `/fakeplayer play
 ### Spawning and Removal
 
 - `/player <name> spawn`: spawn the named fake player at the command source's position, with optional position, rotation, dimension, and game mode.
-- `/player <name> kill`: save and remove the fake player without death drops.
+- `/player <name> load`: load a registered fake player that is currently unloaded.
+- `/player <name> kill`: save and unload the fake player without death drops, keep its registration and player data, and disable its automatic restoration.
+- `/player <name> delete`: only administrators (permission level 3) can convert items in the inventory, equipment, and ender chest into dropped items, then execute `kill`.
 - `/player <name> shadow`: disconnect the online real player with that name and spawn a fake player at their position, inheriting their state. Non-administrators can only replace themselves.
 
 Supported `spawn` syntax:
@@ -76,9 +78,8 @@ Supported `spawn` syntax:
 /player <name> spawn at <position> facing <rotation>
 /player <name> spawn at <position> facing <rotation> in <dimension>
 /player <name> spawn at <position> facing <rotation> in <dimension> gamemode <game-mode>
+# With Carpet loaded: /player <name> spawn in <game-mode>
 ```
-
-Use `gamemode` for the game mode argument. Carpet uses `in` for this argument, but that syntax is currently unsupported here.
 
 Example:
 

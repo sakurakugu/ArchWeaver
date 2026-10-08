@@ -1,5 +1,6 @@
 package com.sakurakugu.archweaver.menu;
 
+import com.sakurakugu.archweaver.entity.MannequinManager;
 import com.sakurakugu.archweaver.ArchWeaverMod;
 import com.sakurakugu.archweaver.entity.FakePlayerManager;
 import com.sakurakugu.archweaver.entity.ProfileResolver;
@@ -14,6 +15,15 @@ public final class FakePlayerManagementActions {
     }
 
     public static void setAlias(ServerPlayer viewer, String alias) {
+        if (viewer.containerMenu instanceof MannequinInventoryMenu menu && menu.stillValid(viewer)) {
+            try {
+                MannequinManager.setAlias(viewer.level().getServer(), menu.mannequinId(), alias);
+                menu.broadcastChanges();
+            } catch (IllegalArgumentException exception) {
+                failure(viewer, "commands.archweaver.fakeplayer.invalid_alias");
+            }
+            return;
+        }
         if (!(viewer.containerMenu instanceof FakePlayerInventoryMenu menu)
             || menu.view() != FakePlayerInventoryMenu.View.INVENTORY
             || !menu.canManageTarget(viewer)) {
@@ -28,6 +38,16 @@ public final class FakePlayerManagementActions {
     }
 
     public static void rename(ServerPlayer viewer, String name) {
+        if (viewer.containerMenu instanceof MannequinInventoryMenu menu && menu.stillValid(viewer)) {
+            try {
+                MannequinManager.rename(viewer.level().getServer(), menu.mannequinId(), name);
+                menu.broadcastChanges();
+            } catch (IllegalArgumentException exception) {
+                failure(viewer, "invalid_name".equals(exception.getMessage())
+                    ? "commands.archweaver.fakeplayer.invalid_name" : "commands.archweaver.fakeplayer.duplicate", name);
+            }
+            return;
+        }
         if (!(viewer.containerMenu instanceof FakePlayerInventoryMenu menu)
             || menu.view() != FakePlayerInventoryMenu.View.INVENTORY
             || !menu.canManageTarget(viewer)) {

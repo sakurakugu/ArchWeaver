@@ -1,5 +1,7 @@
 package com.sakurakugu.archweaver.menu;
 
+import com.sakurakugu.archweaver.network.TargetInfoPayload;
+import com.sakurakugu.archweaver.platform.PlatformNetworking;
 import com.sakurakugu.archweaver.config.ArchWeaverConfig;
 import com.sakurakugu.archweaver.chunkloading.ChunkLoaderManager;
 import com.sakurakugu.archweaver.chunkloading.FakePlayerLoadPolicy;
@@ -59,7 +61,8 @@ import java.util.function.IntConsumer;
 import java.util.function.IntSupplier;
 
 /** 编辑假人的完整物品栏或末影箱，并同时显示操作者背包。 */
-public final class FakePlayerInventoryMenu extends AbstractContainerMenu {
+public final class FakePlayerInventoryMenu extends AbstractContainerMenu implements TargetInfoMenu {
+    private TargetInfoPayload targetInfo;
     private static final int INVENTORY_TARGET_SLOTS = 41;
     private static final int CRAFTING_SLOT_COUNT = 5;
     private static final int ENDER_CHEST_TARGET_SLOTS = 27;
@@ -177,6 +180,7 @@ public final class FakePlayerInventoryMenu extends AbstractContainerMenu {
             data.readVarInt()
         );
         skinModelPartsSnapshot = data.readUnsignedByte();
+        acceptTargetInfo(TargetInfoPayload.STREAM_CODEC.decode(data).forContainer(containerId));
     }
 
     public FakePlayerInventoryMenu(
@@ -577,8 +581,9 @@ public final class FakePlayerInventoryMenu extends AbstractContainerMenu {
         switch (simple) {
             case ENDER_CHEST -> FakePlayerMenuOpener.openEnderChest(viewer, target);
             case REMOVE -> {
+                // 与 kill 命令一致：只卸载实体，登记记录与玩家存档保留，之后可用 load 恢复。
                 player.closeContainer();
-                FakePlayerManager.remove(target);
+                FakePlayerManager.kill(target);
             }
             case POSSESS -> {
                 if (FakePlayerPossession.isControlling(viewer, target)) {
@@ -920,8 +925,26 @@ public final class FakePlayerInventoryMenu extends AbstractContainerMenu {
         return true;
     }
 
+    @Override public TargetInfoPayload targetInfo() { return targetInfo; }
+
+    @Override public void acceptTargetInfo(TargetInfoPayload info) {
+        if (info.containerId() == containerId && info.id().equals(targetUuid)) targetInfo = info;
+    }
+
+    @Override public void broadcastChanges() {
+        super.broadcastChanges();
+        if (target != null && viewer instanceof ServerPlayer serverViewer) {
+            var next = TargetInfoPayload.capture(containerId, target,
+                target.getGameProfile().name(), target.alias(), true);
+            if (!next.equals(targetInfo)) {
+                targetInfo = next;
+                PlatformNetworking.sendToPlayer(serverViewer, next);
+            }
+        }
+    }
+
     public String targetAlias() {
-        return target == null ? targetAlias : target.alias();
+        return target == null ? (targetInfo == null ? targetAlias : targetInfo.alias()) : target.alias();
     }
 
     public String targetName() {
@@ -952,9 +975,9 @@ public final class FakePlayerInventoryMenu extends AbstractContainerMenu {
     public int experienceNeeded() { return experienceNeeded.get(); }
     public int totalExperience() { return totalExperience.get(); }
     public int gameMode() { return gameMode.get(); }
-    public int positionX() { return positionX.get(); }
-    public int positionY() { return positionY.get(); }
-    public int positionZ() { return positionZ.get(); }
+    public int positionX() { return targetInfo == null ? positionX.get() : targetInfo.x(); }
+    public int positionY() { return targetInfo == null ? positionY.get() : targetInfo.y(); }
+    public int positionZ() { return targetInfo == null ? positionZ.get() : targetInfo.z(); }
     public FakePlayerSimulationMode simulationMode() {
         int ordinal = simulationMode.get();
         return ordinal >= 0 && ordinal < FakePlayerSimulationMode.values().length

@@ -213,6 +213,6 @@ public final class FakeServerPlayer extends ServerPlayer implements AvatarModelP
         setHealth(getMaxHealth());
         foodData = new FoodData();
         // 延迟到服务器任务队列移除，避免在死亡处理过程中直接修改玩家列表。
-        server.execute(() -> FakePlayerManager.remove(this));
+        server.execute(() -> FakePlayerManager.unload(this));
     }
 }

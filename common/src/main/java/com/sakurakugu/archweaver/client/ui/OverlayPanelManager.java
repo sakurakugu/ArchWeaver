@@ -86,7 +86,7 @@ public final class OverlayPanelManager {
     public final class Panel extends Button {
         private final List<AbstractWidget> contents = new ArrayList<>(); // 面板展开时显示并跟随状态启停的内部控件。
         private final String id; // 面板的稳定标识，用于重新初始化后恢复展开状态。
-        private final Layout layout; // 面板外框布局，含相对锚点的偏移与尺寸。
+        private Layout layout; // 面板外框布局，含相对锚点的偏移与尺寸；高度可随内容增减调整。
         private final Component title; // 面板展开时显示的标题文本。
         private final Side side; // 面板相对锚点的展开方向，决定标签位置与背景画法。
         private AbstractWidget tab; // 控制面板展开与收起的标签按钮。
@@ -142,6 +142,12 @@ public final class OverlayPanelManager {
 
         public int contentHeight() {
             return layout.height();
+        }
+
+        /** 运行时调整面板高度，供内容行数随状态增减的面板贴合实际内容；顶边保持不变。 */
+        public void setContentHeight(int height) {
+            layout = new Layout(layout.top(), layout.width(), height, layout.tabWidth(), layout.tabHeight());
+            setHeight(height);
         }
 
         private void bindTab(AbstractWidget tab) {

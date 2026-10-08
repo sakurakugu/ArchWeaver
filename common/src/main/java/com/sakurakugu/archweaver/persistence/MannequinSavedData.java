@@ -23,6 +23,12 @@ public final class MannequinSavedData extends SavedData {
         Codec.FLOAT.fieldOf("y").forGetter(Angles::y),
         Codec.FLOAT.fieldOf("z").forGetter(Angles::z)
     ).apply(instance, Angles::new));
+    public static final Codec<Look> LOOK_CODEC = RecordCodecBuilder.create(instance -> instance.group(
+        Codec.FLOAT.fieldOf("yaw").forGetter(Look::viewYaw),
+        Codec.FLOAT.fieldOf("pitch").forGetter(Look::pitch),
+        Codec.FLOAT.fieldOf("body_yaw").forGetter(Look::bodyYaw),
+        Codec.BOOL.fieldOf("body_follows_head").forGetter(Look::bodyFollowsHead)
+    ).apply(instance, Look::new));
     public static final Codec<Record> RECORD_CODEC = RecordCodecBuilder.create(instance -> instance.group(
         UUIDUtil.CODEC.fieldOf("uuid").forGetter(Record::uuid),
         Codec.STRING.fieldOf("name").forGetter(Record::name),
@@ -30,7 +36,7 @@ public final class MannequinSavedData extends SavedData {
         Codec.DOUBLE.fieldOf("x").forGetter(Record::x),
         Codec.DOUBLE.fieldOf("y").forGetter(Record::y),
         Codec.DOUBLE.fieldOf("z").forGetter(Record::z),
-        Codec.FLOAT.fieldOf("yaw").forGetter(Record::yaw),
+        LOOK_CODEC.fieldOf("look").forGetter(Record::look),
         Codec.STRING.fieldOf("pose").forGetter(Record::pose),
         Codec.BOOL.fieldOf("immovable").forGetter(Record::immovable),
         Codec.BOOL.fieldOf("biological_behavior").forGetter(Record::biologicalBehavior),
@@ -89,15 +95,30 @@ public final class MannequinSavedData extends SavedData {
         }
     }
 
-    public record Record(UUID uuid, String name, String dimension, double x, double y, double z, float yaw,
+    /** 视角与朝向：{@code viewYaw} 是视角偏航角，{@code bodyYaw} 是身体偏航角。 */
+    public record Look(float viewYaw, float pitch, float bodyYaw, boolean bodyFollowsHead) {
+        public Look {
+            if (!Float.isFinite(viewYaw) || !Float.isFinite(pitch) || !Float.isFinite(bodyYaw)) {
+                throw new IllegalArgumentException("玩偶视角非法");
+            }
+        }
+
+        /** 生成的玩偶默认面朝登记朝向，俯仰角和头身联动都保持默认值。 */
+        public static Look of(float yaw) {
+            return new Look(yaw, 0.0F, yaw, false);
+        }
+    }
+
+    public record Record(UUID uuid, String name, String dimension, double x, double y, double z, Look look,
                          String pose, boolean immovable, boolean biologicalBehavior, ResolvableProfile profile, int modelCustomisation, Angles leftArm,
                          Angles rightArm, Angles leftLeg, Angles rightLeg) {
         public Record {
-            if (name.isBlank() || !Double.isFinite(x) || !Double.isFinite(y) || !Double.isFinite(z)
-                || !Float.isFinite(yaw)) throw new IllegalArgumentException("玩偶登记信息非法");
+            if (name.isBlank() || !Double.isFinite(x) || !Double.isFinite(y) || !Double.isFinite(z)) {
+                throw new IllegalArgumentException("玩偶登记信息非法");
+            }
         }
         public static Record create(UUID id, String name, String dimension, double x, double y, double z, float yaw) {
-            return new Record(id, name, dimension, x, y, z, yaw, "STANDING", true, false,
+            return new Record(id, name, dimension, x, y, z, Look.of(yaw), "STANDING", true, false,
                 ResolvableProfile.createUnresolved(name),
                 127,
                 Angles.ZERO, Angles.ZERO, Angles.ZERO, Angles.ZERO);

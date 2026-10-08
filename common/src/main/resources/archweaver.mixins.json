@@ -13,6 +13,7 @@
     "FakePlayerChunkMapMixin",
     "TickRateManagerMixin",
     "MannequinInvoker",
+    "MannequinLookMixin",
     "AvatarModelPartsMixin",
     "MannequinBehaviorMixin",
     "MannequinMovementMixin"

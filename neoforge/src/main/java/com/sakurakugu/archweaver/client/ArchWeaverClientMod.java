@@ -27,7 +27,6 @@ import net.minecraft.client.gui.components.debug.DebugScreenEntryStatus;
 import net.minecraft.client.gui.components.debug.DebugScreenProfile;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
-import net.minecraft.world.inventory.ChestMenu;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.common.Mod;
@@ -99,6 +98,11 @@ public final class ArchWeaverClientMod {
             (payload, context) -> ClientFakePlayerAliases.accept(payload));
         event.register(BodyRotationPayload.TYPE,
             (payload, context) -> ClientBodyRotation.accept(payload));
+        event.register(com.sakurakugu.archweaver.network.TargetInfoPayload.TYPE, (payload, context) -> {
+            var player = net.minecraft.client.Minecraft.getInstance().player;
+            if (player != null && player.containerMenu instanceof com.sakurakugu.archweaver.menu.TargetInfoMenu menu)
+                menu.acceptTargetInfo(payload);
+        });
         event.register(MannequinAnglesPayload.TYPE,
             (payload, context) -> ClientMannequinAngles.set(payload.id(), payload.leftArm(), payload.rightArm(),
                 payload.leftLeg(), payload.rightLeg()));
@@ -164,7 +168,7 @@ public final class ArchWeaverClientMod {
     /** 附身期间在原版个人背包中提供可见的退出入口。 */
     private static void addInventoryButtons(ScreenEvent.Init.Post event) {
         if (event.getScreen() instanceof AbstractContainerScreen<?> containerScreen
-            && containerScreen.getMenu() instanceof ChestMenu
+            && TransferButton.supports(containerScreen)
             && !(containerScreen instanceof FakePlayerInventoryScreen)
             && !(containerScreen instanceof GlobalFakePlayerScreen)
             && ClientGlobalSettings.containerTransferButtons()) {

@@ -137,8 +137,9 @@ public final class RotationPad extends Button {
             deltaY = Math.clamp(deltaY, -radius, radius);
         }
         if (mode == Mode.BODY) {
+            // atan2 减去 90 后落在 -270 到 90 之间，先折算回 -180 到 179，否则动作会因角度越界被拒绝。
             int selectedYaw = (int) Math.round(Math.toDegrees(Math.atan2(deltaY, deltaX)) - 90);
-            onBodyYawChanged.accept(selectedYaw);
+            onBodyYawChanged.accept(Math.floorMod(selectedYaw + 180, 360) - 180);
             return;
         }
         dragYawOffset = (float) (deltaX / radius * MAX_HEAD_YAW_OFFSET);

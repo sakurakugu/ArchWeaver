@@ -23,8 +23,9 @@ import net.minecraft.core.UUIDUtil;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.level.saveddata.SavedData;
 import net.minecraft.world.level.saveddata.SavedDataType;
+import net.minecraft.server.level.ServerPlayer;
 
-/** 保存驻留清单、用户预设和分组；三者只共享存储文件，不共享生命周期语义。 */
+    /** 保存已登记假人、用户预设和分组；登记记录独立于在线实体生命周期。 */
 public final class FakePlayerSavedData extends SavedData {
     private static final Codec<FakePlayerActions.RepeatMode> REPEAT_MODE_CODEC =
         enumCodec(FakePlayerActions.RepeatMode.class);
@@ -302,7 +303,7 @@ public final class FakePlayerSavedData extends SavedData {
         }, Enum::name);
     }
 
-    /** 驻留记录只用于服务器重启后按名称和 UUID 恢复假人，不保存持续动作。 */
+    /** 登记记录保存身份与自动化设置，实体卸载后仍可按此记录再次加载。 */
     public record Resident(
         UUID uuid,
         String name,
@@ -314,9 +315,12 @@ public final class FakePlayerSavedData extends SavedData {
             profileProperties = List.copyOf(profileProperties);
         }
 
-        public static Resident from(FakeServerPlayer player, boolean restoreOnRestart) {
+        public static Resident from(ServerPlayer player, boolean restoreOnRestart) {
             return new Resident(player.getUUID(), player.getGameProfile().name(),
-                FakePlayerSavedData.profileProperties(player.getGameProfile()), player.automation().settings(), restoreOnRestart);
+                FakePlayerSavedData.profileProperties(player.getGameProfile()),
+                player instanceof FakeServerPlayer fake ? fake.automation().settings()
+                    : FakePlayerAutomation.AutomationState.DEFAULT,
+                restoreOnRestart);
         }
 
         public GameProfile profile() {

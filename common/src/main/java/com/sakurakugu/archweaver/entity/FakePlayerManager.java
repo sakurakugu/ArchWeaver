@@ -4,6 +4,7 @@ import com.mojang.authlib.GameProfile;
 import com.sakurakugu.archweaver.persistence.FakePlayerPersistence;
 import com.sakurakugu.archweaver.persistence.FakePlayerSavedData;
 import com.sakurakugu.archweaver.chunkloading.FakePlayerSimulationService;
+import com.sakurakugu.archweaver.menu.FakePlayerInventoryMenu;
 import java.io.IOException;
 import java.util.List;
 import java.util.Optional;
@@ -15,6 +16,8 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.network.CommonListenerCookie;
 import net.minecraft.server.players.NameAndId;
+import net.minecraft.world.Container;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.phys.Vec2;
 import net.minecraft.world.phys.Vec3;
@@ -148,17 +151,62 @@ public final class FakePlayerManager {
         FakePlayerPossession.restoreTarget(fake);
         fake.actions().stop();
         fake.shakeOffPlayers();
-        if (removeResident) {
-            FakePlayerPersistence.untrack(fake);
-            FakePlayerSimulationService.removePolicy(fake.server(), fake.getUUID());
-        }
+        if (removeResident) FakePlayerPersistence.untrack(fake);
+        // 实体离线后模拟策略必须立即撤销；登记状态与运行时策略是两个生命周期。
+        FakePlayerSimulationService.removePolicy(fake.server(), fake.getUUID());
         fake.disconnect();
         fake.server().getPlayerList().remove(fake);
     }
 
     public static void kill(FakeServerPlayer fake) {
-        // 与 Carpet 的 player kill 一致：这里表示让假玩家退出，而不是模拟一次死亡。
-        remove(fake);
+        // 与玩偶生命周期一致：kill 只卸载实体，登记记录继续保留。
+        unload(fake);
+    }
+
+    /** 卸载实体并关闭自身的重启恢复，保留登记、玩家数据和自动化设置。 */
+    public static void unload(FakeServerPlayer fake) {
+        if (fake == null || fake.hasDisconnected()) return;
+        prepareForUnload(fake);
+        FakePlayerPersistence.save(fake);
+        FakePlayerPersistence.data(fake.server()).setRestoreOnRestart(fake.getUUID(), false);
+        remove(fake, false);
+    }
+
+    /** 掉落全部背包、装备和末影箱物品后保存并卸载，保留登记及玩家存档。 */
+    public static void delete(ServerPlayer player) {
+        if (player == null || player.hasDisconnected()) return;
+        if (!(player instanceof FakeServerPlayer) && !ExternalFakePlayerSupport.isExternalFake(player)) {
+            return;
+        }
+        prepareForUnload(player);
+        dropItems(player, player.getInventory());
+        dropItems(player, player.getEnderChestInventory());
+        if (player instanceof FakeServerPlayer fake) unload(fake);
+        else ExternalFakePlayerSupport.unload(player);
+    }
+
+    private static void prepareForUnload(ServerPlayer player) {
+        if (player instanceof FakeServerPlayer fake) {
+            // 先归还附身中的身体状态，避免掉落操作者的物品或保存交换前的背包。
+            FakePlayerPossession.restoreTarget(fake);
+        }
+        // 关闭详情菜单，把暂存在合成格中的物品归还后再掉落和保存。
+        for (ServerPlayer viewer : List.copyOf(player.level().getServer().getPlayerList().getPlayers())) {
+            if (viewer.containerMenu instanceof FakePlayerInventoryMenu menu
+                && menu.target() == player) viewer.closeContainer();
+        }
+        player.closeContainer();
+    }
+
+    private static void dropItems(ServerPlayer player, Container container) {
+        for (int slot = 0; slot < container.getContainerSize(); slot++) {
+            ItemStack stack = container.getItem(slot);
+            if (stack.isEmpty()) continue;
+            // 与玩偶相同，先清空槽位再生成掉落物，不受保留物品栏或消失诅咒影响。
+            container.setItem(slot, ItemStack.EMPTY);
+            player.spawnAtLocation(player.level(), stack.copy());
+        }
+        container.setChanged();
     }
 
     /** 将全部玩家状态迁移到新身份，并重建实体以同步玩家列表。 */
@@ -271,6 +319,12 @@ public final class FakePlayerManager {
 
     public static FakeServerPlayer find(MinecraftServer server, String name) {
         return server.getPlayerList().getPlayerByName(name) instanceof FakeServerPlayer fake ? fake : null;
+    }
+
+    /** 查找 ArchWeaver 或外部模组提供的假玩家实体。 */
+    public static ServerPlayer findAny(MinecraftServer server, String name) {
+        ServerPlayer player = server.getPlayerList().getPlayerByName(name);
+        return player instanceof FakeServerPlayer || ExternalFakePlayerSupport.isExternalFake(player) ? player : null;
     }
 
     public static FakeServerPlayer find(MinecraftServer server, GameProfile profile) {

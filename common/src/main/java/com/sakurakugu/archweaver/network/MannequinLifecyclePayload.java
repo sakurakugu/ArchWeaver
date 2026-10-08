@@ -6,7 +6,7 @@ import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.Identifier;
 
-/** 请求加载或卸载已登记玩偶。 */
+/** 请求加载或卸载已登记目标。 */
 public record MannequinLifecyclePayload(String name, Action action) implements CustomPacketPayload {
     public enum Action { LOAD, UNLOAD }
 

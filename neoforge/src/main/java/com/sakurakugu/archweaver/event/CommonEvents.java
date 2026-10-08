@@ -13,6 +13,7 @@ import net.minecraft.world.entity.decoration.Mannequin;
 import com.sakurakugu.archweaver.entity.FakePlayerAliasSync;
 import com.sakurakugu.archweaver.entity.FakePlayerPossession;
 import com.sakurakugu.archweaver.entity.FakeServerPlayer;
+import com.sakurakugu.archweaver.entity.ExternalFakePlayerSupport;
 import com.sakurakugu.archweaver.menu.FakePlayerMenuOpener;
 import com.sakurakugu.archweaver.persistence.FakePlayerPersistence;
 import java.util.concurrent.CompletableFuture;
@@ -135,6 +136,7 @@ public final class CommonEvents {
     @SubscribeEvent
     public static void playerLoggedIn(PlayerEvent.PlayerLoggedInEvent event) {
         if (event.getEntity() instanceof ServerPlayer player) {
+            ExternalFakePlayerSupport.track(player);
             if (!(player instanceof FakeServerPlayer)) MannequinManager.syncAnglesTo(player);
             FakePlayerPossession.syncTo(player);
             if (player instanceof FakeServerPlayer fake) FakePlayerAliasSync.broadcast(fake);
@@ -147,6 +149,9 @@ public final class CommonEvents {
         if (event.getEntity() instanceof ServerPlayer viewer && event.getTarget() instanceof Mannequin mannequin
             && MannequinManager.data(viewer.level().getServer()).find(mannequin.getUUID()).isPresent()) {
             PlatformNetworking.sendToPlayer(viewer, MannequinManager.anglesPayload(viewer.level().getServer(), mannequin.getUUID()));
+            MannequinManager.sendBodyRotation(viewer, mannequin);
+            // 玩偶不是玩家，原版不会向观察者补发它的药水效果，进入追踪范围时自己补一次。
+            viewer.level().getServer().getPlayerList().sendActiveEffects(mannequin, viewer.connection);
         }
         if (event.getEntity() instanceof ServerPlayer viewer
             && event.getTarget() instanceof FakeServerPlayer fake) {

@@ -1,5 +1,7 @@
 package com.sakurakugu.archweaver.client.chunkloading;
 
+import com.sakurakugu.archweaver.client.ui.DimensionDisplay;
+
 import com.sakurakugu.archweaver.client.ClientScreenNavigation;
 import com.sakurakugu.archweaver.client.ui.PixelGlyph;
 import com.sakurakugu.archweaver.client.ui.SolidButton;
@@ -102,7 +104,7 @@ public final class ChunkMapManagementScreen extends Screen {
                 left + s(294), top + s(104), 0xFFAAAAAA);
         } else {
             graphics.text(font, Component.literal(selected.name()), left + s(176), top + s(52), 0xFFFFFFFF, false);
-            graphics.text(font, Component.literal(selected.dimension()), left + s(176), top + s(72), 0xFFC6C6C6, false);
+            graphics.text(font, DimensionDisplay.name(selected.dimension()), left + s(176), top + s(72), 0xFFC6C6C6, false);
             graphics.text(font, Component.translatable("gui.archweaver.chunkloader.position",
                 selected.chunkX() << 4, 0, selected.chunkZ() << 4), left + s(176), top + s(92), 0xFFCCCCCC, false);
             graphics.text(font, Component.translatable("gui.archweaver.chunkloader.chunks", selected.chunkCount()),

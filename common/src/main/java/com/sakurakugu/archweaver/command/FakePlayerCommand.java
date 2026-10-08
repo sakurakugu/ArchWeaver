@@ -19,6 +19,7 @@ import com.sakurakugu.archweaver.entity.FakePlayerManager;
 import com.sakurakugu.archweaver.entity.FakePlayerPossession;
 import com.sakurakugu.archweaver.entity.ProfileResolver;
 import com.sakurakugu.archweaver.entity.FakeServerPlayer;
+import com.sakurakugu.archweaver.entity.ExternalFakePlayerSupport;
 import com.sakurakugu.archweaver.entity.MannequinManager;
 import com.sakurakugu.archweaver.chunkloading.ChunkLoaderManager;
 import com.sakurakugu.archweaver.menu.FakePlayerMenuOpener;
@@ -177,6 +178,10 @@ public final class FakePlayerCommand {
 
         target.then(spawnCommand());
         target.then(Commands.literal("kill").executes(FakePlayerCommand::kill));
+        target.then(Commands.literal("load").executes(FakePlayerCommand::load));
+        target.then(Commands.literal("delete")
+            .requires(Commands.hasPermission(Commands.LEVEL_ADMINS))
+            .executes(FakePlayerCommand::delete));
         target.then(Commands.literal("alias")
             .executes(context -> setAlias(context, ""))
             .then(Commands.argument("alias", StringArgumentType.greedyString())
@@ -309,6 +314,8 @@ public final class FakePlayerCommand {
         LiteralArgumentBuilder<CommandSourceStack> spawn = Commands.literal("spawn")
             .executes(context -> spawn(context, name(context)));
         spawn.then(gamemodeBranch("gamemode"));
+        // Carpet 语法仅在 Carpet 已加载时提供，避免无 Carpet 时扩展 /player 语法。
+        if (isCarpetLoaded()) spawn.then(gamemodeBranch("in"));
 
         var position = Commands.argument("position", Vec3Argument.vec3())
             .executes(context -> spawn(context, name(context)));
@@ -331,6 +338,15 @@ public final class FakePlayerCommand {
             .requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS))
             .then(Commands.argument("gamemode", GameModeArgument.gameMode())
                 .executes(context -> spawn(context, name(context))));
+    }
+
+    private static boolean isCarpetLoaded() {
+        try {
+            Class.forName("carpet.CarpetSettings", false, FakePlayerCommand.class.getClassLoader());
+            return true;
+        } catch (ClassNotFoundException | LinkageError ignored) {
+            return false;
+        }
     }
 
     private static LiteralArgumentBuilder<CommandSourceStack> repeatingCommand(String literal, RepeatingAction action) {
@@ -769,13 +785,50 @@ public final class FakePlayerCommand {
     }
 
     private static int kill(CommandContext<CommandSourceStack> context) {
-        FakeServerPlayer fake = getFake(context);
-        if (fake == null) {
+        ServerPlayer target = FakePlayerManager.findAny(context.getSource().getServer(), name(context));
+        if (target == null) {
             return 0;
         }
-        String name = fake.getGameProfile().name();
-        FakePlayerManager.kill(fake);
-        context.getSource().sendSuccess(() -> Component.translatable("commands.archweaver.fakeplayer.killed", name), true);
+        String targetName = target.getGameProfile().name();
+        if (target instanceof FakeServerPlayer fake) FakePlayerManager.kill(fake);
+        else ExternalFakePlayerSupport.unload(target);
+        context.getSource().sendSuccess(() -> Component.translatable("commands.archweaver.fakeplayer.killed", targetName), true);
+        refreshList(context.getSource());
+        return 1;
+    }
+
+    private static int load(CommandContext<CommandSourceStack> context) {
+        String target = name(context);
+        FakeServerPlayer online = FakePlayerManager.find(context.getSource().getServer(), target);
+        if (online != null) {
+            context.getSource().sendFailure(Component.literal("假玩家已加载：" + target));
+            return 0;
+        }
+        FakePlayerPersistence.LoadResult result = FakePlayerPersistence.loadRegistered(
+            context.getSource().getServer(), target);
+        if (!result.successful()) {
+            context.getSource().sendFailure(Component.literal(result.reason()));
+            return 0;
+        }
+        context.getSource().sendSuccess(() -> Component.literal("已加载假玩家 " + target), true);
+        refreshList(context.getSource());
+        return 1;
+    }
+
+    private static int delete(CommandContext<CommandSourceStack> context) {
+        String target = name(context);
+        ServerPlayer loaded = FakePlayerManager.findAny(context.getSource().getServer(), target);
+        if (loaded == null) {
+            var result = FakePlayerPersistence.loadRegistered(context.getSource().getServer(), target);
+            if (!result.successful()) {
+                context.getSource().sendFailure(Component.literal(result.reason()));
+                return 0;
+            }
+            loaded = result.player().orElseThrow();
+        }
+        FakePlayerManager.delete(loaded);
+        context.getSource().sendSuccess(() -> Component.literal("已掉落全部物品并卸载假玩家 " + target), true);
+        refreshList(context.getSource());
         return 1;
     }
 

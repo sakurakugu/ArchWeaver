@@ -80,7 +80,19 @@ public final class FakePlayerPersistence {
         if (player.hasDisconnected()) {
             return;
         }
-        FakePlayerSavedData savedData = data(player.server());
+        FakePlayerSavedData savedData = data(player.level().getServer());
+        boolean restore = savedData.resident(player.getUUID())
+            .map(Resident::restoreOnRestart).orElse(ArchWeaverConfig.restoreFakePlayers());
+        savedData.putResident(Resident.from(player, restore));
+    }
+
+    /** 为 Carpet/Curtain 等外部假玩家登记状态。 */
+    public static void track(ServerPlayer player) {
+        if (player instanceof FakeServerPlayer fake) {
+            track(fake);
+            return;
+        }
+        FakePlayerSavedData savedData = data(player.level().getServer());
         boolean restore = savedData.resident(player.getUUID())
             .map(Resident::restoreOnRestart).orElse(ArchWeaverConfig.restoreFakePlayers());
         savedData.putResident(Resident.from(player, restore));
@@ -88,6 +100,17 @@ public final class FakePlayerPersistence {
 
     public static void untrack(FakeServerPlayer player) {
         data(player.server()).removeResident(player.getUUID());
+    }
+
+    /** 在卸载实体前写入原版玩家存档，保证下次 load 时恢复完整状态。 */
+    public static void save(FakeServerPlayer player) {
+        ((PlayerListInvoker) player.level().getServer().getPlayerList()).archweaver$save(player);
+        track(player);
+    }
+
+    public static void save(ServerPlayer player) {
+        ((PlayerListInvoker) player.level().getServer().getPlayerList()).archweaver$save(player);
+        track(player);
     }
 
     public static void toggleRestoreOnRestart(MinecraftServer server, java.util.UUID uuid) {
@@ -118,6 +141,14 @@ public final class FakePlayerPersistence {
             ValueInput input = TagValueInput.create(collector, server.registryAccess(), playerData);
             return input.read("playerGameType", GameType.LEGACY_ID_CODEC).orElse(GameType.SURVIVAL);
         }
+    }
+
+    /** 无原玩家快照的玩偶不能覆盖其他身份的玩家存档或进度。 */
+    public static boolean hasStoredPlayerData(MinecraftServer server, UUID uuid) {
+        Path directory = server.getWorldPath(LevelResource.PLAYER_DATA_DIR);
+        return Files.exists(directory.resolve(uuid + ".dat"))
+            || Files.exists(directory.resolve(uuid + ".dat_old"))
+            || hasPlayerProgressData(server, uuid);
     }
 
     /** 检查目标 UUID 是否已有原版统计或进度数据，避免改名时覆盖其他玩家。 */
@@ -248,7 +279,15 @@ public final class FakePlayerPersistence {
         return load(server, preset.player(), true);
     }
 
-    private static LoadResult loadResident(MinecraftServer server, Resident resident) {
+    /** 按登记名称加载一个当前未加载的假玩家。 */
+    public static LoadResult loadRegistered(MinecraftServer server, String name) {
+        Resident resident = data(server).residents().stream()
+            .filter(value -> value.name().equalsIgnoreCase(name))
+            .findFirst().orElse(null);
+        return resident == null ? LoadResult.failure("未登记假玩家：" + name) : loadResident(server, resident);
+    }
+
+    public static LoadResult loadResident(MinecraftServer server, Resident resident) {
         NameAndId identity = new NameAndId(resident.uuid(), resident.name());
         Optional<CompoundTag> saved = server.getPlayerList().loadPlayerData(identity);
         if (saved.isEmpty()) {

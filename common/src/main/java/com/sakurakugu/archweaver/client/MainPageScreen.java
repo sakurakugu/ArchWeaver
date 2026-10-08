@@ -1,5 +1,7 @@
 package com.sakurakugu.archweaver.client;
 
+import com.sakurakugu.archweaver.client.ui.DimensionDisplay;
+
 import com.sakurakugu.archweaver.client.chunkloading.ChunkMapClientConfig;
 import com.sakurakugu.archweaver.client.chunkloading.ClientChunkLoadingState;
 import com.sakurakugu.archweaver.client.ui.PixelGlyph;
@@ -13,6 +15,7 @@ import com.sakurakugu.archweaver.network.ChunkMapOpenTarget;
 import com.sakurakugu.archweaver.network.OpenFakePlayerInventoryPayload;
 import com.sakurakugu.archweaver.network.OpenFakePlayerPagePayload;
 import com.sakurakugu.archweaver.network.MannequinLifecyclePayload;
+import com.sakurakugu.archweaver.network.FakePlayerLifecyclePayload;
 import com.sakurakugu.archweaver.network.ToggleGlobalSettingPayload;
 import com.sakurakugu.archweaver.platform.PlatformNetworking;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -40,7 +43,7 @@ public final class MainPageScreen extends Screen {
     private View view = View.FAKE_PLAYERS; // 中间内容区当前显示的页面。
     private final Button[] settingButtons = new Button[ArchWeaverConfig.GlobalSetting.values().length]; // 全局设置开关按钮，点击后统一置灰。
     private TargetTypeFilter targetTypeFilter = TargetTypeFilter.ALL;
-    private LoadFilter loadFilter = LoadFilter.REGISTERED;
+    private LoadFilter loadFilter = LoadFilter.LOADED; // 默认只看已加载的，未加载的记录要手动切出来。
 
     public MainPageScreen(ChunkMapSnapshotPayload snapshot) {
         this(snapshot, View.FAKE_PLAYERS);
@@ -114,24 +117,24 @@ public final class MainPageScreen extends Screen {
                     globalSetting(ArchWeaverConfig.GlobalSetting.FAKE_PLAYER_EMPTY_ALIAS_MARKER),
                     fake.id().equals(selectedFake), button -> selectFake(visible.get(fakeIndex).id())));
             }
-            // 生成假人收成加号，钉在列表左上角；预设管理紧随其后，占满工具行剩余宽度。
-            addRenderableWidget(new SolidButton(centerLeft + PANEL_PADDING, toolbarY(),
+            // 生成假人收成加号钉在标题栏左上角，刷新钉在右上角，两侧留白同为 4 像素。
+            TitlePanel centerPanel = new TitlePanel(centerLeft, top, centerWidth, panelHeight(), centerTitle());
+            addRenderableWidget(new SolidButton(centerPanel.leftButtonX(), centerPanel.buttonY(TOOLBAR_HEIGHT),
                 TOOLBAR_HEIGHT, TOOLBAR_HEIGHT, PixelGlyph.ADD,
                 Component.translatable("gui.archweaver.main.spawn"), button -> openSpawn()));
-            int presetLeft = centerLeft + PANEL_PADDING + TOOLBAR_HEIGHT + GAP;
-            addRenderableWidget(new SolidButton(presetLeft, toolbarY(),
-                Math.max(1, centerLeft + centerWidth - PANEL_PADDING - presetLeft), TOOLBAR_HEIGHT,
-                Component.translatable("gui.archweaver.main.presets"), button -> openPresets()));
-            int filterLeft = presetLeft;
-            int filterWidth = Math.max(1, centerLeft + centerWidth - PANEL_PADDING - filterLeft);
-            int filterHalf = Math.max(1, (filterWidth - 2) / 2);
-            addRenderableWidget(new SolidButton(filterLeft, toolbarY() + TOOLBAR_HEIGHT + 1,
-                filterHalf, TOOLBAR_HEIGHT, Component.literal(targetTypeFilter.label()), button -> cycleTargetType()));
-            addRenderableWidget(new SolidButton(filterLeft + filterHalf + 2, toolbarY() + TOOLBAR_HEIGHT + 1,
-                Math.max(1, filterWidth - filterHalf - 2), TOOLBAR_HEIGHT,
-                Component.literal(loadFilter.label()), button -> cycleLoadFilter()));
-            addRenderableWidget(new SolidButton(centerLeft + centerWidth - PANEL_PADDING - 18, top + 4, 18, 18,
+            addRenderableWidget(new SolidButton(centerLeft + centerWidth - 4 - TOOLBAR_HEIGHT,
+                centerPanel.buttonY(TOOLBAR_HEIGHT), TOOLBAR_HEIGHT, TOOLBAR_HEIGHT,
                 PixelGlyph.REFRESH, Component.translatable("gui.archweaver.main.refresh"), button -> refresh()));
+            // 两个筛选按钮平分内容区顶行；预设管理落到面板底部，与「假人数量」同一行并与加载筛选对齐。
+            int filterHalf = Math.max(1, (listWidth - 2) / 2);
+            int secondHalf = Math.max(1, listWidth - filterHalf - 2);
+            addRenderableWidget(new SolidButton(centerLeft + PANEL_PADDING, toolbarY(),
+                filterHalf, TOOLBAR_HEIGHT, Component.literal(targetTypeFilter.label()), button -> cycleTargetType()));
+            addRenderableWidget(new SolidButton(centerLeft + PANEL_PADDING + filterHalf + 2, toolbarY(),
+                secondHalf, TOOLBAR_HEIGHT, Component.literal(loadFilter.label()), button -> cycleLoadFilter()));
+            addRenderableWidget(new SolidButton(centerLeft + PANEL_PADDING + filterHalf + 2, footerY(),
+                secondHalf, FOOTER_HEIGHT,
+                Component.translatable("gui.archweaver.main.presets"), button -> openPresets()));
             int rightLeft = centerLeft + centerWidth + GAP;
             int rightWidth = Math.max(1, left + panelWidth() - rightLeft);
             addFakeDetailWidgets(rightLeft, rightWidth);
@@ -168,7 +171,8 @@ public final class MainPageScreen extends Screen {
         addRenderableWidget(new SolidButton(centerLeft + PANEL_PADDING + half + GAP, footerY,
             Math.max(1, listWidth - half - GAP), FOOTER_HEIGHT,
             Component.translatable("gui.archweaver.main.manage_regions"), button -> openManagement()));
-        addRenderableWidget(new SolidButton(centerLeft + centerWidth - PANEL_PADDING - 18, top + 4, 18, 18,
+        // 与假人列表页的刷新按钮保持同一位置：距标题栏右边缘 4 像素。
+        addRenderableWidget(new SolidButton(centerLeft + centerWidth - 4 - 18, top + 4, 18, 18,
             PixelGlyph.REFRESH, Component.translatable("gui.archweaver.main.refresh"), button -> refresh()));
     }
 
@@ -198,9 +202,9 @@ public final class MainPageScreen extends Screen {
         return contentTop() + PANEL_PADDING;
     }
 
-    /** 假人列表首行的纵坐标，位于工具行下方。 */
+    /** 假人列表首行的纵坐标，位于筛选行下方。 */
     private int fakeListTop() {
-        return toolbarY() + TOOLBAR_HEIGHT * 2 + 1 + GAP;
+        return toolbarY() + TOOLBAR_HEIGHT + GAP;
     }
 
     /** 区块列表首行的纵坐标，位于内容区顶部的状态文字下方。 */
@@ -293,7 +297,15 @@ public final class MainPageScreen extends Screen {
             Component.translatable("gui.archweaver.main.open_inventory"),
             button -> openInventory(fake)));
         openInventoryButton.active = fake.canOpenInventory();
-        if (fake.type() == ChunkMapSnapshotPayload.TargetType.MANNEQUIN && !fake.loaded()) {
+        if (fake.type() == ChunkMapSnapshotPayload.TargetType.PLAYER && !fake.loaded()) {
+            addRenderableWidget(new SolidButton(x + PANEL_PADDING, footerY() - FOOTER_HEIGHT - GAP,
+                Math.max(1, w - PANEL_PADDING * 2), FOOTER_HEIGHT,
+                Component.literal("加载假人"), button -> fakeLifecycle(fake, FakePlayerLifecyclePayload.Action.LOAD)));
+        } else if (fake.type() == ChunkMapSnapshotPayload.TargetType.PLAYER) {
+            addRenderableWidget(new SolidButton(x + PANEL_PADDING, footerY() - FOOTER_HEIGHT - GAP,
+                Math.max(1, w - PANEL_PADDING * 2), FOOTER_HEIGHT,
+                Component.literal("卸载假人"), button -> fakeLifecycle(fake, FakePlayerLifecyclePayload.Action.UNLOAD)));
+        } else if (fake.type() == ChunkMapSnapshotPayload.TargetType.MANNEQUIN && !fake.loaded()) {
             addRenderableWidget(new SolidButton(x + PANEL_PADDING, footerY() - FOOTER_HEIGHT - GAP,
                 Math.max(1, w - PANEL_PADDING * 2), FOOTER_HEIGHT,
                 Component.literal("加载玩偶"), button -> lifecycle(fake, MannequinLifecyclePayload.Action.LOAD)));
@@ -308,12 +320,20 @@ public final class MainPageScreen extends Screen {
         PlatformNetworking.sendToServer(new MannequinLifecyclePayload(fake.name(), action));
     }
 
+    private void fakeLifecycle(ChunkMapSnapshotPayload.FakePlayerView fake, FakePlayerLifecyclePayload.Action action) {
+        PlatformNetworking.sendToServer(new FakePlayerLifecyclePayload(fake.name(), action));
+    }
+
     private java.util.List<ChunkMapSnapshotPayload.FakePlayerView> visibleFakes() {
         return snapshot.fakePlayers().stream()
             .filter(fake -> targetTypeFilter == TargetTypeFilter.ALL
                 || (targetTypeFilter == TargetTypeFilter.PLAYER && fake.type() == ChunkMapSnapshotPayload.TargetType.PLAYER)
                 || (targetTypeFilter == TargetTypeFilter.MANNEQUIN && fake.type() == ChunkMapSnapshotPayload.TargetType.MANNEQUIN))
-            .filter(fake -> loadFilter == LoadFilter.REGISTERED || fake.loaded())
+            .filter(fake -> switch (loadFilter) {
+                case REGISTERED -> fake.registered();
+                case LOADED -> fake.loaded();
+                case UNLOADED -> fake.registered() && !fake.loaded();
+            })
             .toList();
     }
 
@@ -327,7 +347,11 @@ public final class MainPageScreen extends Screen {
     }
 
     private void cycleLoadFilter() {
-        loadFilter = loadFilter == LoadFilter.REGISTERED ? LoadFilter.LOADED : LoadFilter.REGISTERED;
+        loadFilter = switch (loadFilter) {
+            case REGISTERED -> LoadFilter.LOADED;
+            case LOADED -> LoadFilter.UNLOADED;
+            case UNLOADED -> LoadFilter.REGISTERED;
+        };
         rebuildMainWidgets();
     }
 
@@ -372,8 +396,8 @@ public final class MainPageScreen extends Screen {
 
         int labelY = contentTop() + PANEL_PADDING;
         if (view == View.FAKE_PLAYERS) {
-            // 在线人数挪到面板最底部，顶部整行让给生成假人和预设管理。
-            graphics.text(font, Component.translatable("gui.archweaver.main.online", visibleFakes().size()),
+            // 假人数量留在面板最底部，和预设管理同一行。
+            graphics.text(font, Component.translatable("gui.archweaver.main.fake_player_count", visibleFakes().size()),
                 centerLeft + PANEL_PADDING, statusY(), 0xFFFFFFFF, false);
             drawFakeDetail(graphics, rightLeft, rightWidth);
         } else if (view == View.MAP) {
@@ -408,10 +432,10 @@ public final class MainPageScreen extends Screen {
             y += 14;
         }
         graphics.text(font, Component.literal(fake.name()), x + PANEL_PADDING, y, 0xFFD0D0D0, false);
-        graphics.text(font, Component.translatable("gui.archweaver.main.world", fake.dimension()), x + PANEL_PADDING, y + 18, 0xFFFFFFFF, false);
+        graphics.text(font, Component.translatable("gui.archweaver.main.world", DimensionDisplay.name(fake.dimension())), x + PANEL_PADDING, y + 18, 0xFFFFFFFF, false);
         graphics.text(font, Component.translatable("gui.archweaver.main.position", fake.x(), fake.y(), fake.z()), x + PANEL_PADDING, y + 36, 0xFFFFFFFF, false);
-        if (fake.type() == ChunkMapSnapshotPayload.TargetType.MANNEQUIN) {
-            graphics.text(font, Component.literal(fake.loaded() ? "已加载" : "已登记"), x + PANEL_PADDING, y + 54, 0xFFFFFFFF, false);
+        if (fake.type() == ChunkMapSnapshotPayload.TargetType.MANNEQUIN || fake.type() == ChunkMapSnapshotPayload.TargetType.PLAYER) {
+            graphics.text(font, Component.literal(fake.loaded() ? "已加载" : "未加载"), x + PANEL_PADDING, y + 54, 0xFFFFFFFF, false);
         } else {
             graphics.text(font, Component.translatable("gui.archweaver.main.loading", fake.loadingActive() ? fake.loadingDistance() : 0), x + PANEL_PADDING, y + 54, 0xFFFFFFFF, false);
             graphics.text(font, Component.translatable("gui.archweaver.main.simulation", fake.simulationDistance()), x + PANEL_PADDING, y + 72, 0xFFFFFFFF, false);
@@ -426,7 +450,7 @@ public final class MainPageScreen extends Screen {
         }
         ChunkMapSnapshotPayload.RegionSummary region = snapshot.managementRegions().get(selectedRegion);
         graphics.text(font, Component.literal(region.name()), x + PANEL_PADDING, y, 0xFFFFFFFF, false);
-        graphics.text(font, Component.translatable("gui.archweaver.main.world", region.dimension()), x + PANEL_PADDING, y + 18, 0xFFFFFFFF, false);
+        graphics.text(font, Component.translatable("gui.archweaver.main.world", DimensionDisplay.name(region.dimension())), x + PANEL_PADDING, y + 18, 0xFFFFFFFF, false);
         graphics.text(font, Component.translatable("gui.archweaver.main.region_position", region.chunkX(), region.chunkZ()), x + PANEL_PADDING, y + 36, 0xFFFFFFFF, false);
         graphics.text(font, Component.translatable("gui.archweaver.main.region_size", region.chunkCount()), x + PANEL_PADDING, y + 54, 0xFFFFFFFF, false);
         graphics.text(font, Component.translatable("gui.archweaver.main.region_status", Component.translatable(region.enabled() ? "gui.archweaver.fakeplayer.global.enabled" : "gui.archweaver.fakeplayer.global.disabled")), x + PANEL_PADDING, y + 72, 0xFFFFFFFF, false);
@@ -453,7 +477,7 @@ public final class MainPageScreen extends Screen {
     }
 
     private enum LoadFilter {
-        REGISTERED("已登记"), LOADED("已加载");
+        REGISTERED("已登记"), LOADED("已加载"), UNLOADED("未加载");
         private final String label;
         LoadFilter(String label) { this.label = label; }
         String label() { return label; }

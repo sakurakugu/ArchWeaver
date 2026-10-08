@@ -1,5 +1,6 @@
 package com.sakurakugu.archweaver.client;
 
+import com.sakurakugu.archweaver.client.ui.TargetPositionDisplay;
 import com.sakurakugu.archweaver.ArchWeaverMod;
 import com.sakurakugu.archweaver.menu.FakePlayerInventoryMenu;
 import com.sakurakugu.archweaver.menu.FakePlayerMenuAction;
@@ -38,6 +39,7 @@ import com.sakurakugu.archweaver.client.ui.PixelGui;
 import com.sakurakugu.archweaver.client.ui.RotationPad;
 import com.sakurakugu.archweaver.client.ui.ToggleSwitchButton;
 import com.sakurakugu.archweaver.client.ui.SegmentedSwitchButton;
+import com.sakurakugu.archweaver.client.ui.TopBar;
 import com.sakurakugu.archweaver.client.ui.TransferButton;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.Gui;
@@ -144,7 +146,8 @@ public final class FakePlayerInventoryScreen extends AbstractContainerScreen<Fak
         INFO_PANEL_LAYOUT, 94, 109); // Q 键丢弃面板的布局，紧接 INFO_PANEL_LAYOUT 下方。
     private static final int TRANSFER_BUTTON_LEFT = 144; // 物品转移按钮组的左边偏移，单位为像素。
     private static final int TRANSFER_BUTTON_TOP = 165; // 普通视图下转移按钮的顶边偏移，单位为像素。
-    private static final int ENDER_CHEST_TRANSFER_BUTTON_TOP = 73; // 末影箱视图下转移按钮的顶边偏移，单位为像素。
+    // 末影箱视图复刻原版三行容器，物品栏标题在 74，按钮与之保持和其他界面一致的 2 像素间距。
+    private static final int ENDER_CHEST_TRANSFER_BUTTON_TOP = 72; // 末影箱视图下转移按钮的顶边偏移，单位为像素。
     // 侧栏依次放置视觉朝向、持续控制、假人信息、Q 键丢弃、自动化和骑乘标签。
     private static final OverlayPanelManager.Layout AUTOMATION_PANEL_LAYOUT = nextPanelLayout(
         DROP_PANEL_LAYOUT, 94, 97); // 自动化面板的布局，紧接 DROP_PANEL_LAYOUT 下方。
@@ -321,9 +324,8 @@ public final class FakePlayerInventoryScreen extends AbstractContainerScreen<Fak
             restoreStateInitialized = true;
         }
         addRestorePanel();
-        addRenderableWidget(new ToggleSwitchButton(leftPos + 8, topPos - 18, 160, 18,
-            Component.literal("玩偶模式"), () -> false,
-            button -> PlatformNetworking.sendToServer(new TargetTypePayload(menu.containerId, menu.targetUuid(), true))));
+        // 顶栏只放玩家/玩偶二态切换：当前是玩家，选到玩偶一侧即转换实体类型。
+        addTopBar();
         addRenderableWidget(
             new InventorySlotButton(
                 leftPos + ACTION_BUTTON_LEFT,
@@ -399,8 +401,28 @@ public final class FakePlayerInventoryScreen extends AbstractContainerScreen<Fak
                 restoreOnRestart = !restoreOnRestart;
                 PlatformNetworking.sendToServer(new ToggleFakePlayerRestorePayload(menu.containerId, menu.targetUuid()));
             }));
-        addRenderableWidget(restorePanel.createTab(new ItemStack(Items.CLOCK)));
+        addRenderableWidget(restorePanel.createTab(new ItemStack(Items.REDSTONE)));
         restorePanel.bindContents(toggle);
+    }
+
+    /** 顶栏上的玩家/玩偶二态切换；左侧的玩家是当前状态，切到右侧时提交类型转换。 */
+    private void addTopBar() {
+        TopBar bar = topBar();
+        addRenderableWidget(new SegmentedSwitchButton(
+            bar.contentX(), bar.contentY(), bar.contentWidth(), bar.contentHeight(),
+            Component.translatable("gui.archweaver.fakeplayer.target_type.player"),
+            Component.translatable("gui.archweaver.fakeplayer.target_type.mannequin"),
+            () -> false,
+            mannequin -> {
+                if (mannequin) {
+                    PlatformNetworking.sendToServer(new TargetTypePayload(
+                        menu.containerId, menu.targetUuid(), true));
+                }
+            }));
+    }
+
+    private TopBar topBar() {
+        return TopBar.overRightHalf(leftPos, topPos, imageWidth);
     }
 
     private void addSkinPartPanel() {
@@ -641,8 +663,8 @@ public final class FakePlayerInventoryScreen extends AbstractContainerScreen<Fak
         ExperienceDisplay experienceDisplay = addRenderableWidget(new ExperienceDisplay(
             left + 7, top + 142, 117, 16
         ));
-        CoordinateDisplay coordinateDisplay = addRenderableWidget(new CoordinateDisplay(
-            left + 7, top + 158, 85, 15
+        TargetPositionDisplay coordinateDisplay = addRenderableWidget(new TargetPositionDisplay(
+            font, left + 7, top + 158, 85, 15, menu::targetInfo
         ));
         Button copyPositionButton = addRenderableWidget(new SolidButton(
             left + 96, top + 159, 28, 14,
@@ -736,11 +758,6 @@ public final class FakePlayerInventoryScreen extends AbstractContainerScreen<Fak
 
     private void copyPosition() {
         minecraft.keyboardHandler.setClipboard(String.format(Locale.ROOT, "%s %s %s",
-            menu.positionX(), menu.positionY(), menu.positionZ()));
-    }
-
-    private Component positionValue() {
-        return Component.literal(String.format(Locale.ROOT, "%s, %s, %s",
             menu.positionX(), menu.positionY(), menu.positionZ()));
     }
 
@@ -969,32 +986,6 @@ public final class FakePlayerInventoryScreen extends AbstractContainerScreen<Fak
             menu.containerId, clampedPitch, wrappedYaw));
     }
 
-    /** 标签保持固定，仅在空间不足时滚动坐标值。 */
-    private final class CoordinateDisplay extends Button {
-        private CoordinateDisplay(int x, int y, int width, int height) {
-            super(x, y, width, height, Component.translatable("gui.archweaver.fakeplayer.info.position"),
-                button -> {}, DEFAULT_NARRATION);
-        }
-
-        @Override
-        protected void extractContents(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
-            Component label = getMessage();
-            Component value = positionValue();
-            int textTop = getY() + (getHeight() - 8) / 2;
-            int valueLeft = getX() + font.width(label);
-            int valueRight = getX() + getWidth();
-            graphics.text(font, label, getX(), textTop, 0xFF404040, false);
-            if (font.width(value) <= valueRight - valueLeft) {
-                graphics.text(font, value, valueLeft, textTop, 0xFF404040, false);
-            } else {
-                PixelGui.drawScrollingText(graphics, font, value,
-                    valueLeft, valueRight, getY(), getHeight(), 0xFF404040);
-            }
-            setTooltip(Tooltip.create(Component.translatable("gui.archweaver.fakeplayer.info.position_tooltip",
-                menu.positionX(), menu.positionY(), menu.positionZ())));
-        }
-    }
-
     /** 显示当前等级，详细经验值通过悬停提示查看。 */
     private final class ExperienceDisplay extends Button {
         private ExperienceDisplay(int x, int y, int width, int height) {
@@ -1087,6 +1078,7 @@ public final class FakePlayerInventoryScreen extends AbstractContainerScreen<Fak
             return;
         }
 
+        topBar().draw(graphics);
         graphics.blit(
             RenderPipelines.GUI_TEXTURED,
             INVENTORY_BACKGROUND,

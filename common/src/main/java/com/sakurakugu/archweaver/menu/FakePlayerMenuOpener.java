@@ -1,5 +1,6 @@
 package com.sakurakugu.archweaver.menu;
 
+import com.sakurakugu.archweaver.network.TargetInfoPayload;
 import com.sakurakugu.archweaver.config.ArchWeaverConfig;
 import com.sakurakugu.archweaver.chunkloading.ChunkLoaderManager;
 import com.sakurakugu.archweaver.chunkloading.FakePlayerLoadPolicy;
@@ -109,6 +110,8 @@ public final class FakePlayerMenuOpener {
         var mannequin = MannequinManager.loaded(viewer.level().getServer(), id).orElse(null);
         if (mannequin == null) return;
         MannequinManager.syncAnglesTo(viewer);
+        // 原版只同步玩家自己的药水效果，玩偶的效果要在打开页面时补发给查看者，药水面板才有内容。
+        viewer.level().getServer().getPlayerList().sendActiveEffects(mannequin, viewer.connection);
         viewer.openMenu(new ManagementMenuProvider(
             (containerId, inventory, player) -> new MannequinInventoryMenu(containerId, inventory, mannequin),
             Component.literal(mannequin.getName().getString())), data -> {
@@ -120,6 +123,9 @@ public final class FakePlayerMenuOpener {
                 data.writeBoolean(((com.sakurakugu.archweaver.mixin.MannequinInvoker) mannequin).archweaver$getImmovable());
                 data.writeBoolean(mannequin.isNoGravity());
                 data.writeByte(((com.sakurakugu.archweaver.entity.AvatarModelParts) mannequin).archweaver$modelParts());
+                TargetInfoPayload.STREAM_CODEC.encode(data,
+                    TargetInfoPayload.capture(0,
+                        mannequin, mannequin.getName().getString(), MannequinManager.alias(mannequin), !mannequin.isNoGravity()));
             });
     }
 
@@ -173,6 +179,9 @@ public final class FakePlayerMenuOpener {
                 data.writeVarInt(simulation.simulationDistance());
                 data.writeVarInt(FakePlayerSimulationService.maxSimulationDistance(viewer.level().getServer()));
                 data.writeByte(fake.archweaver$modelParts());
+                TargetInfoPayload.STREAM_CODEC.encode(data,
+                    TargetInfoPayload.capture(0,
+                        fake, fake.getGameProfile().name(), fake.alias(), true));
             }
         );
     }

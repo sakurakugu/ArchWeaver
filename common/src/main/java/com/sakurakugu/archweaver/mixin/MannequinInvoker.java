@@ -16,6 +16,12 @@ public interface MannequinInvoker {
     @Invoker("setImmovable")
     void archweaver$setImmovable(boolean immovable);
 
+    @Invoker("getDescription")
+    net.minecraft.network.chat.Component archweaver$getDescription();
+
+    @Invoker("setDescription")
+    void archweaver$setDescription(net.minecraft.network.chat.Component description);
+
     @Invoker("setHideDescription")
     void archweaver$setHideDescription(boolean hidden);
 }

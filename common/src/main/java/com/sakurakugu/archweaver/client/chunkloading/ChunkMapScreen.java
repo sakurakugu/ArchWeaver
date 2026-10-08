@@ -1,6 +1,8 @@
 package com.sakurakugu.archweaver.client.chunkloading;
 
 import com.mojang.authlib.GameProfile;
+import com.sakurakugu.archweaver.client.ui.DimensionDisplay;
+
 import com.sakurakugu.archweaver.chunkloading.ChunkKey;
 import com.sakurakugu.archweaver.chunkloading.FakePlayerSimulationMode;
 import com.sakurakugu.archweaver.client.ClientScreenNavigation;
@@ -163,7 +165,7 @@ public final class ChunkMapScreen extends Screen implements ChunkLoadMapFrontend
         int centerChunkX = Mth.floor(centerBlockX) >> 4;
         int centerChunkZ = Mth.floor(centerBlockZ) >> 4;
         Component status = Component.translatable("gui.archweaver.chunkloader.map_position",
-            centerChunkX, centerChunkZ, controller.snapshot().dimension()).copy()
+            centerChunkX, centerChunkZ, DimensionDisplay.name(controller.snapshot().dimension())).copy()
             .append("  ").append(Math.round(pixelsPerBlock * 100.0D) + "%");
         drawFloatingText(graphics, status, width / 2, height - 38, 0xFFC8D6CF);
     }

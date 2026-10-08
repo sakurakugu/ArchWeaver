@@ -132,6 +132,24 @@ public final class PixelGui {
         graphics.fill(left, bottom - 2, right - 2, bottom - 1, 0xFF565656);
     }
 
+    /** 底边留出连接边，供容器顶部的横条使用。 */
+    public static void drawTopTabBackground(
+        GuiGraphicsExtractor graphics, int left, int top, int width, int height
+    ) {
+        int right = left + width;
+        int bottom = top + height;
+        // 外描边：上边两行各收进 1 像素形成圆角，左右两列一直落到容器顶边。
+        graphics.fill(left + 2, top, right - 2, top + 1, 0xFF000000);
+        graphics.fill(left + 1, top + 1, right - 1, top + 2, 0xFF000000);
+        graphics.fill(left, top + 2, left + 1, bottom, 0xFF000000);
+        graphics.fill(right - 1, top + 2, right, bottom, 0xFF000000);
+        graphics.fill(left + 1, top + 2, right - 1, bottom, 0xFFC6C6C6);
+        graphics.fill(left + 2, top + 1, right - 2, top + 2, 0xFFFFFFFF);
+        // 左右两条内描边比上边高光低 1 像素，收角处才不会连成一片。
+        graphics.fill(left + 1, top + 3, left + 2, bottom - 1, 0xFFFFFFFF);
+        graphics.fill(right - 2, top + 3, right - 1, bottom - 1, 0xFF565656);
+    }
+
     /** 右侧留出连接边，供从容器左侧展开的标签使用。 */
     public static void drawLeftTabBackground(
         GuiGraphicsExtractor graphics, int left, int top, int width, int height

@@ -95,6 +95,31 @@ public final class ModNetworking {
             }
         );
         registrar.playToServer(
+            FakePlayerLifecyclePayload.TYPE, FakePlayerLifecyclePayload.STREAM_CODEC,
+            (payload, context) -> {
+                if (!(context.player() instanceof ServerPlayer player)
+                    || !ArchWeaverConfig.canUseCommands(player.createCommandSourceStack())) return;
+                var server = player.level().getServer();
+                try {
+                    if (payload.action() == FakePlayerLifecyclePayload.Action.LOAD) {
+                        var result = com.sakurakugu.archweaver.persistence.FakePlayerPersistence
+                            .loadRegistered(server, payload.name());
+                        if (!result.successful()) player.sendSystemMessage(Component.literal(result.reason()));
+                    } else {
+                        var fake = com.sakurakugu.archweaver.entity.FakePlayerManager.findAny(server, payload.name());
+                        if (fake instanceof com.sakurakugu.archweaver.entity.FakeServerPlayer ownFake) {
+                            com.sakurakugu.archweaver.entity.FakePlayerManager.kill(ownFake);
+                        } else if (fake != null) {
+                            com.sakurakugu.archweaver.entity.ExternalFakePlayerSupport.unload(fake);
+                        }
+                    }
+                    com.sakurakugu.archweaver.entity.TargetListSync.refresh(server);
+                } catch (RuntimeException exception) {
+                    player.sendSystemMessage(Component.literal("假玩家生命周期操作失败"));
+                }
+            }
+        );
+        registrar.playToServer(
             MannequinSettingsPayload.TYPE,
             MannequinSettingsPayload.STREAM_CODEC,
             (payload, context) -> {
@@ -118,6 +143,12 @@ public final class ModNetworking {
                             }
                             case LIMB_ANGLE -> MannequinManager.setLimbAngles(player.level().getServer(), payload.id(),
                                 payload.value(), payload.x(), payload.y(), payload.z());
+                            case VIEW_ROTATION -> MannequinManager.setViewRotation(player.level().getServer(), payload.id(),
+                                payload.pitch(), payload.yaw());
+                            case BODY_YAW -> MannequinManager.setBodyRotation(player.level().getServer(), payload.id(),
+                                payload.value());
+                            case TOGGLE_BODY_FOLLOWS_HEAD -> MannequinManager.toggleBodyFollowsHead(
+                                player.level().getServer(), payload.id());
                         }
                     } catch (RuntimeException ignored) {
                         return;
@@ -195,7 +226,6 @@ public final class ModNetworking {
             RenameFakePlayerPayload.STREAM_CODEC,
             (payload, context) -> {
                 if (context.player() instanceof ServerPlayer player
-                    && player.containerMenu instanceof FakePlayerInventoryMenu
                     && player.containerMenu.containerId == payload.containerId()
                     && ArchWeaverConfig.canUseCommands(player.createCommandSourceStack())) {
                     FakePlayerManagementActions.rename(player, payload.name());
@@ -207,7 +237,6 @@ public final class ModNetworking {
             SetFakePlayerAliasPayload.STREAM_CODEC,
             (payload, context) -> {
                 if (context.player() instanceof ServerPlayer player
-                    && player.containerMenu instanceof FakePlayerInventoryMenu
                     && player.containerMenu.containerId == payload.containerId()
                     && ArchWeaverConfig.canUseCommands(player.createCommandSourceStack())) {
                     FakePlayerManagementActions.setAlias(player, payload.alias());
@@ -294,5 +323,6 @@ public final class ModNetworking {
         registrar.playToClient(BodyRotationPayload.TYPE, BodyRotationPayload.STREAM_CODEC);
         registrar.playToClient(FakePlayerAliasPayload.TYPE, FakePlayerAliasPayload.STREAM_CODEC);
         registrar.playToClient(MannequinAnglesPayload.TYPE, MannequinAnglesPayload.STREAM_CODEC);
+        registrar.playToClient(TargetInfoPayload.TYPE, TargetInfoPayload.STREAM_CODEC);
     }
 }

@@ -1,14 +1,19 @@
 package com.sakurakugu.archweaver.menu;
 
+import com.sakurakugu.archweaver.network.TargetInfoPayload;
+import com.sakurakugu.archweaver.platform.PlatformNetworking;
+import com.sakurakugu.archweaver.config.ArchWeaverConfig;
 import java.util.UUID;
 import java.util.function.Supplier;
 import net.minecraft.network.RegistryFriendlyByteBuf;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.Container;
 import net.minecraft.world.entity.decoration.Mannequin;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
+import net.minecraft.world.inventory.InventoryMenu;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.inventory.SimpleContainerData;
 import net.minecraft.world.item.ItemStack;
@@ -17,20 +22,26 @@ import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.entity.Pose;
 import net.minecraft.world.item.component.ResolvableProfile;
+import com.sakurakugu.archweaver.ArchWeaverMod;
 import com.sakurakugu.archweaver.entity.AvatarModelParts;
+import com.sakurakugu.archweaver.entity.MannequinLook;
 import com.sakurakugu.archweaver.entity.MannequinManager;
 import com.sakurakugu.archweaver.mixin.MannequinInvoker;
 
 /** 玩偶专用装备栏，只暴露六个装备槽和查看者背包。 */
-public final class MannequinInventoryMenu extends AbstractContainerMenu {
+public final class MannequinInventoryMenu extends AbstractContainerMenu implements TargetInfoMenu {
+    private TargetInfoPayload targetInfo;
+    // 空的主手槽显示“主”字，做法和原版空盔甲槽一样，交给 getNoItemIcon 返回精灵。
+    private static final Identifier MAIN_HAND_ICON =
+        Identifier.fromNamespaceAndPath(ArchWeaverMod.MOD_ID, "container/slot/main_hand");
     private final Mannequin mannequin;
     private final Inventory viewerInventory;
     private final UUID mannequinId;
     private final String mannequinName;
-    private final SimpleContainerData settings = new SimpleContainerData(4);
+    private final SimpleContainerData settings = new SimpleContainerData(8);
 
     public MannequinInventoryMenu(int id, Inventory inventory, RegistryFriendlyByteBuf data) {
-        this(id, inventory, resolve(inventory, data.readVarInt()), data.readUUID(), data.readUtf(64));
+        this(id, inventory, data.readVarInt(), data.readUUID(), data.readUtf(64));
         // 菜单可能先于实体追踪包到达，远处的目标也可能根本不在客户端追踪范围内。
         ((MannequinInvoker) mannequin).archweaver$setProfile(ResolvableProfile.STREAM_CODEC.decode(data));
         mannequin.setPose(data.readEnum(Pose.class));
@@ -38,6 +49,11 @@ public final class MannequinInventoryMenu extends AbstractContainerMenu {
         mannequin.setNoGravity(data.readBoolean());
         ((AvatarModelParts) mannequin).archweaver$setModelParts(data.readUnsignedByte());
         captureSettings();
+        acceptTargetInfo(TargetInfoPayload.STREAM_CODEC.decode(data).forContainer(id));
+    }
+
+    private MannequinInventoryMenu(int id, Inventory inventory, int entityId, UUID uuid, String name) {
+        this(id, inventory, resolve(inventory, entityId, uuid), uuid, name);
     }
 
     public MannequinInventoryMenu(int id, Inventory inventory, Mannequin mannequin) {
@@ -54,9 +70,9 @@ public final class MannequinInventoryMenu extends AbstractContainerMenu {
         if (mannequin != null) mannequin.setUUID(uuid);
         EquipmentSlot[] slots = {EquipmentSlot.HEAD, EquipmentSlot.CHEST, EquipmentSlot.LEGS,
             EquipmentSlot.FEET, EquipmentSlot.MAINHAND, EquipmentSlot.OFFHAND};
-        // 盔甲槽沿用原版玩家背包左列，主手和副手放在右侧，保持六个装备槽可见。
+        // 盔甲槽沿用原版玩家背包左列，主手紧贴副手槽正上方，六个装备槽都保持可见。
         for (int i = 0; i < 4; i++) addSlot(new EquipmentSlotSlot(this::mannequin, slots[i], i, 8, 8 + i * 18));
-        addSlot(new EquipmentSlotSlot(this::mannequin, EquipmentSlot.MAINHAND, 4, 98, 29));
+        addSlot(new EquipmentSlotSlot(this::mannequin, EquipmentSlot.MAINHAND, 4, 77, 44));
         addSlot(new EquipmentSlotSlot(this::mannequin, EquipmentSlot.OFFHAND, 5, 77, 62));
         for (int row = 0; row < 3; row++) for (int col = 0; col < 9; col++)
             addSlot(new Slot(inventory, col + row * 9 + 9, 8 + col * 18, 84 + row * 18));
@@ -71,10 +87,23 @@ public final class MannequinInventoryMenu extends AbstractContainerMenu {
         settings.set(1, ((MannequinInvoker) mannequin).archweaver$getImmovable() ? 1 : 0);
         settings.set(2, mannequin.isNoGravity() ? 1 : 0);
         settings.set(3, ((AvatarModelParts) mannequin).archweaver$modelParts());
+        // 视角面板要编辑的三个角度和头身联动开关，远处未被追踪的玩偶也靠这些值显示。
+        settings.set(4, Math.round(mannequin.getXRot()));
+        settings.set(5, Math.round(mannequin.getYRot()));
+        settings.set(6, Math.round(mannequin.yBodyRot));
+        settings.set(7, ((MannequinLook) mannequin).archweaver$bodyFollowsHead() ? 1 : 0);
     }
 
     @Override public void broadcastChanges() {
-        if (!viewerInventory.player.level().isClientSide()) captureSettings();
+        if (viewerInventory.player instanceof ServerPlayer viewer && mannequin != null) {
+            captureSettings();
+            var next = TargetInfoPayload.capture(containerId, mannequin,
+                mannequin.getName().getString(), MannequinManager.alias(mannequin), !mannequin.isNoGravity());
+            if (!next.equals(targetInfo)) {
+                targetInfo = next;
+                PlatformNetworking.sendToPlayer(viewer, next);
+            }
+        }
         super.broadcastChanges();
     }
 
@@ -86,10 +115,25 @@ public final class MannequinInventoryMenu extends AbstractContainerMenu {
         ((MannequinInvoker) target).archweaver$setImmovable(settings.get(1) != 0);
         target.setNoGravity(settings.get(2) != 0);
         ((AvatarModelParts) target).archweaver$setModelParts(settings.get(3));
+        // 视角与身体朝向同样按同步值刷新，未加载的玩偶靠预览实体渲染这些角度。
+        float viewYaw = settings.get(5);
+        float bodyYaw = settings.get(6);
+        target.setXRot(settings.get(4));
+        target.setYRot(viewYaw);
+        target.setYHeadRot(viewYaw);
+        target.setYBodyRot(bodyYaw);
+        target.yHeadRotO = viewYaw;
+        target.yBodyRotO = bodyYaw;
     }
 
-    private static Mannequin resolve(Inventory inventory, int entityId) {
-        if (inventory.player.level().getEntity(entityId) instanceof Mannequin m) return m;
+    public int pitch() { return settings.get(4); }
+    public int yaw() { return settings.get(5); }
+    public int bodyYaw() { return settings.get(6); }
+    public boolean bodyFollowsHead() { return settings.get(7) != 0; }
+
+    private static Mannequin resolve(Inventory inventory, int entityId, UUID uuid) {
+        // 跨维度的实体编号可能碰巧对应本地另一只玩偶，必须同时比较 UUID。
+        if (inventory.player.level().getEntity(entityId) instanceof Mannequin m && m.getUUID().equals(uuid)) return m;
         Mannequin preview = EntityType.MANNEQUIN.create(inventory.player.level(), EntitySpawnReason.COMMAND);
         if (preview == null) throw new IllegalStateException("无法创建玩偶背包预览");
         preview.setId(entityId);
@@ -102,7 +146,12 @@ public final class MannequinInventoryMenu extends AbstractContainerMenu {
         return mannequin;
     }
     public UUID mannequinId() { return mannequinId; }
-    public String mannequinName() { return mannequinName; }
+    public String mannequinName() { return targetInfo == null ? mannequinName : targetInfo.name(); }
+    public String alias() { return targetInfo == null ? "" : targetInfo.alias(); }
+    @Override public TargetInfoPayload targetInfo() { return targetInfo; }
+    @Override public void acceptTargetInfo(TargetInfoPayload info) {
+        if (info.containerId() == containerId && info.id().equals(mannequinId)) targetInfo = info;
+    }
 
     @Override public ItemStack quickMoveStack(Player player, int index) {
         if (index < 0 || index >= slots.size() || !getSlot(index).hasItem()) return ItemStack.EMPTY;
@@ -123,7 +172,12 @@ public final class MannequinInventoryMenu extends AbstractContainerMenu {
         return original;
     }
 
-    @Override public boolean stillValid(Player player) { return mannequin == null || mannequin.isAlive(); }
+    @Override public boolean stillValid(Player player) {
+        if (player.level().isClientSide()) return true;
+        return player instanceof ServerPlayer viewer && mannequin != null && mannequin.isAlive()
+            && MannequinManager.data(viewer.level().getServer()).find(mannequinId).isPresent()
+            && ArchWeaverConfig.canUseCommands(viewer.createCommandSourceStack());
+    }
 
     @Override public void removed(Player player) {
         super.removed(player);
@@ -158,6 +212,18 @@ public final class MannequinInventoryMenu extends AbstractContainerMenu {
                 || stack.canEquip(equipmentSlot, mannequin));
         }
         @Override public int getMaxStackSize() { return equipmentSlot == EquipmentSlot.MAINHAND || equipmentSlot == EquipmentSlot.OFFHAND ? 64 : 1; }
+        // 四个盔甲槽和副手槽沿用原版的空槽图标，主手槽用模组自己的“主”字。
+        @Override public Identifier getNoItemIcon() {
+            return switch (equipmentSlot) {
+                case HEAD -> InventoryMenu.EMPTY_ARMOR_SLOT_HELMET;
+                case CHEST -> InventoryMenu.EMPTY_ARMOR_SLOT_CHESTPLATE;
+                case LEGS -> InventoryMenu.EMPTY_ARMOR_SLOT_LEGGINGS;
+                case FEET -> InventoryMenu.EMPTY_ARMOR_SLOT_BOOTS;
+                case OFFHAND -> InventoryMenu.EMPTY_ARMOR_SLOT_SHIELD;
+                case MAINHAND -> MAIN_HAND_ICON;
+                default -> null;
+            };
+        }
     }
 
     private static final class EmptyContainer implements Container {

@@ -105,7 +105,7 @@ public final class PresetService {
                 FakeServerPlayer fake = FakePlayerManager.find(server, preset.player().name());
                 if (fake != null && fake.getUUID().equals(preset.player().uuid())
                     && !FakePlayerPossession.isPossessed(fake)) {
-                    FakePlayerManager.remove(fake);
+                    FakePlayerManager.kill(fake);
                     succeeded++;
                 } else {
                     failed++;
