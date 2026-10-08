@@ -128,7 +128,7 @@ maxPlayerLoadingChunks = 65536
 
 [ui]
 # 普通容器是否显示物品转移按钮；假人物品栏始终显示。
-enableContainerTransferButtons = true
+enableContainerTransferButtons = false
 # 假人别名是否在 Tab 中优先显示，并在头顶名牌与假人列表中排在真实名称上方。
 fakePlayerAliasFirst = false
 # 别名为空的假人是否用「假人」占位，作用于头顶名牌与假人列表。

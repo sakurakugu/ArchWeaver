@@ -45,7 +45,7 @@ public final class NeoForgeConfigs {
             maxPlayerLoadingChunks = builder.comment("假人模拟区块预算；-1 表示不限。").defineInRange("maxPlayerLoadingChunks", 65536, -1, 65536);
             builder.pop();
             builder.push("ui");
-            containerTransferButtons = builder.comment("普通容器是否显示物品转移按钮。").define("enableContainerTransferButtons", true);
+            containerTransferButtons = builder.comment("普通容器是否显示物品转移按钮。").define("enableContainerTransferButtons", false);
             fakePlayerAliasFirst = builder.comment("假人别名是否在 Tab 中优先显示，并在头顶与假人列表中显示于真实名称上方。").define("fakePlayerAliasFirst", false);
             fakePlayerEmptyAliasMarker = builder.comment("别名为空的假人是否用「假人」占位，作用于头顶名牌与假人列表。").define("fakePlayerEmptyAliasMarker", true);
             builder.pop();

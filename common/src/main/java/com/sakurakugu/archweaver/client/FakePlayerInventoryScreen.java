@@ -404,7 +404,7 @@ public final class FakePlayerInventoryScreen extends AbstractContainerScreen<Fak
     }
 
     private void addSkinPartPanel() {
-        var layout = nextPanelLayout(EFFECTS_PANEL_LAYOUT, 112, 174);
+        var layout = nextPanelLayout(EFFECTS_PANEL_LAYOUT, SIMULATION_PANEL_LAYOUT.width(), 174);
         int left = leftPos - layout.width();
         int top = topPos + layout.top();
         skinPanel = leftPanelManager.addLeftPanel("skin_parts", left, topPos, layout, Component.literal("皮肤部件"));
@@ -414,7 +414,8 @@ public final class FakePlayerInventoryScreen extends AbstractContainerScreen<Fak
         PlayerModelPart[] parts = PlayerModelPart.values();
         for (int i = 0; i < parts.length; i++) {
             PlayerModelPart part = parts[i];
-            controls.add(addRenderableWidget(new ToggleSwitchButton(left + 6, top + 25 + i * 20, 100, 18,
+            controls.add(addRenderableWidget(new ToggleSwitchButton(left + 6, top + 25 + i * 20,
+                skinPanel.contentWidth() - 12, 18,
                 part.getName(), () -> modelPartShown(part),
                 button -> PlatformNetworking.sendToServer(new AvatarSkinPartPayload(menu.containerId,
                     menu.targetUuid(), part, !modelPartShown(part))))));
@@ -1128,7 +1129,8 @@ public final class FakePlayerInventoryScreen extends AbstractContainerScreen<Fak
         continuousPanel.drawBackground(graphics);
         aimPanel.drawBackground(graphics);
         effectsPanel.drawBackground(graphics);
-        skinPanel.drawBackground(graphics);
+        // 药水效果面板展开时会遮住皮肤部件标签，避免再绘制其折叠边框。
+        if (!effectsPanel.isOpen()) skinPanel.drawBackground(graphics);
         simulationPanel.drawBackground(graphics);
         restorePanel.drawBackground(graphics);
 

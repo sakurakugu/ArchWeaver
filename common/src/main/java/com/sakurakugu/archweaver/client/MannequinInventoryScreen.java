@@ -52,12 +52,14 @@ public final class MannequinInventoryScreen extends AbstractContainerScreen<Mann
         addRenderableWidget(new ToggleSwitchButton(leftPos + 8, topPos - 18, 160, 18,
             Component.literal("玩偶模式"), () -> true,
             button -> PlatformNetworking.sendToServer(new TargetTypePayload(menu.containerId, menu.mannequinId(), false))));
-        settingsPanel = panel("settings", 8, 132, 70, "玩偶设置", Items.ARMOR_STAND);
-        var immovable = addRenderableWidget(new ToggleSwitchButton(settingsPanel.getX() + 6, settingsPanel.getY() + 25, 120, 18,
+        settingsPanel = panel("settings", 8, 100, 70, "玩偶设置", Items.ARMOR_STAND);
+        var immovable = addRenderableWidget(new ToggleSwitchButton(settingsPanel.getX() + 6, settingsPanel.getY() + 25,
+            settingsPanel.contentWidth() - 12, 18,
             Component.literal("不可移动"), () -> menu.mannequin() != null && ((MannequinInvoker) menu.mannequin()).archweaver$getImmovable(),
             button -> { if (menu.mannequin() != null) send(MannequinSettingsPayload.Action.IMMOVABLE, 0,
                 !((MannequinInvoker) menu.mannequin()).archweaver$getImmovable()); }));
-        var biological = addRenderableWidget(new ToggleSwitchButton(settingsPanel.getX() + 6, settingsPanel.getY() + 45, 120, 18,
+        var biological = addRenderableWidget(new ToggleSwitchButton(settingsPanel.getX() + 6, settingsPanel.getY() + 45,
+            settingsPanel.contentWidth() - 12, 18,
             Component.literal("生物行为"), () -> menu.mannequin() != null && !menu.mannequin().isNoGravity(),
             button -> { if (menu.mannequin() != null) send(MannequinSettingsPayload.Action.BIOLOGICAL_BEHAVIOR, 0, menu.mannequin().isNoGravity()); }));
         settingsPanel.bindContents(immovable, biological);
@@ -94,12 +96,13 @@ public final class MannequinInventoryScreen extends AbstractContainerScreen<Mann
             for (int i = 0; i < 4; i++) graphics.text(font, Component.literal(names[i]), x + 6, y + 49 + i * 30, 0xFF404040, false);
         });
         posePanel.bindContents(poseControls.toArray(AbstractWidget[]::new));
-        skinPanel = panel("skin", 60, 132, 174, "皮肤部件", Items.LEATHER_CHESTPLATE);
+        skinPanel = panel("skin", 60, 100, 174, "皮肤部件", Items.LEATHER_CHESTPLATE);
         List<AbstractWidget> skinControls = new ArrayList<>();
         PlayerModelPart[] parts = PlayerModelPart.values();
         for (int i = 0; i < parts.length; i++) {
             PlayerModelPart part = parts[i];
-            skinControls.add(addRenderableWidget(new ToggleSwitchButton(skinPanel.getX() + 6, skinPanel.getY() + 25 + i * 20, 120, 18,
+            skinControls.add(addRenderableWidget(new ToggleSwitchButton(skinPanel.getX() + 6, skinPanel.getY() + 25 + i * 20,
+                skinPanel.contentWidth() - 12, 18,
                 part.getName(), () -> menu.mannequin() != null && menu.mannequin().isModelPartShown(part),
                 button -> { if (menu.mannequin() != null) PlatformNetworking.sendToServer(new AvatarSkinPartPayload(menu.containerId,
                     menu.mannequinId(), part, !menu.mannequin().isModelPartShown(part))); })));

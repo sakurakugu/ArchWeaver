@@ -90,7 +90,7 @@ public final class ArchWeaverConfig {
         public int maxForcedChunks() { return 2048; }
         public int maxTickingChunks() { return 512; }
         public int maxPlayerLoadingChunks() { return 65536; }
-        public boolean containerTransferButtons() { return true; }
+        public boolean containerTransferButtons() { return false; }
         public boolean fakePlayerAliasFirst() { return false; }
         public boolean fakePlayerEmptyAliasMarker() { return true; }
         public void setRestoreFakePlayers(boolean value) { }

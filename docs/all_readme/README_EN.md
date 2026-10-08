@@ -118,7 +118,7 @@ maxTickingChunks = 512
 maxPlayerLoadingChunks = 65536
 
 [ui]
-enableContainerTransferButtons = true
+enableContainerTransferButtons = false
 fakePlayerAliasFirst = false
 fakePlayerEmptyAliasMarker = true
 ```
