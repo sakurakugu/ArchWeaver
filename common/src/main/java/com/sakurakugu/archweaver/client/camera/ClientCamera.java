@@ -89,6 +89,11 @@ public final class ClientCamera {
             if (next == Category.ORTHOGRAPHIC) {
                 yaw = oldYaw = (float) CameraPreferences.get(NumberSetting.YAW);
                 pitch = oldPitch = (float) CameraPreferences.get(NumberSetting.PITCH);
+                if (nextMode == 1) {
+                    // 原视角的位置作为观察中心，先后退再启用正交投影，避免近裁剪面切进地形。
+                    // 从正交跟随切换时已处于后退位置，不应再次应用偏移。
+                    position = oldPosition = orthographicPosition(position, yaw, pitch);
+                }
             }
             if (next == Category.ORBIT) orbitCenter = null;
         } else if (next == Category.ORTHOGRAPHIC && nextMode != mode()) {
@@ -252,7 +257,7 @@ public final class ClientCamera {
         float p = oldPitch + (pitch - oldPitch) * partial;
         Vec3 pos = oldPosition.lerp(position, partial);
         if (orthographic() && mode() == 0) {
-            pos = mc.player.getEyePosition(partial).subtract(direction(y, p).scale(CameraPreferences.get(NumberSetting.SCALE) * 1.5));
+            pos = orthographicPosition(mc.player.getEyePosition(partial), y, p);
         } else if (category() == Category.SHOULDER) {
             y = mc.player.getViewYRot(partial);
             p = mc.player.getViewXRot(partial);
@@ -270,6 +275,10 @@ public final class ClientCamera {
             }
         }
         return new Transform(pos, y, p);
+    }
+
+    private static Vec3 orthographicPosition(Vec3 center, float yaw, float pitch) {
+        return center.subtract(direction(yaw, pitch).scale(CameraPreferences.get(NumberSetting.SCALE) * 1.5));
     }
 
     private static Vec3 avoidWall(Vec3 from, Vec3 to) {
