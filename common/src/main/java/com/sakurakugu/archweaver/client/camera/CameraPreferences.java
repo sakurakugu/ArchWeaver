@@ -6,7 +6,8 @@ import java.util.EnumMap;
 public final class CameraPreferences {
     public enum NumberSetting {
         SPEED(0.5, 0.02, 8), SCALE(32, 2, 256), YAW(45, -180, 180), PITCH(35.2643897, -90, 90),
-        DISTANCE(8, 1, 128), SHOULDER_DISTANCE(4, 1, 12), SHOULDER_OFFSET(0.7, 0, 3), ORBIT_SPEED(12, -180, 180);
+        DISTANCE(8, 1, 128), SHOULDER_DISTANCE(4, 1, 12), SHOULDER_OFFSET(0.7, 0, 3), ORBIT_SPEED(12, -180, 180),
+        TARGET_LIMIT(16, 8, 128); // 目标页每页最多显示的目标数，滑条按 8 个一档取值。
 
         public final double initial, min, max;
         NumberSetting(double initial, double min, double max) { this.initial = initial; this.min = min; this.max = max; }
