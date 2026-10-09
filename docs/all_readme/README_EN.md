@@ -27,6 +27,7 @@ This project produces two separate JARs:
 
 - Press `G` by default to open the control center, including the fake player list, chunk map, presets, and groups.
 - Press `M` by default to open the chunk loading map.
+- Press `F3+F5` to open the perspective selector, which supports free camera and orthographic views.
 
 ## Screenshots
 
@@ -63,6 +64,13 @@ This project produces two separate JARs:
 
 1. Select chunks on the map to force-load them.
 2. Manage loading regions and enable or disable them individually.
+
+### Camera Perspectives
+
+1. Hold `F3` and press `F5` to open a selector similar to `F3+F4`.
+2. Press `F5` again, or click with the mouse, to switch categories.
+
+Supported views include vanilla first person, third person back and front (second person), as well as free camera, orthographic (follow player or independent camera), shoulder (left and right), orbit, fixed camera, and follow entity.
 
 ## Building
 
@@ -103,48 +111,41 @@ Single-player location: `config/archweaver-server.toml`
 
 ```toml
 [commands]
+# Minimum vanilla permission level for /fakeplayer and /player, from 0 to 4.
 permissionLevel = 2
 
 [profiles]
+# Allow offline UUIDs when neither cached nor online profiles are available.
 allowOfflineProfiles = true
+# Profile resolution strategy:
+#   ONLINE_PREFERRED Reuse trusted online-account cache entries first, otherwise fetch profiles from Mojang.
+#                    If identity lookup fails, fallback depends on configuration.
+#   CACHE_ONLY       Use only the server cache without online queries. Cache misses fall back according to allowOfflineProfiles.
+#   OFFLINE_ONLY     Always generate a stable offline UUID from the name.
 strategy = "ONLINE_PREFERRED"
 
 [persistence]
+# Default restart-restoration setting for newly spawned fake players; each fake player can override it in the inventory screen's left sidebar.
 restoreFakePlayers = true
 
 [chunkloading]
+# Maximum radius for a single loading region, from 0 to 32; 0 means only the center chunk.
 maxRadius = 8
+# Total force-loaded chunk budget for all enabled manual regions, from 1 to 65536.
 maxForcedChunks = 2048
+# Total fully simulated chunk budget for all manual force-loading regions, from 1 to 16384.
 maxTickingChunks = 512
+# Deduplicated simulation chunk budget for all online fake players in custom mode, from -1 to 65536; -1 means unlimited.
 maxPlayerLoadingChunks = 65536
 
 [ui]
+# Show item transfer buttons in ordinary containers. Fake player inventories always show them.
 enableContainerTransferButtons = false
+# Show fake player aliases first in the Tab list, and above the real name on name tags and in the fake player list.
 fakePlayerAliasFirst = false
+# Show the "Bot" placeholder for fake players with an empty alias, on name tags and in the fake player list.
 fakePlayerEmptyAliasMarker = true
 ```
-
-| Setting                               | Description                                                                                                                                  |
-| ------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
-| `commands.permissionLevel`            | Minimum vanilla permission level for `/fakeplayer` and `/player`, from `0` to `4`.                                                           |
-| `profiles.allowOfflineProfiles`       | Allow offline UUIDs when neither cached nor online profiles are available.                                                                   |
-| `profiles.strategy`                   | Profile resolution strategy: `ONLINE_PREFERRED`, `CACHE_ONLY`, or `OFFLINE_ONLY`.                                                            |
-| `persistence.restoreFakePlayers`      | Default restart-restoration setting for newly spawned fake players; each fake player can override it in the inventory screen's left sidebar. |
-| `chunkloading.maxRadius`              | Maximum radius for a single loading region, from `0` to `32`; `0` means only the center chunk.                                               |
-| `chunkloading.maxForcedChunks`        | Total force-loaded chunk budget for all enabled manual regions, from `1` to `65536`.                                                         |
-| `chunkloading.maxTickingChunks`       | Total fully simulated chunk budget for all manual force-loading regions, from `1` to `16384`.                                                |
-| `chunkloading.maxPlayerLoadingChunks` | Deduplicated simulation chunk budget for all online fake players in custom mode, from `-1` to `65536`; `-1` means unlimited.                 |
-| `ui.enableContainerTransferButtons`   | Show item transfer buttons in ordinary containers. Fake player inventories always show them.                                                 |
-| `ui.fakePlayerAliasFirst`             | Show fake player aliases first in the Tab list, and above the real name on name tags and in the fake player list.                            |
-| `ui.fakePlayerEmptyAliasMarker`       | Show the "Bot" placeholder for fake players with an empty alias, on name tags and in the fake player list.                                   |
-
-Profile strategies:
-
-| Strategy           | Behavior                                                                                                                                             |
-| ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `ONLINE_PREFERRED` | Reuse trusted online-account cache entries first, otherwise fetch profiles from Mojang. If identity lookup fails, fallback depends on configuration. |
-| `CACHE_ONLY`       | Use only the server cache without online queries. Cache misses fall back according to `allowOfflineProfiles`.                                        |
-| `OFFLINE_ONLY`     | Always generate a stable offline UUID from the name.                                                                                                 |
 
 Local names such as `robot-1` use offline profiles directly.
 
@@ -154,14 +155,41 @@ File: `config/archweaver-client.toml`
 
 ```toml
 [chunkMap]
+# Display scale for player and fake player names on the map, from 0.5 to 2.0.
 markerNameScale = 1.0
+# Show the weakly loaded area around force-loaded regions caused by ticket propagation.
 showWeakLoading = true
-```
 
-| Setting                    | Description                                                                           |
-| -------------------------- | ------------------------------------------------------------------------------------- |
-| `chunkMap.markerNameScale` | Display scale for player and fake player names on the map, from `0.5` to `2.0`.       |
-| `chunkMap.showWeakLoading` | Show the weakly loaded area around force-loaded regions caused by ticket propagation. |
+[mainPage]
+# Last page the control center stayed on: 0 fake player list, 1 chunk map, 2 global settings.
+lastView = 0
+
+[camera]
+# Free camera movement speed in blocks per tick, from 0.02 to 8; tripled while sprinting.
+speed = 0.5
+# Orthographic display height in blocks, from 2 to 256.
+scale = 32
+# Camera yaw in degrees, from -180 to 180.
+yaw = 45
+# Camera pitch in degrees, from -90 to 90.
+pitch = 35.2643897
+# Orbit camera and follow-entity distance in blocks, from 1 to 128.
+distance = 8
+# Shoulder camera distance in blocks, from 1 to 12.
+shoulder_distance = 4
+# Shoulder camera lateral offset from the body in blocks, from 0 to 3.
+shoulder_offset = 0.7
+# Auto orbit speed in degrees per second, from -180 to 180; negative reverses direction.
+orbit_speed = 12
+# Detached observation modes only: allow attacking, placing and using from the body position, with vanilla reach limits.
+body_interaction = false
+# Detached observation modes only: on, mouse and movement keys control the body; off, they control the camera. The body is still affected by server physics and damage.
+body_movement = false
+# Whether the orbit view rotates automatically at orbit_speed.
+auto_orbit = false
+# Preselect the previous view (including its submode) when opening F3+F5; history is kept only for the current session.
+select_previous = false
+```
 
 ### Persistent Data
 

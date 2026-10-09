@@ -3,6 +3,8 @@ package com.sakurakugu.archweaver.config;
 import com.sakurakugu.archweaver.platform.PlatformClientConfig;
 import com.sakurakugu.archweaver.platform.PlatformConfig;
 import net.neoforged.neoforge.common.ModConfigSpec;
+import com.sakurakugu.archweaver.client.camera.CameraPreferences;
+import java.util.EnumMap;
 
 /** NeoForge 配置文件后端。 */
 public final class NeoForgeConfigs {
@@ -71,11 +73,13 @@ public final class NeoForgeConfigs {
         public void save() { spec.save(); }
     }
 
-    public static final class ClientBackend implements PlatformClientConfig {
+    public static final class ClientBackend implements PlatformClientConfig, CameraPreferences.Backend {
         private final ModConfigSpec spec;
         private final ModConfigSpec.DoubleValue markerNameScale;
         private final ModConfigSpec.BooleanValue weakLoadingVisible;
         private final ModConfigSpec.IntValue mainPageView;
+        private final EnumMap<CameraPreferences.NumberSetting, ModConfigSpec.DoubleValue> cameraNumbers = new EnumMap<>(CameraPreferences.NumberSetting.class);
+        private final EnumMap<CameraPreferences.Toggle, ModConfigSpec.BooleanValue> cameraToggles = new EnumMap<>(CameraPreferences.Toggle.class);
 
         private ClientBackend() {
             ModConfigSpec.Builder builder = new ModConfigSpec.Builder();
@@ -83,6 +87,15 @@ public final class NeoForgeConfigs {
             weakLoadingVisible = builder.comment("是否画出强加载区块外围的弱加载范围。").define("chunkMap.showWeakLoading", true);
             mainPageView = builder.comment("控制中心上次停留的页面：0 假人列表，1 区块地图，2 全局设置。")
                 .defineInRange("mainPage.lastView", 0, 0, 2);
+            builder.push("camera");
+            for (var setting : CameraPreferences.NumberSetting.values()) {
+                cameraNumbers.put(setting, builder.comment("相机参数：" + setting.key())
+                    .defineInRange(setting.key(), setting.initial, setting.min, setting.max));
+            }
+            for (var setting : CameraPreferences.Toggle.values()) {
+                cameraToggles.put(setting, builder.comment("相机开关：" + setting.key()).define(setting.key(), false));
+            }
+            builder.pop();
             spec = builder.build();
         }
 
@@ -93,6 +106,10 @@ public final class NeoForgeConfigs {
         public void setWeakLoadingVisible(boolean value) { weakLoadingVisible.set(value); }
         public int mainPageView() { return mainPageView.get(); }
         public void setMainPageView(int value) { mainPageView.set(value); }
+        public double number(CameraPreferences.NumberSetting setting) { return cameraNumbers.get(setting).get(); }
+        public void number(CameraPreferences.NumberSetting setting, double value) { cameraNumbers.get(setting).set(setting.clamp(value)); }
+        public boolean toggle(CameraPreferences.Toggle setting) { return cameraToggles.get(setting).get(); }
+        public void toggle(CameraPreferences.Toggle setting, boolean value) { cameraToggles.get(setting).set(value); }
         public void save() { spec.save(); }
     }
 }

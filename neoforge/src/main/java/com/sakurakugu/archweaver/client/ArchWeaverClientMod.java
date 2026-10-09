@@ -17,6 +17,8 @@ import com.sakurakugu.archweaver.config.NeoForgeConfigs;
 import com.sakurakugu.archweaver.platform.PlatformNetworking;
 import com.sakurakugu.archweaver.client.ui.InventorySlotButton;
 import com.sakurakugu.archweaver.client.ui.TransferButton;
+import com.sakurakugu.archweaver.client.camera.CameraPreferences;
+import com.sakurakugu.archweaver.client.camera.ClientCamera;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.Button;
@@ -61,12 +63,14 @@ public final class ArchWeaverClientMod {
 
     public ArchWeaverClientMod(IEventBus modBus, ModContainer container) {
         ChunkMapClientConfig.install(NeoForgeConfigs.CLIENT);
+        CameraPreferences.install(NeoForgeConfigs.CLIENT);
         PlatformNetworking.installClientSender(payload -> net.neoforged.neoforge.client.network.ClientPacketDistributor.sendToServer(payload));
         container.registerConfig(ModConfig.Type.CLIENT, NeoForgeConfigs.CLIENT.spec(), ArchWeaverMod.MOD_ID + "-client.toml");
         modBus.addListener(ArchWeaverClientMod::registerKeys);
         modBus.addListener(ArchWeaverClientMod::registerDebugEntries);
         modBus.addListener(ArchWeaverClientMod::registerClientPayloads);
         NeoForge.EVENT_BUS.addListener(ArchWeaverClientMod::clientTick);
+        NeoForge.EVENT_BUS.addListener(ArchWeaverClientMod::cameraTick);
         NeoForge.EVENT_BUS.addListener(ArchWeaverClientMod::addInventoryButtons);
         NeoForge.EVENT_BUS.addListener(ArchWeaverClientMod::trackScreenOpening);
         NeoForge.EVENT_BUS.addListener(ArchWeaverClientMod::trackScreenClosing);
@@ -77,6 +81,10 @@ public final class ArchWeaverClientMod {
         event.register(OPEN_CHUNK_MAP);
         event.register(OPEN_MAIN_PAGE);
         event.register(STOP_POSSESSION);
+    }
+
+    private static void cameraTick(ClientTickEvent.Pre event) {
+        ClientCamera.tick(Minecraft.getInstance());
     }
 
     private static void registerDebugEntries(RegisterDebugEntriesEvent event) {

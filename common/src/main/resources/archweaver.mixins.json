@@ -19,6 +19,16 @@
     "MannequinMovementMixin"
   ],
   "client": [
+    "CameraViewMixin",
+    "CameraProjectionAccessor",
+    "CameraProjectionMixin",
+    "CameraKeyboardMixin",
+    "CameraInputMixin",
+    "CameraMouseMixin",
+    "CameraInteractionMixin",
+    "CameraHudMixin",
+    "CameraTerrainMixin",
+    "CameraWorldRendererMixin",
     "AbstractClientPlayerMixin",
     "PlayerAppearanceMixin",
     "EntityNameMixin",
