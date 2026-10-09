@@ -2,6 +2,8 @@ package com.sakurakugu.archweaver.client.camera;
 
 import com.sakurakugu.archweaver.client.camera.CameraPreferences.Toggle;
 import com.sakurakugu.archweaver.client.camera.CameraSelection.Category;
+import com.sakurakugu.archweaver.client.ui.PixelGlyph;
+import com.sakurakugu.archweaver.client.ui.SolidButton;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.Tooltip;
@@ -58,12 +60,12 @@ public final class CameraSelectorScreen extends Screen {
         if (CameraSelection.detachedControls(selected, selectedMode)) {
             addToggle(Toggle.BODY_INTERACTION, contentLeft(), top);
             addToggle(Toggle.BODY_MOVEMENT, contentLeft() + 136, top);
-            top += 24;
         }
-        addRenderableWidget(Button.builder(Component.translatable("camera.archweaver.open_panel"), button -> {
+        addRenderableWidget(new SolidButton(contentLeft() + 253, tileTop() - 22, 20, 20,
+            PixelGlyph.SETTING, Component.translatable("camera.archweaver.open_panel"), button -> {
             openPanel = true;
             commit();
-        }).bounds(width / 2 - 65, top, 130, 20).build());
+        }));
     }
 
     private void addToggle(Toggle toggle, int x, int y) {
@@ -112,6 +114,20 @@ public final class CameraSelectorScreen extends Screen {
         preview.select(selected, selectedMode);
         selectedAngle = null;
         init();
+    }
+
+    @Override
+    public boolean mouseScrolled(double mouseX, double mouseY, double horizontalAmount, double verticalAmount) {
+        if (verticalAmount == 0) return super.mouseScrolled(mouseX, mouseY, horizontalAmount, verticalAmount);
+        preview.cycleView(verticalAmount < 0);
+        selected = preview.category();
+        selectedMode = preview.mode();
+        selectedAngle = null;
+        // 以滚动时的位置为基准，避免静止鼠标的悬停覆盖滚轮选择。
+        firstMouseX = (int) mouseX;
+        firstMouseY = (int) mouseY;
+        init();
+        return true;
     }
 
     @Override

@@ -15,7 +15,10 @@ public final class CameraPreferences {
     }
 
     public enum Toggle {
-        BODY_INTERACTION, BODY_MOVEMENT, AUTO_ORBIT, SELECT_PREVIOUS;
+        BODY_INTERACTION(false), BODY_MOVEMENT(false), AUTO_ORBIT(false), SELECT_PREVIOUS(true), HIDE_HUD_TEXT(false);
+
+        public final boolean initial;
+        Toggle(boolean initial) { this.initial = initial; }
         public String key() { return name().toLowerCase(java.util.Locale.ROOT); }
     }
 
@@ -32,7 +35,7 @@ public final class CameraPreferences {
         private final EnumMap<Toggle, Boolean> toggles = new EnumMap<>(Toggle.class);
         public double number(NumberSetting setting) { return numbers.getOrDefault(setting, setting.initial); }
         public void number(NumberSetting setting, double value) { numbers.put(setting, value); }
-        public boolean toggle(Toggle setting) { return toggles.getOrDefault(setting, false); }
+        public boolean toggle(Toggle setting) { return toggles.getOrDefault(setting, setting.initial); }
         public void toggle(Toggle setting, boolean value) { toggles.put(setting, value); }
         public void save() { }
     };

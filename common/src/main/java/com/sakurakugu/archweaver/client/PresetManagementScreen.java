@@ -224,13 +224,14 @@ public final class PresetManagementScreen extends ResponsiveContainerScreen<Pres
     }
 
     private void addPageButtons() {
+        // 正方形按钮贴住列表左右边缘，页码居中。
         int y = topPos + s(PAGER_Y);
-        Button previous = new SolidButton(leftPos + s(8), y, size(30), size(20),
-            Component.literal("<"), button -> changePage(-1));
+        Button previous = new SolidButton(leftPos + s(8), y, size(20), size(20),
+            PixelGlyph.ARROW_LEFT, Component.translatable("gui.archweaver.page.previous"), button -> changePage(-1));
         previous.active = page > 0;
         addRenderableWidget(previous);
-        Button next = new SolidButton(leftPos + s(110), y, size(30), size(20),
-            Component.literal(">"), button -> changePage(1));
+        Button next = new SolidButton(leftPos + s(120), y, size(20), size(20),
+            PixelGlyph.ARROW_RIGHT, Component.translatable("gui.archweaver.page.next"), button -> changePage(1));
         next.active = page + 1 < pageCount();
         addRenderableWidget(next);
     }

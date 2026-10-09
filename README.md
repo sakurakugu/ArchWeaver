@@ -19,7 +19,7 @@ Neoforge 高版本没有类似 Carpet 的假人 mod，还有做生电机器时�
 | 包                               | 模组 ID               | 内容                                                   | 依赖              |
 | -------------------------------- | --------------------- | ------------------------------------------------------ | ----------------- |
 | **ArchWeaver**                   | `archweaver`          | 假人、区块加载等纯功能，**不注册任何方块、物品、实体** | 无                |
-| **ArchWeaver: Artifice（造物）** | `archweaver_artifice` | 召唤方块、区块加载方块、稻草人等内容                   | 必须装 ArchWeaver |
+| **ArchWeaver: Artifice（造物）** | `archweaver_artifice` | 一些实用方块、物品、实体等                             | 必须装 ArchWeaver |
 
 > 分开发布是为了：**ArchWeaver 可以随时装上或卸载，不会损坏存档**。
 > 需要注册的内容也因此只在 Artifice 里。两个包版本号独立，Artifice 对核心的依赖范围写得较宽，
@@ -189,7 +189,7 @@ body_movement = false
 # 环绕视角下是否按 orbit_speed 自动旋转。
 auto_orbit = false
 # F3+F5 打开选择器时是否预选上一个视角（包含子视角）；历史仅保留在当前会话中。
-select_previous = false
+select_previous = true
 ```
 
 ### 持久化数据

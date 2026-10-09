@@ -77,12 +77,14 @@ public final class FakePlayerCommand {
                     .executes(context -> spawn(context, name(context))))
         );
 
-        // /player <名称> <动作> 与 /fakeplayer player <名称> <动作> 等价，两份命令树各自独立注册。
-        dispatcher.register(
-            Commands.literal("player")
-                .requires(ArchWeaverConfig::canUseCommands)
-                .then(playerTargetCommand())
-        );
+        // Carpet 已经提供 /player，避免注册同名根命令；ArchWeaver 命令仍可通过 /fakeplayer player 使用。
+        if (!isCarpetLoaded()) {
+            dispatcher.register(
+                Commands.literal("player")
+                    .requires(ArchWeaverConfig::canUseCommands)
+                    .then(playerTargetCommand())
+            );
+        }
     }
 
     private static LiteralArgumentBuilder<CommandSourceStack> mannequinCommand() {
@@ -314,9 +316,6 @@ public final class FakePlayerCommand {
         LiteralArgumentBuilder<CommandSourceStack> spawn = Commands.literal("spawn")
             .executes(context -> spawn(context, name(context)));
         spawn.then(gamemodeBranch("gamemode"));
-        // Carpet 语法仅在 Carpet 已加载时提供，避免无 Carpet 时扩展 /player 语法。
-        if (isCarpetLoaded()) spawn.then(gamemodeBranch("in"));
-
         var position = Commands.argument("position", Vec3Argument.vec3())
             .executes(context -> spawn(context, name(context)));
         var rotation = Commands.argument("direction", RotationArgument.rotation())

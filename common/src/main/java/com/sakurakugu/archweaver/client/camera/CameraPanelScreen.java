@@ -3,6 +3,9 @@ package com.sakurakugu.archweaver.client.camera;
 import com.sakurakugu.archweaver.client.camera.CameraPreferences.NumberSetting;
 import com.sakurakugu.archweaver.client.camera.CameraPreferences.Toggle;
 import com.sakurakugu.archweaver.client.camera.CameraSelection.Category;
+import com.sakurakugu.archweaver.client.ui.PixelGlyph;
+import com.sakurakugu.archweaver.client.ui.SolidButton;
+import com.sakurakugu.archweaver.client.ui.TargetButton;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -23,6 +26,9 @@ public final class CameraPanelScreen extends Screen {
     private Tab tab;
     private String filter = "";
     private int page;
+    private int targetLimit = 16;
+    private boolean sortTargetsByDistance;
+    private List<Entity> loadedTargets;
 
     public CameraPanelScreen(boolean pickFollow) {
         super(Component.translatable("camera.archweaver.panel"));
@@ -52,7 +58,8 @@ public final class CameraPanelScreen extends Screen {
         NumberSetting[] settings = {NumberSetting.SPEED, NumberSetting.DISTANCE, NumberSetting.SHOULDER_DISTANCE,
             NumberSetting.SHOULDER_OFFSET, NumberSetting.ORBIT_SPEED};
         for (int i = 0; i < settings.length; i++) number(settings[i], 56 + i * 22);
-        toggle(Toggle.AUTO_ORBIT, 166);
+        toggle(Toggle.AUTO_ORBIT, left(), 166, 138);
+        toggle(Toggle.HIDE_HUD_TEXT, left() + 142, 166, 138);
         toggle(Toggle.SELECT_PREVIOUS, 188);
     }
 
@@ -75,7 +82,11 @@ public final class CameraPanelScreen extends Screen {
     }
 
     private void toggle(Toggle setting, int y) {
-        var button = button(CameraSelectorScreen.toggleLabel(setting), left(), y, 280, () -> { CameraPreferences.flip(setting); init(); });
+        toggle(setting, left(), y, 280);
+    }
+
+    private void toggle(Toggle setting, int x, int y, int width) {
+        var button = button(CameraSelectorScreen.toggleLabel(setting), x, y, width, () -> { CameraPreferences.flip(setting); init(); });
         button.setTooltip(Tooltip.create(Component.translatable("camera.archweaver.toggle." + setting.key() + ".tooltip")));
     }
 
@@ -141,18 +152,36 @@ public final class CameraPanelScreen extends Screen {
             ClientCamera.select(Category.FIXED, 0);
             ClientCamera.refix();
         });
+        button(Component.literal("目标数：" + targetLimit), left(), 132, 138, () -> {
+            targetLimit = targetLimit >= 128 ? 8 : targetLimit * 2;
+            page = 0;
+            init();
+        });
+        button(Component.literal(sortTargetsByDistance ? "按距离排序：开" : "按距离排序：关"), left() + 142, 132, 138, () -> {
+            sortTargetsByDistance = !sortTargetsByDistance;
+            page = 0;
+            init();
+        });
         List<Entity> targets = targets();
-        int capacity = Math.max(1, (height - 196) / 22);
-        int pages = Math.max(1, (targets.size() + capacity - 1) / capacity);
+        int capacity = Math.max(1, (height - 220) / 22);
+        int visibleCount = Math.min(targetLimit, targets.size());
+        int pages = Math.max(1, (visibleCount + capacity - 1) / capacity);
         page = Math.clamp(page, 0, pages - 1);
-        for (int i = page * capacity; i < Math.min(targets.size(), (page + 1) * capacity); i++) {
+        for (int i = page * capacity; i < Math.min(visibleCount, (page + 1) * capacity); i++) {
             Entity entity = targets.get(i);
-            var row = button(entity.getDisplayName().copy().append(" · ").append(entity.getType().getDescription()), left(), 136 + (i % capacity) * 22, 280, () -> choose(entity));
+            var row = addRenderableWidget(new TargetButton(left(), 160 + (i % capacity) * 22, 280, 20, entity, button -> choose(entity)));
             row.setTooltip(Tooltip.create(Component.literal(entity.getUUID().toString())));
         }
-        button(Component.literal("←"), left(), height - 52, 45, () -> { page = Math.max(0, page - 1); init(); });
-        button(Component.literal((page + 1) + " / " + pages), left() + 49, height - 52, 182, this::init);
-        button(Component.literal("→"), left() + 235, height - 52, 45, () -> { page = Math.min(pages - 1, page + 1); init(); });
+        pageButton(PixelGlyph.ARROW_LEFT, "gui.archweaver.page.previous", left(), () -> { page = Math.max(0, page - 1); init(); });
+        button(Component.literal((page + 1) + " / " + pages), left() + 24, height - 52, 232, this::init);
+        pageButton(PixelGlyph.ARROW_RIGHT, "gui.archweaver.page.next", left() + 256, () -> { page = Math.min(pages - 1, page + 1); init(); });
+    }
+
+    /** 翻页按钮：图标按钮不留文字，提示与朗读都取自 tooltip。 */
+    private void pageButton(PixelGlyph glyph, String tooltip, int x, Runnable action) {
+        var label = Component.translatable(tooltip);
+        // 左右翻页按钮保持正方形，避免图标按钮被拉成长条。
+        addRenderableWidget(new SolidButton(x, height - 52, 20, 20, glyph, label, button -> action.run()));
     }
 
     private void rebuildTargets() {
@@ -166,13 +195,19 @@ public final class CameraPanelScreen extends Screen {
     }
 
     private List<Entity> targets() {
-        List<Entity> result = new ArrayList<>();
-        if (minecraft.level == null) return result;
-        for (Entity entity : minecraft.level.entitiesForRendering()) {
-            if (entity != minecraft.player && entity.isAlive() && !entity.isRemoved()
-                && (entity.getDisplayName().getString() + " " + entity.getType().getDescription().getString()).toLowerCase(Locale.ROOT).contains(filter.toLowerCase(Locale.ROOT))) result.add(entity);
+        if (loadedTargets == null) {
+            loadedTargets = new ArrayList<>();
+            if (minecraft.level == null) return loadedTargets;
+            for (Entity entity : minecraft.level.entitiesForRendering()) {
+                if (entity != minecraft.player && entity.isAlive() && !entity.isRemoved()) loadedTargets.add(entity);
+            }
         }
-        result.sort(Comparator.<Entity, Boolean>comparing(e -> !(e instanceof Player)).thenComparing(e -> e.getDisplayName().getString()).thenComparing(Entity::getId));
+        List<Entity> result = new ArrayList<>();
+        String query = filter.toLowerCase(Locale.ROOT);
+        for (Entity entity : loadedTargets) if (entity.isAlive() && !entity.isRemoved()
+            && (entity.getDisplayName().getString() + " " + entity.getType().getDescription().getString()).toLowerCase(Locale.ROOT).contains(query)) result.add(entity);
+        if (sortTargetsByDistance && minecraft.player != null) result.sort(Comparator.comparingDouble(entity -> entity.distanceToSqr(minecraft.player)));
+        else result.sort(Comparator.<Entity, Boolean>comparing(e -> !(e instanceof Player)).thenComparing(e -> e.getDisplayName().getString()).thenComparing(Entity::getId));
         return result;
     }
 
@@ -183,7 +218,7 @@ public final class CameraPanelScreen extends Screen {
     }
 
     private Button button(Component label, int x, int y, int width, Runnable action) {
-        return addRenderableWidget(Button.builder(label, button -> action.run()).bounds(x, y, width, 20).build());
+        return addRenderableWidget(new SolidButton(x, y, width, 20, label, button -> action.run()));
     }
 
     @Override

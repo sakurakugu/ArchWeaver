@@ -6,6 +6,31 @@ import org.junit.jupiter.api.Test;
 
 class CameraSelectionTest {
     @Test
+    void scrollingTraversesEverySubmodeAndWrapsInBothDirections() {
+        var selection = new CameraSelection();
+        // 预先记住末项，验证跨类别仍从首项开始。
+        selection.select(Category.SHOULDER, 1);
+        selection.select(Category.VANILLA, 0);
+        for (Category category : Category.values()) {
+            for (int mode = 0; mode < category.modes(); mode++) {
+                assertEquals(category, selection.category());
+                assertEquals(mode, selection.mode());
+                selection.cycleView(true);
+            }
+        }
+        assertEquals(Category.VANILLA, selection.category());
+        assertEquals(0, selection.mode());
+        Category[] categories = Category.values();
+        for (int i = categories.length - 1; i >= 0; i--) {
+            for (int mode = categories[i].modes() - 1; mode >= 0; mode--) {
+                selection.cycleView(false);
+                assertEquals(categories[i], selection.category());
+                assertEquals(mode, selection.mode());
+            }
+        }
+    }
+
+    @Test
     void selectorUsesCurrentViewWhenDisabledOrHistoryIsAbsent() {
         var selection = new CameraSelection();
         assertEquals(Category.VANILLA, selection.selectorSnapshot(true).category());

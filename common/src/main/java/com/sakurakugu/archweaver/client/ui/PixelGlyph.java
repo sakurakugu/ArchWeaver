@@ -125,6 +125,62 @@ public enum PixelGlyph {
                 graphics.fill(x + 7 - offset, y + 2 + offset, x + 9 - offset, y + 4 + offset, color);
             }
         }
+    },
+    ARROW_LEFT(10, 10) { // 左箭头图标：尖角指向左侧，用于翻页，宽高均 10。
+        @Override
+        protected void draw(GuiGraphicsExtractor graphics, int x, int y, int color) {
+            graphics.fill(x + 5, y, x + 7, y + 2, color);
+            graphics.fill(x + 4, y + 1, x + 5, y + 4, color);
+            graphics.fill(x + 3, y + 2, x + 4, y + 8, color);
+            graphics.fill(x + 5, y + 2, x + 6, y + 3, color);
+            graphics.fill(x + 2, y + 3, x + 3, y + 7, color);
+            graphics.fill(x + 1, y + 4, x + 2, y + 6, color);
+            graphics.fill(x + 4, y + 6, x + 5, y + 9, color);
+            graphics.fill(x + 5, y + 7, x + 6, y + 10, color);
+            graphics.fill(x + 6, y + 8, x + 7, y + 10, color);
+        }
+    },
+    ARROW_RIGHT(10, 10) { // 右箭头图标：尖角指向右侧，用于翻页，宽高均 10。
+        @Override
+        protected void draw(GuiGraphicsExtractor graphics, int x, int y, int color) {
+            graphics.fill(x + 3, y, x + 5, y + 2, color);
+            graphics.fill(x + 5, y + 1, x + 6, y + 4, color);
+            graphics.fill(x + 4, y + 2, x + 5, y + 3, color);
+            graphics.fill(x + 6, y + 2, x + 7, y + 8, color);
+            graphics.fill(x + 7, y + 3, x + 8, y + 7, color);
+            graphics.fill(x + 8, y + 4, x + 9, y + 6, color);
+            graphics.fill(x + 5, y + 6, x + 6, y + 9, color);
+            graphics.fill(x + 4, y + 7, x + 5, y + 10, color);
+            graphics.fill(x + 3, y + 8, x + 4, y + 10, color);
+        }
+    },
+    TURN_LEFT(12, 12) { // 左转图标：向左弯曲的箭头，宽高均 12。
+        @Override
+        protected void draw(GuiGraphicsExtractor graphics, int x, int y, int color) {
+            graphics.fill(x + 4, y + 3, x + 9, y + 4, color);
+            graphics.fill(x + 3, y + 4, x + 4, y + 5, color);
+            graphics.fill(x + 9, y + 4, x + 10, y + 5, color);
+            graphics.fill(x + 2, y + 5, x + 3, y + 10, color);
+            graphics.fill(x + 10, y + 5, x + 11, y + 9, color);
+            graphics.fill(x, y + 7, x + 2, y + 8, color);
+            graphics.fill(x + 3, y + 7, x + 5, y + 8, color);
+            graphics.fill(x + 1, y + 8, x + 2, y + 9, color);
+            graphics.fill(x + 3, y + 8, x + 4, y + 9, color);
+        }
+    },
+    TURN_RIGHT(12, 12) { // 右转图标：向右弯曲的箭头，宽高均 12。
+        @Override
+        protected void draw(GuiGraphicsExtractor graphics, int x, int y, int color) {
+            graphics.fill(x + 3, y + 3, x + 8, y + 4, color);
+            graphics.fill(x + 2, y + 4, x + 3, y + 5, color);
+            graphics.fill(x + 8, y + 4, x + 9, y + 5, color);
+            graphics.fill(x + 1, y + 5, x + 2, y + 9, color);
+            graphics.fill(x + 9, y + 5, x + 10, y + 10, color);
+            graphics.fill(x + 7, y + 7, x + 9, y + 8, color);
+            graphics.fill(x + 10, y + 7, x + 12, y + 8, color);
+            graphics.fill(x + 8, y + 8, x + 9, y + 9, color);
+            graphics.fill(x + 10, y + 8, x + 11, y + 9, color);
+        }
     };
 
     private final int width; // 字形的像素宽度。

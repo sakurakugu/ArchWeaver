@@ -35,6 +35,7 @@ import com.sakurakugu.archweaver.client.ui.SolidButton;
 import com.sakurakugu.archweaver.client.ui.SolidDropdownButton;
 import com.sakurakugu.archweaver.client.ui.InventorySlotButton;
 import com.sakurakugu.archweaver.client.ui.OverlayPanelManager;
+import com.sakurakugu.archweaver.client.ui.PixelGlyph;
 import com.sakurakugu.archweaver.client.ui.PixelGui;
 import com.sakurakugu.archweaver.client.ui.RotationPad;
 import com.sakurakugu.archweaver.client.ui.ToggleSwitchButton;
@@ -786,9 +787,9 @@ public final class FakePlayerInventoryScreen extends AbstractContainerScreen<Fak
 
     /** 在假人物品栏的空白区域添加移动和即时动作操控杆。 */
     private void addControlButtons() {
-        addControlButton(0, 0, "↶", Simple.TURN_LEFT, Control.TURN_LEFT);
+        addControlButton(0, 0, PixelGlyph.TURN_LEFT, "gui.archweaver.fakeplayer.turn_left", Simple.TURN_LEFT, Control.TURN_LEFT);
         addControlButton(1, 0, "↑", Simple.MOVE_FORWARD, Control.MOVE_FORWARD);
-        addControlButton(2, 0, "↷", Simple.TURN_RIGHT, Control.TURN_RIGHT);
+        addControlButton(2, 0, PixelGlyph.TURN_RIGHT, "gui.archweaver.fakeplayer.turn_right", Simple.TURN_RIGHT, Control.TURN_RIGHT);
         addControlButton(0, 1, "←", Simple.MOVE_LEFT, Control.MOVE_LEFT);
         // 潜行没有长按形态，按下即切换。
         addControlButton(1, 1, "S", Simple.SNEAK, null);
@@ -897,6 +898,18 @@ public final class FakePlayerInventoryScreen extends AbstractContainerScreen<Fak
         );
     }
 
+    /** 图标按钮不留文字，提示与朗读都取自 tooltip。 */
+    private void addControlButton(int column, int row, PixelGlyph glyph, String tooltip, Simple press, Control held) {
+        addControlButtonAt(
+            leftPos + CONTROL_LEFT + column * CONTROL_SIZE,
+            topPos + CONTROL_TOP + row * CONTROL_SIZE,
+            glyph,
+            Component.translatable(tooltip),
+            press,
+            held
+        );
+    }
+
     /** {@code held} 为 null 表示该按钮不支持长按。 */
     private Button addControlButtonAt(int x, int y, String label, Simple press, Control held) {
         return addRenderableWidget(new SolidButton(
@@ -905,13 +918,27 @@ public final class FakePlayerInventoryScreen extends AbstractContainerScreen<Fak
             CONTROL_SIZE,
             CONTROL_SIZE,
             Component.literal(label),
-            ignored -> {
-                sendAction(press);
-                heldControl = held;
-                heldTicks = 0;
-                heldStarted = false;
-            }
+            ignored -> pressControl(press, held)
         ));
+    }
+
+    private Button addControlButtonAt(int x, int y, PixelGlyph glyph, Component tooltip, Simple press, Control held) {
+        return addRenderableWidget(new SolidButton(
+            x,
+            y,
+            CONTROL_SIZE,
+            CONTROL_SIZE,
+            glyph,
+            tooltip,
+            ignored -> pressControl(press, held)
+        ));
+    }
+
+    private void pressControl(Simple press, Control held) {
+        sendAction(press);
+        heldControl = held;
+        heldTicks = 0;
+        heldStarted = false;
     }
 
     /** 中间的操控按钮：平时跳跃，飞行状态下改为关闭飞行；长按跳跃沿用连续动作。 */

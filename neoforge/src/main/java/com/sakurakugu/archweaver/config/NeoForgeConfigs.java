@@ -93,7 +93,7 @@ public final class NeoForgeConfigs {
                     .defineInRange(setting.key(), setting.initial, setting.min, setting.max));
             }
             for (var setting : CameraPreferences.Toggle.values()) {
-                cameraToggles.put(setting, builder.comment("相机开关：" + setting.key()).define(setting.key(), false));
+                cameraToggles.put(setting, builder.comment("相机开关：" + setting.key()).define(setting.key(), setting.initial));
             }
             builder.pop();
             spec = builder.build();

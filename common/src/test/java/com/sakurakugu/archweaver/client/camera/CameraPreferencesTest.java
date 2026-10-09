@@ -14,23 +14,23 @@ class CameraPreferencesTest {
         private int saves;
         public double number(NumberSetting setting) { return numbers.getOrDefault(setting, setting.initial); }
         public void number(NumberSetting setting, double value) { numbers.put(setting, value); }
-        public boolean toggle(Toggle setting) { return toggles.getOrDefault(setting, false); }
+        public boolean toggle(Toggle setting) { return toggles.getOrDefault(setting, setting.initial); }
         public void toggle(Toggle setting, boolean value) { toggles.put(setting, value); }
         public void save() { saves++; }
     }
 
     @Test
-    void previousViewPreferenceDefaultsOffAndPersistsAcrossInstallations() {
+    void previousViewPreferenceDefaultsOnAndPersistsAcrossInstallations() {
         Backend backend = new Backend();
-        CameraPreferences.install(backend);
-        assertFalse(CameraPreferences.get(Toggle.SELECT_PREVIOUS));
-        CameraPreferences.flip(Toggle.SELECT_PREVIOUS);
-        assertTrue(backend.toggle(Toggle.SELECT_PREVIOUS));
-        assertEquals(1, backend.saves);
         CameraPreferences.install(backend);
         assertTrue(CameraPreferences.get(Toggle.SELECT_PREVIOUS));
         CameraPreferences.flip(Toggle.SELECT_PREVIOUS);
         assertFalse(backend.toggle(Toggle.SELECT_PREVIOUS));
+        assertEquals(1, backend.saves);
+        CameraPreferences.install(backend);
+        assertFalse(CameraPreferences.get(Toggle.SELECT_PREVIOUS));
+        CameraPreferences.flip(Toggle.SELECT_PREVIOUS);
+        assertTrue(backend.toggle(Toggle.SELECT_PREVIOUS));
         assertEquals(2, backend.saves);
     }
 

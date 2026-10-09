@@ -145,13 +145,15 @@ public final class ChunkMapManagementScreen extends Screen {
     }
 
     private void addManagementPageButtons(int left, int top) {
-        // 翻页按钮压在内容区下缘，离面板底边只剩 8px。
-        Button previous = new SolidButton(left + s(8), top + s(CONTENT_BOTTOM - 20), size(32), size(20),
-            Component.literal("<"), button -> changeManagementPage(-1));
+        // 翻页按钮压在内容区下缘，离面板底边只剩 8px；正方形按钮贴住列表左右边缘，页码居中。
+        int y = top + s(CONTENT_BOTTOM - 20);
+        Button previous = new SolidButton(left + s(8), y, size(20), size(20),
+            PixelGlyph.ARROW_LEFT, Component.translatable("gui.archweaver.page.previous"),
+            button -> changeManagementPage(-1));
         previous.active = page > 0;
         addRenderableWidget(previous);
-        Button next = new SolidButton(left + s(121), top + s(CONTENT_BOTTOM - 20), size(32), size(20),
-            Component.literal(">"),
+        Button next = new SolidButton(left + s(133), y, size(20), size(20),
+            PixelGlyph.ARROW_RIGHT, Component.translatable("gui.archweaver.page.next"),
             button -> changeManagementPage(1));
         next.active = page + 1 < managementPageCount();
         addRenderableWidget(next);

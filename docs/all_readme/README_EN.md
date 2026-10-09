@@ -19,7 +19,7 @@ This project produces two separate JARs:
 | Mod                      | Mod ID                | Scope                                                                                                     | Dependency          |
 | ------------------------ | --------------------- | --------------------------------------------------------------------------------------------------------- | ------------------- |
 | **ArchWeaver**           | `archweaver`          | Fake players, chunk loading, and other utility features. Registers no blocks, items, or entities.         | None                |
-| **ArchWeaver: Artifice** | `archweaver_artifice` | Content add-on for planned blocks and items, such as summoning blocks, chunk loader blocks, and effigies. | Requires ArchWeaver |
+| **ArchWeaver: Artifice** | `archweaver_artifice` | Some utility blocks, items, entities, etc.                                                                | Requires ArchWeaver |
 
 > ArchWeaver can be installed or removed without leaving registered content in a world save. Content that requires registry entries belongs in Artifice. The two mods have independent version numbers; Artifice declares a compatible range of ArchWeaver versions.
 
@@ -188,7 +188,7 @@ body_movement = false
 # Whether the orbit view rotates automatically at orbit_speed.
 auto_orbit = false
 # Preselect the previous view (including its submode) when opening F3+F5; history is kept only for the current session.
-select_previous = false
+select_previous = true
 ```
 
 ### Persistent Data

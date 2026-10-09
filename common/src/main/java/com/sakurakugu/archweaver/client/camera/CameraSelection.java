@@ -32,6 +32,19 @@ public final class CameraSelection {
         modes.put(value, nextMode);
     }
     public void cycleMode() { select(category, mode() + 1); }
+
+    /** 按类别顺序遍历全部子视角，跨类别时从首项或末项继续。 */
+    public void cycleView(boolean forward) {
+        int nextMode = mode() + (forward ? 1 : -1);
+        if (nextMode >= 0 && nextMode < category.modes()) {
+            select(category, nextMode);
+            return;
+        }
+        Category[] categories = Category.values();
+        Category nextCategory = categories[Math.floorMod(category.ordinal() + (forward ? 1 : -1), categories.length)];
+        select(nextCategory, forward ? 0 : nextCategory.modes() - 1);
+    }
+
     public void clear() { clear(0); }
 
     /** 用当前原版视角作为新会话起点，避免把初始化当作一次切换。 */

@@ -1,6 +1,8 @@
 package com.sakurakugu.archweaver.mixin;
 
 import com.sakurakugu.archweaver.client.camera.ClientCamera;
+import com.sakurakugu.archweaver.client.camera.CameraPreferences;
+import com.sakurakugu.archweaver.client.camera.CameraPreferences.Toggle;
 import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Gui;
@@ -21,14 +23,15 @@ public abstract class CameraHudMixin {
     private void archweaver$cameraHud(GuiGraphicsExtractor graphics, DeltaTracker tracker, CallbackInfo ci) {
         if (!ClientCamera.active()) return;
         Minecraft mc = Minecraft.getInstance();
-        graphics.text(mc.font, Component.translatable(ClientCamera.category().modeKey(ClientCamera.mode())), 5, 5, 0xFFFFFFFF);
+        boolean hideText = CameraPreferences.get(Toggle.HIDE_HUD_TEXT);
+        if (!hideText) graphics.text(mc.font, Component.translatable(ClientCamera.category().modeKey(ClientCamera.mode())), 5, 5, 0xFFFFFFFF);
         int cx = graphics.guiWidth() / 2, cy = graphics.guiHeight() / 2;
         graphics.fill(cx - 3, cy, cx + 4, cy + 1, 0xAAFFFFFF);
         graphics.fill(cx, cy - 3, cx + 1, cy + 4, 0xAAFFFFFF);
         if (ClientCamera.blockInteraction() || mc.hitResult == null || mc.hitResult.getType() == HitResult.Type.MISS) return;
         Component target = mc.hitResult instanceof EntityHitResult entity ? entity.getEntity().getDisplayName()
             : mc.hitResult instanceof BlockHitResult block ? Component.literal(block.getBlockPos().toShortString()) : Component.empty();
-        graphics.text(mc.font, Component.translatable("camera.archweaver.body_target_hint", target), 5, 18, 0xFFFFFF55);
+        if (!hideText) graphics.text(mc.font, Component.translatable("camera.archweaver.body_target_hint", target), 5, 18, 0xFFFFFF55);
         var projected = mc.gameRenderer.projectPointToScreen(mc.hitResult.getLocation());
         if (projected.z >= 0 && projected.z <= 1 && Math.abs(projected.x) <= 1 && Math.abs(projected.y) <= 1) {
             int x = (int) ((projected.x + 1) * graphics.guiWidth() / 2), y = (int) ((1 - projected.y) * graphics.guiHeight() / 2);

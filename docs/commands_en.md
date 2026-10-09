@@ -78,7 +78,6 @@ Supported `spawn` syntax:
 /player <name> spawn at <position> facing <rotation>
 /player <name> spawn at <position> facing <rotation> in <dimension>
 /player <name> spawn at <position> facing <rotation> in <dimension> gamemode <game-mode>
-# With Carpet loaded: /player <name> spawn in <game-mode>
 ```
 
 Example:
