@@ -1,6 +1,7 @@
 package com.sakurakugu.archweaver.client.ui;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import net.minecraft.client.Minecraft;
@@ -8,6 +9,7 @@ import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.input.MouseButtonEvent;
+import net.minecraft.client.renderer.Rect2i;
 import net.minecraft.network.chat.Component;
 
 /** 使用纯色像素风边框的下拉选择器。 */
@@ -61,6 +63,14 @@ public final class SolidDropdownButton<T> extends Button {
 
     public boolean isOpen() {
         return open;
+    }
+
+    /** 只报告当前显示的选项列表，包含伸出所属面板的部分。 */
+    public Optional<Rect2i> getPopupArea() {
+        if (!open || !visible) {
+            return Optional.empty();
+        }
+        return Optional.of(new Rect2i(getX(), popupScreenTop(), getWidth(), options.size() * OPTION_HEIGHT));
     }
 
     public void setSelected(T selected) {

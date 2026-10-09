@@ -37,6 +37,7 @@ import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.client.renderer.RenderPipelines;
+import net.minecraft.client.renderer.Rect2i;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.FontDescription;
 import net.minecraft.resources.Identifier;
@@ -299,6 +300,22 @@ public final class MannequinInventoryScreen extends AbstractContainerScreen<Mann
 
     private TopBar topBar() {
         return TopBar.overRightHalf(leftPos, topPos, imageWidth);
+    }
+
+    /** 左右侧栏、顶栏及姿态下拉列表的屏幕区域，随展开状态和窗口尺寸更新。 */
+    public List<Rect2i> getGuiExtraAreas() {
+        List<Rect2i> areas = new ArrayList<>();
+        areas.add(topBar().getBounds());
+        if (panels != null) {
+            areas.addAll(panels.getVisibleAreas());
+        }
+        if (rightPanels != null) {
+            areas.addAll(rightPanels.getVisibleAreas());
+        }
+        if (presetButton != null) {
+            presetButton.getPopupArea().ifPresent(areas::add);
+        }
+        return areas;
     }
 
     private OverlayPanelManager.Panel panel(String id, int top, int width, int height, String title, net.minecraft.world.item.Item icon) {

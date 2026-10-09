@@ -14,8 +14,19 @@ sourceSets.main {
     resources.srcDir project(':common').file('src/main/resources')
 }
 
+repositories {
+    maven {
+        url = 'https://maven.blamejared.com'
+        content {
+            includeGroup 'mezz.jei'
+        }
+    }
+}
+
 dependencies {
     compileOnly "org.jetbrains:annotations:${jetbrains_annotations_version}"
+    // JEI 仅供兼容插件编译，安装与开发运行时均不强制携带。
+    compileOnly "mezz.jei:jei-${minecraft_version}-common-api:${jei_version}"
 }
 
 neoForge {

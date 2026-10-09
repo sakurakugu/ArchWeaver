@@ -51,6 +51,7 @@ import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.client.gui.screens.inventory.InventoryScreen;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.client.renderer.RenderPipelines;
+import net.minecraft.client.renderer.Rect2i;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.FontDescription;
 import net.minecraft.resources.Identifier;
@@ -423,6 +424,26 @@ public final class FakePlayerInventoryScreen extends AbstractContainerScreen<Fak
 
     private TopBar topBar() {
         return TopBar.overRightHalf(leftPos, topPos, imageWidth);
+    }
+
+    /** 容器外的实际可见区域；末影箱与附身背包没有侧栏，不预留额外空间。 */
+    public List<Rect2i> getGuiExtraAreas() {
+        if (menu.view() == FakePlayerInventoryMenu.View.ENDER_CHEST
+            || menu.view() == FakePlayerInventoryMenu.View.POSSESSED_INVENTORY) {
+            return List.of();
+        }
+        List<Rect2i> areas = new ArrayList<>();
+        areas.add(topBar().getBounds());
+        if (leftPanelManager != null) {
+            areas.addAll(leftPanelManager.getVisibleAreas());
+        }
+        if (rightPanelManager != null) {
+            areas.addAll(rightPanelManager.getVisibleAreas());
+        }
+        if (gameModeButton != null) {
+            gameModeButton.getPopupArea().ifPresent(areas::add);
+        }
+        return areas;
     }
 
     private void addSkinPartPanel() {

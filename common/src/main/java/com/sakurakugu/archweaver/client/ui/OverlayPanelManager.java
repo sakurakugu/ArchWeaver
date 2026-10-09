@@ -8,6 +8,7 @@ import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.Tooltip;
+import net.minecraft.client.renderer.Rect2i;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.ItemStack;
@@ -60,6 +61,22 @@ public final class OverlayPanelManager {
                 return;
             }
         }
+    }
+
+    /** 当前可见标签和展开面板的屏幕区域，供物品列表等外部覆盖层避让。 */
+    public List<Rect2i> getVisibleAreas() {
+        List<Rect2i> areas = new ArrayList<>();
+        for (Panel panel : panels) {
+            if (panel.tab == null || !panel.tab.visible) {
+                continue;
+            }
+            if (panel.open) {
+                areas.add(new Rect2i(panel.getX(), panel.getY(), panel.contentWidth(), panel.contentHeight()));
+            } else {
+                areas.add(new Rect2i(panel.tab.getX(), panel.tab.getY(), panel.tab.getWidth(), panel.tab.getHeight()));
+            }
+        }
+        return areas;
     }
 
     private void refresh() {

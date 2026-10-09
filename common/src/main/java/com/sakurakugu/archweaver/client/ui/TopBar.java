@@ -1,6 +1,7 @@
 package com.sakurakugu.archweaver.client.ui;
 
 import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.renderer.Rect2i;
 
 /** 容器顶部的侧栏式横条，样式与左右侧栏标签一致；目前只在其中放玩家/玩偶二态切换。 */
 public final class TopBar {
@@ -34,6 +35,11 @@ public final class TopBar {
     /** 绘制横条背景；底边不描边，与下方容器连成一片。 */
     public void draw(GuiGraphicsExtractor graphics) {
         PixelGui.drawTopTabBackground(graphics, x, y, width, HEIGHT);
+    }
+
+    /** 横条外框的屏幕区域，与绘制使用同一套坐标。 */
+    public Rect2i getBounds() {
+        return new Rect2i(x, y, width, HEIGHT);
     }
 
     public int contentX() { return x + PADDING; }
