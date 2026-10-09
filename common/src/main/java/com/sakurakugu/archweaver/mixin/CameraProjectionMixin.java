@@ -21,7 +21,7 @@ public abstract class CameraProjectionMixin {
 
     @Inject(method = "getMatrix", at = @At("RETURN"))
     private void archweaver$center(Matrix4f dest, CallbackInfoReturnable<Matrix4f> cir) {
-        if (ClientCamera.orthographic()
+        if (ClientCamera.renderOrthographic()
             && ((CameraProjectionAccessor) Minecraft.getInstance().gameRenderer.getMainCamera()).archweaver$projection() == (Object) this) {
             dest.set(CameraMath.orthographic(height(), width() / height(), zFar(), RenderSystem.getDevice().isZZeroToOne()));
         }

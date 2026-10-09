@@ -4,6 +4,7 @@ import com.sakurakugu.archweaver.client.ui.DimensionDisplay;
 
 import com.sakurakugu.archweaver.client.chunkloading.ChunkMapClientConfig;
 import com.sakurakugu.archweaver.client.chunkloading.ClientChunkLoadingState;
+import com.sakurakugu.archweaver.client.camera.CameraPanelScreen;
 import com.sakurakugu.archweaver.client.ui.PixelGlyph;
 import com.sakurakugu.archweaver.client.ui.SolidButton;
 import com.sakurakugu.archweaver.client.ui.FakePlayerListButton;
@@ -185,6 +186,14 @@ public final class MainPageScreen extends Screen {
                 () -> globalSetting(ArchWeaverConfig.GlobalSetting.values()[settingIndex]),
                 button -> toggleSetting(settingIndex)));
         }
+        // 相机自身的设置不在全局设置里，落到面板底部，和假人列表的预设管理同一位置。
+        addRenderableWidget(new SolidButton(centerLeft + PANEL_PADDING, footerY(), buttonWidth, FOOTER_HEIGHT,
+            Component.translatable("gui.archweaver.main.camera_settings"), button -> openCameraSettings()));
+    }
+
+    /** 打开相机面板的设置页；关闭面板时按导航栈回到控制中心的全局设置。 */
+    private void openCameraSettings() {
+        minecraft.setScreen(CameraPanelScreen.settings());
     }
 
     /** 面板高度，上下各留出 {@link #PANEL_TOP} 的边距。 */

@@ -29,6 +29,7 @@ public final class ClientCamera {
     private static UUID targetId;
     private static float yaw, pitch, oldYaw, oldPitch;
     private static boolean preferencesDirty;
+    private static OrthographicPreview selectorPreview;
 
     private ClientCamera() { }
     public static Category category() { return SELECTION.category(); }
@@ -41,10 +42,40 @@ public final class ClientCamera {
     }
     public static boolean active() { return category() != Category.VANILLA; }
     public static boolean orthographic() { return category() == Category.ORTHOGRAPHIC; }
+    /** 渲染读取临时预览，游戏控制和已确认的选择仍读取实际相机。 */
+    public static boolean renderOrthographic() { return selectorPreview != null || orthographic(); }
+    public static boolean renderActive() { return selectorPreview != null || active(); }
     public static float yaw() { return yaw; }
     public static float pitch() { return pitch; }
     public static UUID targetId() { return targetId; }
     public static boolean hasBlockCenter() { return orbitCenter != null; }
+
+    public static OrthographicPreview createSelectorPreview() {
+        Minecraft mc = Minecraft.getInstance();
+        Camera camera = mc.gameRenderer.getMainCamera();
+        Vec3 center = camera.position();
+        if (orthographic()) center = center.add(direction(yaw, pitch).scale(CameraPreferences.get(NumberSetting.SCALE) * 1.5));
+        return new OrthographicPreview(new Vector3d(center.x, center.y, center.z),
+            orthographic() ? yaw : CameraPreferences.get(NumberSetting.YAW),
+            orthographic() ? pitch : CameraPreferences.get(NumberSetting.PITCH));
+    }
+
+    public static void selectorPreview(OrthographicPreview preview) {
+        if (selectorPreview == preview) return;
+        selectorPreview = preview;
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.level != null) mc.levelRenderer.needsUpdate();
+    }
+
+    /** 确认时采用预览的最终变换，避免自由模式重新初始化位置导致画面跳动。 */
+    public static boolean commitSelectorPreview(OrthographicPreview preview) {
+        if (!select(Category.ORTHOGRAPHIC, preview.mode())) return false;
+        rotation(preview.yaw(), preview.pitch());
+        Vec3 eye = Minecraft.getInstance().player.getEyePosition();
+        Vector3d pos = preview.position(new Vector3d(eye.x, eye.y, eye.z), CameraPreferences.get(NumberSetting.SCALE));
+        position = oldPosition = new Vec3(pos.x, pos.y, pos.z);
+        return true;
+    }
 
     private static boolean cameraScreen() {
         var screen = Minecraft.getInstance().screen;
@@ -115,6 +146,18 @@ public final class ClientCamera {
     }
 
     public static void angle(CameraMath.Angle angle) { rotation(angle.yaw, angle.pitch); }
+    /** 面板旋转自由正交相机时保持观察中心，跟随模式由变换计算自动保持中心。 */
+    public static void rotationAroundCenter(double y, double p) {
+        if (!orthographic() || mode() != 1) {
+            rotation(y, p);
+            return;
+        }
+        double distance = CameraPreferences.get(NumberSetting.SCALE) * 1.5;
+        Vec3 center = position.add(direction(yaw, pitch).scale(distance));
+        rotation(y, p);
+        position = oldPosition = center.subtract(direction(yaw, pitch).scale(distance));
+    }
+
     public static void rotation(double y, double p) {
         yaw = oldYaw = wrap((float) y);
         pitch = oldPitch = (float) Math.clamp(p, -90, 90);
@@ -201,6 +244,7 @@ public final class ClientCamera {
     }
 
     public static void reset(Minecraft mc) {
+        selectorPreview(null);
         if (active()) {
             mc.options.setCameraType(returnType);
             mc.gameRenderer.checkEntityPostEffect(returnType.isFirstPerson() ? mc.getCameraEntity() : null);
@@ -252,6 +296,11 @@ public final class ClientCamera {
     /** 原版先更新玩家相机，再在视锥构建之前覆写观察变换。 */
     public static Transform transform(float partial) {
         Minecraft mc = Minecraft.getInstance();
+        if (selectorPreview != null && mc.player != null && mc.level != null) {
+            Vec3 eye = mc.player.getEyePosition(partial);
+            Vector3d pos = selectorPreview.position(new Vector3d(eye.x, eye.y, eye.z), CameraPreferences.get(NumberSetting.SCALE));
+            return new Transform(new Vec3(pos.x, pos.y, pos.z), (float) selectorPreview.yaw(), (float) selectorPreview.pitch());
+        }
         if (!active() || mc.player == null || mc.level == null) return null;
         float y = oldYaw + wrap(yaw - oldYaw) * partial;
         float p = oldPitch + (pitch - oldPitch) * partial;

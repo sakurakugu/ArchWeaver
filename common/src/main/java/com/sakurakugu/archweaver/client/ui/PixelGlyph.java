@@ -181,6 +181,50 @@ public enum PixelGlyph {
             graphics.fill(x + 8, y + 8, x + 9, y + 9, color);
             graphics.fill(x + 10, y + 8, x + 11, y + 9, color);
         }
+    },
+    RETICLE(12, 12) { // 准星图标：四段内收的准星臂夹住中心方块，宽高均 12。
+        @Override
+        protected void draw(GuiGraphicsExtractor graphics, int x, int y, int color) {
+            graphics.fill(x + 5, y, x + 7, y + 3, color);
+            graphics.fill(x + 5, y + 9, x + 7, y + 12, color);
+            graphics.fill(x, y + 5, x + 3, y + 7, color);
+            graphics.fill(x + 9, y + 5, x + 12, y + 7, color);
+            graphics.fill(x + 5, y + 5, x + 7, y + 7, color);
+        }
+    },
+    CUBE(12, 12) { // 方块图标：等距立方体的外形，上下各收角，宽高均 12。
+        @Override
+        protected void draw(GuiGraphicsExtractor graphics, int x, int y, int color) {
+            graphics.fill(x + 5, y, x + 7, y + 1, color);
+            graphics.fill(x + 3, y + 1, x + 9, y + 2, color);
+            graphics.fill(x + 1, y + 2, x + 11, y + 3, color);
+            graphics.fill(x, y + 3, x + 12, y + 9, color);
+            graphics.fill(x + 1, y + 9, x + 11, y + 10, color);
+            graphics.fill(x + 3, y + 10, x + 9, y + 11, color);
+            graphics.fill(x + 5, y + 11, x + 7, y + 12, color);
+        }
+    },
+    PERSON(12, 12) { // 玩家图标：头、肩与双腿的剪影，宽高均 12。
+        @Override
+        protected void draw(GuiGraphicsExtractor graphics, int x, int y, int color) {
+            graphics.fill(x + 4, y, x + 8, y + 1, color);
+            graphics.fill(x + 3, y + 1, x + 9, y + 4, color);
+            graphics.fill(x + 4, y + 4, x + 8, y + 5, color);
+            graphics.fill(x + 2, y + 5, x + 10, y + 9, color);
+            graphics.fill(x + 3, y + 9, x + 5, y + 12, color);
+            graphics.fill(x + 7, y + 9, x + 9, y + 12, color);
+        }
+    },
+    CAMERA(12, 12) { // 相机图标：机身外框、顶部取景器与中央镜头，宽高均 12。
+        @Override
+        protected void draw(GuiGraphicsExtractor graphics, int x, int y, int color) {
+            graphics.fill(x + 4, y + 1, x + 8, y + 3, color);
+            graphics.fill(x, y + 3, x + 12, y + 4, color);
+            graphics.fill(x, y + 10, x + 12, y + 11, color);
+            graphics.fill(x, y + 4, x + 1, y + 10, color);
+            graphics.fill(x + 11, y + 4, x + 12, y + 10, color);
+            graphics.fill(x + 4, y + 5, x + 8, y + 9, color);
+        }
     };
 
     private final int width; // 字形的像素宽度。

@@ -17,7 +17,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 public abstract class CameraTerrainMixin {
     @Inject(method = "offsetFrustum", at = @At("HEAD"), cancellable = true)
     private static void archweaver$orthographicFrustum(Frustum frustum, CallbackInfoReturnable<Frustum> cir) {
-        if (ClientCamera.orthographic()) cir.setReturnValue(new Frustum(frustum));
+        if (ClientCamera.renderOrthographic()) cir.setReturnValue(new Frustum(frustum));
     }
 
     // Sodium 会覆盖 cullTerrain，并在自己的区块管理器中读取 smartCull。
@@ -27,7 +27,7 @@ public abstract class CameraTerrainMixin {
                                            boolean spectator, Operation<Void> original) {
         Minecraft minecraft = Minecraft.getInstance();
         boolean smartCull = minecraft.smartCull;
-        if (ClientCamera.active()) minecraft.smartCull = false;
+        if (ClientCamera.renderActive()) minecraft.smartCull = false;
         try {
             original.call(renderer, camera, frustum, spectator);
         } finally {

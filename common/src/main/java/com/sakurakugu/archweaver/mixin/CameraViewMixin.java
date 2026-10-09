@@ -35,7 +35,7 @@ public abstract class CameraViewMixin {
 
     @Inject(method = "createProjectionMatrixForCulling", at = @At("HEAD"), cancellable = true)
     private void archweaver$culling(CallbackInfoReturnable<Matrix4f> cir) {
-        if (ClientCamera.orthographic()) {
+        if (ClientCamera.renderOrthographic()) {
             var window = Minecraft.getInstance().getWindow();
             cir.setReturnValue(CameraMath.orthographic(CameraPreferences.get(CameraPreferences.NumberSetting.SCALE),
                 (double) window.getWidth() / Math.max(1, window.getHeight()), depthFar, RenderSystem.getDevice().isZZeroToOne()));
@@ -44,7 +44,7 @@ public abstract class CameraViewMixin {
 
     @Inject(method = "setupPerspective", at = @At("HEAD"), cancellable = true)
     private void archweaver$projection(float near, float far, float fov, float width, float height, CallbackInfo ci) {
-        if (ClientCamera.orthographic()) {
+        if (ClientCamera.renderOrthographic()) {
             float span = (float) CameraPreferences.get(CameraPreferences.NumberSetting.SCALE);
             setupOrtho(near, far, span * width / Math.max(1, height), span, false);
             ci.cancel();
