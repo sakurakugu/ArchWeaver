@@ -16,20 +16,30 @@ public final class ChunkMapClientConfig {
     public static void setMarkerNameScale(double value) { backend.setMarkerNameScale(value); }
     public static boolean weakLoadingVisible() { return backend.weakLoadingVisible(); }
     public static void setWeakLoadingVisible(boolean value) { backend.setWeakLoadingVisible(value); }
+    public static boolean realPlayersVisible() { return backend.realPlayersVisible(); }
+    public static void setRealPlayersVisible(boolean value) { backend.setRealPlayersVisible(value); }
     public static int mainPageView() { return backend.mainPageView(); }
     public static void setMainPageView(int value) { backend.setMainPageView(value); }
+    public static boolean journeyMapPreferred() { return backend.journeyMapPreferred(); }
+    public static void setJourneyMapPreferred(boolean value) { backend.setJourneyMapPreferred(value); }
     public static void save() { backend.save(); }
 
     private static final class Defaults implements PlatformClientConfig {
         private double scale = 1.0D;
         private boolean weak = true;
+        private boolean realPlayers;
+        private boolean journeyMap;
         private int mainPageView;
         public double markerNameScale() { return scale; }
         public void setMarkerNameScale(double value) { scale = Math.max(0.5D, Math.min(2.0D, value)); }
         public boolean weakLoadingVisible() { return weak; }
         public void setWeakLoadingVisible(boolean value) { weak = value; }
+        public boolean realPlayersVisible() { return realPlayers; }
+        public void setRealPlayersVisible(boolean value) { realPlayers = value; }
         public int mainPageView() { return mainPageView; }
         public void setMainPageView(int value) { mainPageView = value; }
+        public boolean journeyMapPreferred() { return journeyMap; }
+        public void setJourneyMapPreferred(boolean value) { journeyMap = value; }
         public void save() { }
     }
 }

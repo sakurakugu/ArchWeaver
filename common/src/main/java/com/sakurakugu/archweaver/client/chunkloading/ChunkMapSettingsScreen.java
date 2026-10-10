@@ -4,6 +4,7 @@ import com.sakurakugu.archweaver.client.ClientScreenNavigation;
 import com.sakurakugu.archweaver.client.ui.PixelGlyph;
 import com.sakurakugu.archweaver.client.ui.SolidButton;
 import com.sakurakugu.archweaver.client.ui.SolidSliderButton;
+import com.sakurakugu.archweaver.client.ui.ToggleSwitchButton;
 import com.sakurakugu.archweaver.client.ui.TitlePanel;
 import com.sakurakugu.archweaver.network.ChunkMapSnapshotPayload;
 import net.minecraft.client.Minecraft;
@@ -15,7 +16,7 @@ import net.minecraft.util.Mth;
 /** 区块地图的显示设置页。地图作为背景页面保留，设置本身拥有独立的页面节点。 */
 public final class ChunkMapSettingsScreen extends Screen {
     private static final int PANEL_WIDTH = 360; // 设置面板的理想宽度，窗口过窄时会被压缩。
-    private static final int PANEL_HEIGHT = 82; // 设置面板的高度。
+    private static final int PANEL_HEIGHT = 112; // 设置面板的高度。
     private ChunkMapSnapshotPayload snapshot; // 最近一次从服务端同步来的状态快照。
     private float layoutScale = 1.0F; // 当前面板相对设计尺寸的缩放比例。
     private int layoutWidth = PANEL_WIDTH; // 当前面板实际宽度。
@@ -39,6 +40,9 @@ public final class ChunkMapSettingsScreen extends Screen {
         int halfWidth = panelWidth / 2;
         addRenderableWidget(new MarkerNameScaleSlider(left + halfWidth + s(8), top + s(44),
             size(halfWidth - s(24)), size(20)));
+        addRenderableWidget(new ToggleSwitchButton(left + s(12), top + s(74), size(panelWidth - s(24)), size(20),
+            Component.translatable("gui.archweaver.chunkloader.map_real_players"), 0xFFFFFFFF,
+            ChunkMapClientConfig::realPlayersVisible, button -> toggleRealPlayers()));
         TitlePanel titlePanel = new TitlePanel(left, top, panelWidth, layoutHeight,
             Component.translatable("gui.archweaver.chunkloader.map_settings_title"));
         addRenderableWidget(new SolidButton(titlePanel.leftButtonX(), titlePanel.buttonY(size(18)), size(18), size(18),
@@ -61,6 +65,11 @@ public final class ChunkMapSettingsScreen extends Screen {
             left + halfWidth / 2, top + s(34), 0xFFB8C1BD);
         String name = minecraft.player == null ? "Player" : minecraft.player.getGameProfile().name();
         drawScaledPreview(graphics, Component.literal(name), left + halfWidth / 2, top + s(52));
+    }
+
+    private void toggleRealPlayers() {
+        ChunkMapClientConfig.setRealPlayersVisible(!ChunkMapClientConfig.realPlayersVisible());
+        ChunkMapClientConfig.save();
     }
 
     private void updateLayout() {

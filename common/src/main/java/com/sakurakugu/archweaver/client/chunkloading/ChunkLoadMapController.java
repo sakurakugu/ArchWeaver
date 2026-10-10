@@ -28,6 +28,11 @@ public final class ChunkLoadMapController {
     private Set<Long> erasedView = Set.of();
     private int draftVersion;
     private boolean awaitingApply;
+    private static long nextSubmissionId;
+    private long submissionId;
+    private int applyTicks;
+    private String failure = "";
+    private final java.util.function.Consumer<ApplyChunkLoadEditsPayload> sender;
     /** 当前维度里属于已启用手动区域的区块（强加载）；按区域列表的对象身份缓存。 */
     private List<ChunkMapSnapshotPayload.RegionView> strongSource;
     private Set<Long> strongChunks = Set.of();
@@ -39,7 +44,36 @@ public final class ChunkLoadMapController {
     /** 是否画出强加载区块外围的弱加载范围。 */
     private boolean showWeakLoading = true;
 
-    public ChunkLoadMapController(ChunkMapSnapshotPayload snapshot) { this.snapshot = snapshot; }
+    public ChunkLoadMapController(ChunkMapSnapshotPayload snapshot) {
+        this(snapshot, PlatformNetworking::sendToServer);
+    }
+
+    public ChunkLoadMapController(ChunkMapSnapshotPayload snapshot,
+                                  java.util.function.Consumer<ApplyChunkLoadEditsPayload> sender) {
+        this.snapshot = snapshot;
+        this.sender = sender;
+    }
+
+    public boolean awaitingApply() { return awaitingApply; }
+    public String failure() { return failure; }
+    public long submissionId() { return submissionId; }
+
+    /** 只接受本控制器尚在等待的那一笔保存回执。 */
+    public boolean acceptResult(com.sakurakugu.archweaver.network.ChunkMapApplyResultPayload result) {
+        if (!awaitingApply || result.submissionId() != submissionId
+            || !result.dimension().equals(snapshot.dimension())) return false;
+        awaitingApply = false;
+        failure = result.reason();
+        if (result.successful()) clearDraft();
+        return true;
+    }
+
+    public void tick() {
+        if (awaitingApply && --applyTicks <= 0) {
+            awaitingApply = false;
+            failure = "保存响应超时，请刷新后重试";
+        }
+    }
 
     public ChunkMapSnapshotPayload snapshot() { return snapshot; }
     public ChunkMapEditMode mode() { return mode; }
@@ -57,12 +91,9 @@ public final class ChunkLoadMapController {
     public boolean canUndo() { return !awaitingApply && !undo.isEmpty(); }
 
     public void accept(ChunkMapSnapshotPayload value) {
-        boolean acknowledged = awaitingApply && value.revision() != snapshot.revision();
-        // 区域列表是按维度过滤后发过来的，换维度就必须重算强加载集合
-        if (!value.dimension().equals(snapshot.dimension())) strongSource = null;
+        // 编辑会话固定在打开时的维度，其他维度的响应不能改变草稿的归属。
+        if (!value.dimension().equals(snapshot.dimension())) return;
         snapshot = value;
-        if (acknowledged) clearDraft();
-        awaitingApply = false;
     }
 
     /**
@@ -71,7 +102,7 @@ public final class ChunkLoadMapController {
      * @param erase 这一笔是擦除而不是强加载；由鼠标按键决定，左键涂、右键擦
      */
     public void edit(int chunkX, int chunkZ, boolean erase) {
-        if (mode == ChunkMapEditMode.BROWSE) return;
+        if (mode == ChunkMapEditMode.BROWSE || awaitingApply) return;
         long chunk = ChunkKey.pack(chunkX, chunkZ);
         // 视图本身就是上一版快照，省掉一次 Set 拷贝
         DraftState before = new DraftState(paintedView, erasedView);
@@ -95,7 +126,7 @@ public final class ChunkLoadMapController {
     }
 
     public void undo() {
-        if (undo.isEmpty()) return;
+        if (!canUndo()) return;
         DraftState state = undo.pop();
         painted.clear(); painted.addAll(state.painted());
         erased.clear(); erased.addAll(state.erased());
@@ -103,7 +134,7 @@ public final class ChunkLoadMapController {
     }
 
     public void apply() {
-        if (!dirty()) return;
+        if (!dirty() || awaitingApply) return;
         List<ApplyChunkLoadEditsPayload.Edit> edits = new ArrayList<>();
         Set<String> occupiedNames = new HashSet<>();
         snapshot.managementRegions().forEach(region -> occupiedNames.add(region.name().toLowerCase(Locale.ROOT)));
@@ -124,9 +155,16 @@ public final class ChunkLoadMapController {
                 region.id(), "", true, 0, delete ? List.of() : chunks));
         }
         if (!edits.isEmpty()) {
+            int chunks = edits.stream().mapToInt(edit -> edit.chunks().size()).sum();
+            if (chunks > ApplyChunkLoadEditsPayload.MAX_EDIT_CHUNKS || edits.size() > ApplyChunkLoadEditsPayload.MAX_EDITS) {
+                failure = "单次编辑超出限制，请减少编辑区块后重试";
+                return;
+            }
+            submissionId = ++nextSubmissionId;
             awaitingApply = true;
-            PlatformNetworking.sendToServer(
-                new ApplyChunkLoadEditsPayload(snapshot.revision(), snapshot.dimension(), edits));
+            applyTicks = 600;
+            failure = "";
+            sender.accept(new ApplyChunkLoadEditsPayload(snapshot.revision(), snapshot.dimension(), edits, submissionId));
         } else {
             // 目标区域在别处被删掉或改过了，草稿已经没有可以提交的内容
             clearDraft();
@@ -170,7 +208,7 @@ public final class ChunkLoadMapController {
         erasedView = Set.copyOf(erased);
     }
 
-    private void clearDraft() {
+    public void clearDraft() {
         boolean changed = dirty();
         painted.clear();
         erased.clear();

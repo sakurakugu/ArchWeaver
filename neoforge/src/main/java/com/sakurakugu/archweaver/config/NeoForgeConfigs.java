@@ -77,14 +77,19 @@ public final class NeoForgeConfigs {
         private final ModConfigSpec spec;
         private final ModConfigSpec.DoubleValue markerNameScale;
         private final ModConfigSpec.BooleanValue weakLoadingVisible;
+        private final ModConfigSpec.BooleanValue realPlayersVisible;
+        private final ModConfigSpec.BooleanValue journeyMapPreferred;
         private final ModConfigSpec.IntValue mainPageView;
         private final EnumMap<CameraPreferences.NumberSetting, ModConfigSpec.DoubleValue> cameraNumbers = new EnumMap<>(CameraPreferences.NumberSetting.class);
         private final EnumMap<CameraPreferences.Toggle, ModConfigSpec.BooleanValue> cameraToggles = new EnumMap<>(CameraPreferences.Toggle.class);
 
         private ClientBackend() {
             ModConfigSpec.Builder builder = new ModConfigSpec.Builder();
+            journeyMapPreferred = builder.comment("地图入口优先使用 JourneyMap；不可用时回退到内置地图。").define("chunkMap.journeyMap", false);
             markerNameScale = builder.comment("地图上玩家名称的缩放比例。").defineInRange("chunkMap.markerNameScale", 1.0D, 0.5D, 2.0D);
             weakLoadingVisible = builder.comment("是否画出强加载区块外围的弱加载范围。").define("chunkMap.showWeakLoading", true);
+            realPlayersVisible = builder.comment("是否在区块地图上叠加显示其他真人玩家，默认关闭。")
+                .define("chunkMap.showRealPlayers", false);
             mainPageView = builder.comment("控制中心上次停留的页面：0 假人列表，1 区块地图，2 全局设置。")
                 .defineInRange("mainPage.lastView", 0, 0, 2);
             builder.push("camera");
@@ -107,8 +112,12 @@ public final class NeoForgeConfigs {
         public ModConfigSpec spec() { return spec; }
         public double markerNameScale() { return markerNameScale.get(); }
         public void setMarkerNameScale(double value) { markerNameScale.set(value); }
+        public boolean journeyMapPreferred() { return journeyMapPreferred.get(); }
+        public void setJourneyMapPreferred(boolean value) { journeyMapPreferred.set(value); }
         public boolean weakLoadingVisible() { return weakLoadingVisible.get(); }
         public void setWeakLoadingVisible(boolean value) { weakLoadingVisible.set(value); }
+        public boolean realPlayersVisible() { return realPlayersVisible.get(); }
+        public void setRealPlayersVisible(boolean value) { realPlayersVisible.set(value); }
         public int mainPageView() { return mainPageView.get(); }
         public void setMainPageView(int value) { mainPageView.set(value); }
         public double number(CameraPreferences.NumberSetting setting) { return cameraNumbers.get(setting).get(); }

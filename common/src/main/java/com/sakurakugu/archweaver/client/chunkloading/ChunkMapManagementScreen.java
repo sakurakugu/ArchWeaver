@@ -26,7 +26,7 @@ public final class ChunkMapManagementScreen extends Screen {
     private static final int CONTENT_BOTTOM = 234; // 内容区下缘：距面板底边 8px，与左右内边距一致。
     private static final int ROW_PITCH = 29; // 列表行距：让 6 行均匀铺满撑高后的内容区。
     private ChunkMapSnapshotPayload snapshot; // 最近一次从服务端同步来的状态快照。
-    private final ChunkMapScreen map; // 从地图打开时，选中区域同步高亮到地图。
+    private final ChunkLoadMapFrontend map; // 从地图打开时，选中区域同步高亮到地图。
     private int page; // 区域列表的当前页码，从 0 开始。
     private int selectedIndex = -1; // 当前选中区域在列表中的下标，-1 表示没有选中任何区域。
     private Action confirmation; // 等待用户二次确认的操作，null 表示当前没有待确认的操作。
@@ -34,7 +34,7 @@ public final class ChunkMapManagementScreen extends Screen {
     private int layoutWidth = PANEL_WIDTH; // 当前面板实际宽度。
     private int layoutHeight = PANEL_HEIGHT; // 当前面板实际高度。
 
-    public ChunkMapManagementScreen(ChunkMapSnapshotPayload snapshot, ChunkMapScreen map) {
+    public ChunkMapManagementScreen(ChunkMapSnapshotPayload snapshot, ChunkLoadMapFrontend map) {
         super(Component.translatable("gui.archweaver.chunkloader.title"));
         this.snapshot = snapshot;
         this.map = map;
@@ -136,10 +136,10 @@ public final class ChunkMapManagementScreen extends Screen {
                 Component.translatable("gui.archweaver.chunkloader.view_on_map"), button -> {
                     if (map.highlightRegion(selected.name(), selected.dimension())) {
                         map.focusHighlightedRegion();
-                        onClose();
+                        if (!map.journeyMap()) onClose();
                     }
                 });
-            view.active = selected.dimension().equals(snapshot.dimension());
+            view.active = map.supportsDimension(selected.dimension());
             addRenderableWidget(view);
         }
     }
@@ -188,12 +188,12 @@ public final class ChunkMapManagementScreen extends Screen {
     }
 
     private void sendManagementAction(Action action, String name) {
-        PlatformNetworking.sendToServer(new ChunkLoaderActionPayload(action, name));
+        PlatformNetworking.sendToServer(new ChunkLoaderActionPayload(action, name, "", snapshot.dimension()));
     }
 
     /** 改名只提交新名称，形状、维度和启停状态由服务端按原区域保留。 */
     private void sendRename(String name, String newName) {
-        PlatformNetworking.sendToServer(new ChunkLoaderActionPayload(Action.RENAME, name, newName));
+        PlatformNetworking.sendToServer(new ChunkLoaderActionPayload(Action.RENAME, name, newName, snapshot.dimension()));
     }
 
     /** 根据当前逻辑屏幕计算面板尺寸，保证设计稿和所有控件使用同一个缩放比例。 */

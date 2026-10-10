@@ -13,6 +13,7 @@ import com.sakurakugu.archweaver.client.ui.ToggleSwitchButton;
 import com.sakurakugu.archweaver.network.ChunkMapSnapshotPayload;
 import com.sakurakugu.archweaver.network.ChunkMapOpenTarget;
 import com.sakurakugu.archweaver.platform.PlatformNetworking;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -25,6 +26,7 @@ import net.minecraft.client.gui.components.PlayerFaceExtractor;
 import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.render.TextureSetup;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.player.AbstractClientPlayer;
 import net.minecraft.client.resources.DefaultPlayerSkin;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.client.renderer.RenderPipelines;
@@ -40,7 +42,7 @@ public final class ChunkMapScreen extends Screen implements ChunkLoadMapFrontend
     private static final int BOTTOM_BUTTON_WIDTH = 92; // 底部工具条上按钮的宽度。
     private static final int BOTTOM_BUTTON_GAP = 6; // 底部工具条上相邻按钮之间的间距。
     private static final double MIN_SCALE = 0.35D; // 缩放下限，即每个方块最少占多少屏幕像素。
-    private static final double MAX_SCALE = 2.5D; // 缩放上限，即每个方块最多占多少屏幕像素。
+    private static final double MAX_SCALE = 5.0D; // 缩放上限，即每个方块最多占多少屏幕像素。
     private static final int BACKGROUND_COLOR = 0xFF22282C; // 整屏底色，未加载区域与地形透明处都露出它。
     private static final int GRID_COLOR = 0x283A4449; // 普通区块网格用约 16% 不透明度的蓝灰色。
     private static final int HIGHLIGHT_FILL = 0x6651C8B4; // 选中区域用 40% 不透明度的青绿色填充。
@@ -73,20 +75,29 @@ public final class ChunkMapScreen extends Screen implements ChunkLoadMapFrontend
     private boolean dragging; // 是否正在拖动地图。
     private int draggingButton = -1; // 按下时用的是哪个键，拖动过程中按这个键决定是涂、擦还是平移。
     private final ClientChunkLoadingState.MapReturnTarget returnTarget; // 关闭地图后要返回的上级页面目标。
-    private int snapshotRefreshTicks; // 距离下次向服务端请求状态刷新的剩余 tick 数。
     private UUID highlightedRegionId;
     private ChunkMapSnapshotPayload.RegionView highlightedRegion;
     private Button saveButton; // 顶部工具条上的保存按钮。
     private Button undoButton; // 顶部工具条上的撤回按钮。
 
     public ChunkMapScreen(ChunkMapSnapshotPayload snapshot, ClientChunkLoadingState.MapReturnTarget returnTarget) {
+        this(new ChunkLoadMapController(snapshot), returnTarget);
+    }
+
+    /** 第三方绘制异常时沿用控制器，草稿与待保存状态不会丢失。 */
+    public ChunkMapScreen(ChunkLoadMapController controller, ClientChunkLoadingState.MapReturnTarget returnTarget) {
         super(Component.translatable("gui.archweaver.chunkloader.map_title"));
-        controller = new ChunkLoadMapController(snapshot);
+        this.controller = controller;
+        var snapshot = controller.snapshot();
         controller.setShowWeakLoading(ChunkMapClientConfig.weakLoadingVisible());
         this.returnTarget = returnTarget;
         centerBlockX = snapshot.playerChunkX() * 16.0D + 8.0D;
         centerBlockZ = snapshot.playerChunkZ() * 16.0D + 8.0D;
     }
+
+    @Override public ChunkLoadMapController controller() { return controller; }
+    @Override public Screen screen() { return this; }
+    @Override public ClientChunkLoadingState.MapReturnTarget returnTarget() { return returnTarget; }
 
     /** 在当前地图页面上打开独立的设置或管理页面。 */
     public static void openPanel(ChunkMapSnapshotPayload snapshot, ChunkMapOpenTarget target) {
@@ -99,7 +110,7 @@ public final class ChunkMapScreen extends Screen implements ChunkLoadMapFrontend
         }
         Screen panel = target == ChunkMapOpenTarget.SETTINGS
             ? new ChunkMapSettingsScreen(snapshot)
-            : new ChunkMapManagementScreen(snapshot, parent instanceof ChunkMapScreen map ? map : null);
+            : new ChunkMapManagementScreen(snapshot, ChunkMapFrontends.active());
         ClientScreenNavigation.registerLayer(parent, panel);
         // 子页由导航器统一绘制父页面背景，不能同时保留 GUI layer 的底层自动绘制。
         minecraft.setScreen(panel);
@@ -110,16 +121,14 @@ public final class ChunkMapScreen extends Screen implements ChunkLoadMapFrontend
     @Override
     public void tick() {
         super.tick();
-        if (saveButton != null) saveButton.active = controller.dirty();
+        if (saveButton != null) saveButton.active = controller.dirty() && !controller.awaitingApply();
         if (undoButton != null) undoButton.active = controller.mode() == ChunkMapEditMode.EDIT && controller.canUndo();
-        if (minecraft.player != null && minecraft.getConnection() != null && snapshotRefreshTicks-- <= 0) {
-            PlatformNetworking.sendToServer(ClientChunkLoadingState.request(ChunkMapOpenTarget.NONE));
-            snapshotRefreshTicks = 10;
-        }
+
     }
 
     @Override
     protected void init() {
+        ChunkMapFrontends.activate(this);
         saveButton = null;
         undoButton = null;
         int modeSwitchWidth = Mth.clamp(width - 138, 64, 80);
@@ -140,7 +149,7 @@ public final class ChunkMapScreen extends Screen implements ChunkLoadMapFrontend
         undoButton.active = controller.mode() == ChunkMapEditMode.EDIT && controller.canUndo();
         saveButton = addRenderableWidget(new SolidButton(width - 62, 7, 18, 18, PixelGlyph.SAVE,
             Component.translatable("gui.archweaver.chunkloader.map_save"), button -> controller.apply()));
-        saveButton.active = controller.dirty();
+        saveButton.active = controller.dirty() && !controller.awaitingApply();
         addRenderableWidget(new SolidButton(width - 42, 7, 18, 18, PixelGlyph.SETTING,
             Component.translatable("gui.archweaver.chunkloader.map_settings"),
             button -> openPanel(controller.snapshot(), ChunkMapOpenTarget.SETTINGS)));
@@ -161,6 +170,7 @@ public final class ChunkMapScreen extends Screen implements ChunkLoadMapFrontend
             heading.append(" ").append(Component.translatable("gui.archweaver.chunkloader.map_edit_hint"));
         }
         heading.append("]");
+        if (!controller.failure().isEmpty()) drawFloatingText(graphics, Component.literal(controller.failure()), width / 2, 48, 0xFFFF8080);
         drawFloatingText(graphics, heading, width / 2, 32, 0xFFFFFFFF);
         int centerChunkX = Mth.floor(centerBlockX) >> 4;
         int centerChunkZ = Mth.floor(centerBlockZ) >> 4;
@@ -187,6 +197,7 @@ public final class ChunkMapScreen extends Screen implements ChunkLoadMapFrontend
 
         // 假人标记数量有限，直接走原版元素即可
         drawFakePlayers(graphics);
+        drawRealPlayers(graphics);
         drawPlayer(graphics);
         graphics.disableScissor();
     }
@@ -203,6 +214,8 @@ public final class ChunkMapScreen extends Screen implements ChunkLoadMapFrontend
      * 每格对应图集里的一个 slot，屏幕上的位置由格坐标换算而来。
      */
     private void drawTerrain(GuiGraphicsExtractor graphics, int sampleY) {
+        // 第三方地图故障回退时仍保留异维度草稿，不能把玩家所在维度的地形画在上面。
+        if (!controller.snapshot().dimension().equals(ClientChunkLoadingState.playerDimension())) return;
         // 每帧现取：切换维度时状态里会重建图集，缓存字段会留下已关闭的那个
         ChunkTerrainAtlas terrainAtlas = ClientChunkLoadingState.terrainAtlas();
         if (terrainAtlas.isClosed()) return;
@@ -388,9 +401,35 @@ public final class ChunkMapScreen extends Screen implements ChunkLoadMapFrontend
             }
         }
         for (var fake : controller.snapshot().fakePlayers()) {
-            if (!fake.dimension().equals(controller.snapshot().dimension())) continue;
+            if (!mapMarkerVisible(fake)) continue;
             drawPlayerMarker(graphics, fake.id(), fake.x() + 0.5D, fake.z() + 0.5D, fake.yaw(), fake.name());
         }
+    }
+
+    /** 假人是否在地图上留标记：木偶始终不画，异维度也不画。 */
+    private boolean mapMarkerVisible(ChunkMapSnapshotPayload.FakePlayerView fake) {
+        return fake.type() != ChunkMapSnapshotPayload.TargetType.MANNEQUIN
+            && fake.dimension().equals(controller.snapshot().dimension());
+    }
+
+    /** 其他真人玩家的标记，开关关掉时 realPlayers() 是空表。 */
+    private void drawRealPlayers(GuiGraphicsExtractor graphics) {
+        for (var player : realPlayers()) {
+            drawPlayerMarker(graphics, player.getUUID(), player.getX(), player.getZ(),
+                player.getYRot(), player.getGameProfile().name());
+        }
+    }
+
+    /**
+     * 同维度的其他真人玩家。客户端的玩家列表只有自己所在维度的那一份，
+     * 所以看别的维度的地图时一个都不能画，否则标记会落在屏幕上的地形之外。
+     * 自己由 {@link #drawPlayer} 单独画，这里排除掉。
+     */
+    private List<AbstractClientPlayer> realPlayers() {
+        if (!ChunkMapClientConfig.realPlayersVisible()) return List.of();
+        if (minecraft.level == null
+            || !controller.snapshot().dimension().equals(ClientChunkLoadingState.playerDimension())) return List.of();
+        return minecraft.level.players().stream().filter(player -> player != minecraft.player).toList();
     }
 
     private void outlineRange(GuiGraphicsExtractor graphics, int centerChunkX, int centerChunkZ,
@@ -444,8 +483,13 @@ public final class ChunkMapScreen extends Screen implements ChunkLoadMapFrontend
                 minecraft.player.getGameProfile().name(), minecraft.player.getX(), minecraft.player.getZ(), false);
             if (containsMarker(player, mouseX, mouseY)) return player;
         }
+        for (var player : realPlayers()) {
+            PlayerMarker marker = new PlayerMarker(player.getUUID(), player.getGameProfile().name(),
+                player.getX(), player.getZ(), false);
+            if (containsMarker(marker, mouseX, mouseY)) return marker;
+        }
         for (var fake : controller.snapshot().fakePlayers()) {
-            if (!fake.dimension().equals(controller.snapshot().dimension())) continue;
+            if (!mapMarkerVisible(fake)) continue;
             PlayerMarker marker = new PlayerMarker(fake.id(), fake.name(), fake.x() + 0.5D, fake.z() + 0.5D, true);
             if (containsMarker(marker, mouseX, mouseY)) return marker;
         }

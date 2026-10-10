@@ -88,7 +88,6 @@
   "camera.archweaver.setting.shoulder_distance": "肩后距离（格）",
   "camera.archweaver.setting.shoulder_offset": "肩后偏移（格）",
   "camera.archweaver.setting.orbit_speed": "环绕速度（度/秒）",
-
   "gui.archweaver.mannequin.info.name_hint": "修改登记名称，保持当前皮肤。",
   "gui.archweaver.mannequin.info.alias_hint": "原版名字下方的描述；最多 32 个字符，留空恢复 NPC。",
   "gui.archweaver.fakeplayer.info.dimension": "维度：%s",
@@ -198,6 +197,7 @@
   "gui.archweaver.chunkloader.map_title": "区块加载地图",
   "gui.archweaver.chunkloader.map_settings": "设置",
   "gui.archweaver.chunkloader.map_settings_title": "地图设置",
+  "gui.archweaver.chunkloader.map_real_players": "显示其他真人玩家",
   "gui.archweaver.chunkloader.marker_name_scale": "名称大小：%s%%",
   "gui.archweaver.chunkloader.marker_name_preview": "预览",
   "gui.archweaver.chunkloader.fake_player_settings": "假人设置",
@@ -463,5 +463,12 @@
   "gui.archweaver.main.settings_hint": "在中间调整全局设置",
   "gui.archweaver.main.settings_count": "设置项：%s",
   "gui.archweaver.fakeplayer.restore.title": "假人设置",
-  "gui.archweaver.fakeplayer.restore.toggle": "重启游戏假人自动上线"
+  "gui.archweaver.fakeplayer.restore.toggle": "重启游戏假人自动上线",
+  "gui.archweaver.chunkloader.journey_failed": "JourneyMap 无法使用，已切回内置地图",
+  "gui.archweaver.chunkloader.unsaved": "地图中有未保存的编辑",
+  "gui.archweaver.chunkloader.save_continue": "保存并继续",
+  "gui.archweaver.chunkloader.discard_continue": "放弃并继续",
+  "gui.archweaver.chunkloader.default_map_type": "默认地图类型",
+  "gui.archweaver.chunkloader.backend_journey": "JourneyMap",
+  "gui.archweaver.chunkloader.backend_builtin": "内置"
 }

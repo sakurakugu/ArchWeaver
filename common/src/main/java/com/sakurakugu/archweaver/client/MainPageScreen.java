@@ -3,9 +3,12 @@ package com.sakurakugu.archweaver.client;
 import com.sakurakugu.archweaver.client.ui.DimensionDisplay;
 
 import com.sakurakugu.archweaver.client.chunkloading.ChunkMapClientConfig;
+import com.sakurakugu.archweaver.client.chunkloading.ChunkMapFrontends;
 import com.sakurakugu.archweaver.client.chunkloading.ClientChunkLoadingState;
 import com.sakurakugu.archweaver.client.camera.CameraPanelScreen;
 import com.sakurakugu.archweaver.client.ui.PixelGlyph;
+import com.sakurakugu.archweaver.client.ui.PixelGui;
+import com.sakurakugu.archweaver.client.ui.SegmentedSwitchButton;
 import com.sakurakugu.archweaver.client.ui.SolidButton;
 import com.sakurakugu.archweaver.client.ui.FakePlayerListButton;
 import com.sakurakugu.archweaver.client.ui.TitlePanel;
@@ -21,6 +24,7 @@ import com.sakurakugu.archweaver.network.ToggleGlobalSettingPayload;
 import com.sakurakugu.archweaver.platform.PlatformNetworking;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
+import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 
@@ -185,6 +189,21 @@ public final class MainPageScreen extends Screen {
                 contentTop() + PANEL_PADDING + index * 32, buttonWidth, 24, settingLabel(index), 0xFFFFFFFF,
                 () -> globalSetting(ArchWeaverConfig.GlobalSetting.values()[settingIndex]),
                 button -> toggleSetting(settingIndex)));
+        }
+        // 地图选择只影响客户端，下次打开地图时生效，不离开全局设置页。
+        if (ChunkMapFrontends.journeyMapInstalled()) {
+            int switchWidth = Math.max(1, buttonWidth / 2);
+            var mapBackend = addRenderableWidget(new SegmentedSwitchButton(
+                centerLeft + PANEL_PADDING + buttonWidth - switchWidth,
+                contentTop() + PANEL_PADDING + settingButtons.length * 32, switchWidth, 24,
+                Component.translatable("gui.archweaver.chunkloader.backend_builtin"),
+                Component.translatable("gui.archweaver.chunkloader.backend_journey"),
+                ChunkMapClientConfig::journeyMapPreferred, journeyMap -> {
+                    if (journeyMap == ChunkMapClientConfig.journeyMapPreferred()) return;
+                    ChunkMapClientConfig.setJourneyMapPreferred(journeyMap);
+                    ChunkMapClientConfig.save();
+                }));
+            mapBackend.setTooltip(Tooltip.create(Component.translatable("gui.archweaver.chunkloader.default_map_type")));
         }
         // 相机自身的设置不在全局设置里，落到面板底部，和假人列表的预设管理同一位置。
         addRenderableWidget(new SolidButton(centerLeft + PANEL_PADDING, footerY(), buttonWidth, FOOTER_HEIGHT,
@@ -414,6 +433,19 @@ public final class MainPageScreen extends Screen {
                 centerLeft + PANEL_PADDING, labelY, 0xFFFFFFFF, false);
             drawRegionDetail(graphics, rightLeft, rightWidth);
         } else {
+            if (ChunkMapFrontends.journeyMapInstalled()) {
+                int buttonWidth = Math.max(1, centerWidth - PANEL_PADDING * 2);
+                int labelLeft = centerLeft + PANEL_PADDING;
+                int labelRight = Math.max(labelLeft + 1,
+                    labelLeft + buttonWidth - Math.max(1, buttonWidth / 2) - GAP);
+                int rowY = contentTop() + PANEL_PADDING + settingButtons.length * 32;
+                Component label = Component.translatable("gui.archweaver.chunkloader.default_map_type");
+                if (font.width(label) <= labelRight - labelLeft) {
+                    graphics.text(font, label, labelLeft, rowY + 8, 0xFFFFFFFF, false);
+                } else {
+                    PixelGui.drawScrollingText(graphics, font, label, labelLeft, labelRight, rowY, 24, 0xFFFFFFFF);
+                }
+            }
             drawSettingsDetail(graphics, rightLeft, rightWidth);
         }
     }
@@ -470,7 +502,8 @@ public final class MainPageScreen extends Screen {
     private void drawSettingsDetail(GuiGraphicsExtractor graphics, int x, int w) {
         int y = contentTop() + PANEL_PADDING;
         graphics.centeredText(font, Component.translatable("gui.archweaver.main.settings_hint"), x + w / 2, y, 0xFFFFFFFF);
-        graphics.text(font, Component.translatable("gui.archweaver.main.settings_count", settingButtons.length), x + PANEL_PADDING, y + 20, 0xFFC6C6C6, false);
+        graphics.text(font, Component.translatable("gui.archweaver.main.settings_count",
+            settingButtons.length + (ChunkMapFrontends.journeyMapInstalled() ? 1 : 0)), x + PANEL_PADDING, y + 20, 0xFFC6C6C6, false);
     }
 
     /** 中间内容区可显示的页面，可由命令指定打开时的初始页面。 */

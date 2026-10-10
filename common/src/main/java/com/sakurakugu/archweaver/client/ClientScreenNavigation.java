@@ -1,6 +1,7 @@
 package com.sakurakugu.archweaver.client;
 
 import com.sakurakugu.archweaver.client.chunkloading.ChunkMapScreen;
+import com.sakurakugu.archweaver.client.chunkloading.ChunkMapFrontends;
 import com.sakurakugu.archweaver.client.chunkloading.ChunkMapManagementScreen;
 import com.sakurakugu.archweaver.client.chunkloading.ChunkMapSettingsScreen;
 import com.sakurakugu.archweaver.client.chunkloading.ClientChunkLoadingState;
@@ -93,6 +94,24 @@ public final class ClientScreenNavigation {
         onOpening(parent, layer);
     }
 
+    /** 第三方地图在打开事件之后才建立会话，补上地图路由并保留原来的父级。 */
+    public static void registerMap(Screen screen) {
+        var previous = ENTRIES.get(screen);
+        ENTRIES.put(screen, new NavigationEntry(screen, Route.map(), previous == null ? null : previous.parent()));
+    }
+
+    /** 切换地图提供者时新地图继承旧地图的父级。 */
+    public static void prepareMapReplacement(Screen screen) {
+        var entry = ENTRIES.get(screen);
+        pendingParent = entry == null ? null : entry.parent();
+        pendingParentSpecified = true;
+    }
+
+    public static Screen parentOf(Screen screen) {
+        var entry = ENTRIES.get(screen);
+        return entry == null || entry.parent() == null ? null : entry.parent().screen();
+    }
+
     /** 页面关闭时保留节点，父页面返回时仍可复用其状态。 */
     public static void onClosing(Screen screen) {
         if (screen == null) return;
@@ -162,16 +181,16 @@ public final class ClientScreenNavigation {
     public static void updateBackground(Screen current, ChunkMapSnapshotPayload snapshot) {
         if (current instanceof ChunkMapSettingsScreen settings) settings.update(snapshot);
         else if (current instanceof ChunkMapManagementScreen management) management.update(snapshot);
-        else if (current instanceof ChunkMapScreen map) map.update(snapshot);
+        else if (current instanceof ChunkMapScreen map && map.supportsDimension(snapshot.dimension())) map.update(snapshot);
         Screen background = snapshotBackground(current);
-        if (background instanceof ChunkMapScreen map) map.update(snapshot);
+        if (background instanceof ChunkMapScreen map && map.supportsDimension(snapshot.dimension())) map.update(snapshot);
         else if (background instanceof MainPageScreen main) main.update(snapshot);
     }
 
     private static Screen snapshotBackground(Screen current) {
         for (Screen background = BACKGROUNDS.get(current); background != null;
              background = BACKGROUNDS.get(background)) {
-            if (background instanceof ChunkMapScreen || background instanceof MainPageScreen) return background;
+            if (background instanceof ChunkMapScreen || ChunkMapFrontends.isMap(background) || background instanceof MainPageScreen) return background;
         }
         return null;
     }
@@ -184,7 +203,7 @@ public final class ClientScreenNavigation {
     }
 
     private static boolean isArchWeaverScreen(Screen screen) {
-        return isOverlay(screen) || screen instanceof MainPageScreen || screen instanceof ChunkMapScreen;
+        return isOverlay(screen) || screen instanceof MainPageScreen || (screen instanceof ChunkMapScreen || ChunkMapFrontends.isMap(screen));
     }
 
     private static boolean replacesPage(Screen current, Screen next) {
@@ -200,6 +219,14 @@ public final class ClientScreenNavigation {
 
     /** 当前页面返回到父级；父级是同一实例时直接复用，否则按路由重新请求。 */
     public static void back(Screen current) {
+        // 确认离开之前不能弹出导航节点，否则取消后会失去原来的返回来源。
+        if (ChunkMapFrontends.isMap(current) && ChunkMapFrontends.active().controller().dirty()) {
+            ChunkMapFrontends.leave(() -> {
+                ChunkMapFrontends.deactivate();
+                back(current);
+            });
+            return;
+        }
         NavigationEntry entry = ENTRIES.get(current);
         if (entry == null) {
             if (fallbackBack(current)) return;
@@ -285,7 +312,7 @@ public final class ClientScreenNavigation {
     }
 
     private static boolean canReuse(Screen screen) {
-        return screen instanceof MainPageScreen || screen instanceof ChunkMapScreen
+        return screen instanceof MainPageScreen || (screen instanceof ChunkMapScreen || ChunkMapFrontends.isMap(screen))
             || screen instanceof ChunkMapSettingsScreen || screen instanceof ChunkMapManagementScreen;
     }
 
@@ -306,7 +333,7 @@ public final class ClientScreenNavigation {
 
     private static Route routeFor(Screen screen) {
         if (screen instanceof MainPageScreen) return Route.main();
-        if (screen instanceof ChunkMapScreen) return Route.map();
+        if ((screen instanceof ChunkMapScreen || ChunkMapFrontends.isMap(screen))) return Route.map();
         if (screen instanceof ChunkMapSettingsScreen || screen instanceof ChunkMapManagementScreen) return Route.map();
         if (screen instanceof FakePlayerInventoryScreen inventory) {
             return Route.inventory(inventory.getMenu().targetName());

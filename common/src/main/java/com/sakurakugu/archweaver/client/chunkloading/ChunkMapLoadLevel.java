@@ -7,7 +7,7 @@ package com.sakurakugu.archweaver.client.chunkloading;
  * 也就是通常说的弱加载），距离 2 是等级 33（仅加载，连方块刻都没有）。
  * 等级 33 什么都不做，画出来只是噪声，因此不做展示。
  */
-enum ChunkMapLoadLevel {
+public enum ChunkMapLoadLevel {
     WEAK,
     STRONG
 }

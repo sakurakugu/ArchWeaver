@@ -10,7 +10,7 @@ import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.Identifier;
 
 /** 地图前端提交的一批编辑意图，服务端仍负责全部业务校验。 */
-public record ApplyChunkLoadEditsPayload(long expectedRevision, String dimension, List<Edit> edits)
+public record ApplyChunkLoadEditsPayload(long expectedRevision, String dimension, List<Edit> edits, long submissionId)
     implements CustomPacketPayload {
     public static final int MAX_EDITS = 256;
     public static final int MAX_EDIT_CHUNKS = 4096;
@@ -23,8 +23,12 @@ public record ApplyChunkLoadEditsPayload(long expectedRevision, String dimension
         edits = List.copyOf(edits);
     }
 
+    public ApplyChunkLoadEditsPayload(long revision, String dimension, List<Edit> edits) {
+        this(revision, dimension, edits, 0);
+    }
+
     private ApplyChunkLoadEditsPayload(RegistryFriendlyByteBuf buffer) {
-        this(buffer.readVarLong(), buffer.readUtf(256), readEdits(buffer));
+        this(buffer.readVarLong(), buffer.readUtf(256), readEdits(buffer), buffer.readVarLong());
     }
 
     private void write(RegistryFriendlyByteBuf buffer) {
@@ -32,6 +36,7 @@ public record ApplyChunkLoadEditsPayload(long expectedRevision, String dimension
         buffer.writeUtf(dimension, 256);
         buffer.writeVarInt(edits.size());
         edits.forEach(edit -> edit.write(buffer));
+        buffer.writeVarLong(submissionId);
     }
 
     private static List<Edit> readEdits(RegistryFriendlyByteBuf buffer) {
