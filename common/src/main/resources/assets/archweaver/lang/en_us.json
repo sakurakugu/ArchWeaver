@@ -88,7 +88,6 @@
   "camera.archweaver.setting.shoulder_distance": "Shoulder distance",
   "camera.archweaver.setting.shoulder_offset": "Shoulder offset",
   "camera.archweaver.setting.orbit_speed": "Orbit speed (deg/sec)",
-
   "gui.archweaver.mannequin.info.name_hint": "Rename without changing the current skin.",
   "gui.archweaver.mannequin.info.alias_hint": "Description below the name; up to 32 characters. Leave blank to restore NPC.",
   "gui.archweaver.fakeplayer.info.dimension": "Dimension: %s",
@@ -198,6 +197,7 @@
   "gui.archweaver.chunkloader.map_title": "Chunk Loading Map",
   "gui.archweaver.chunkloader.map_settings": "Settings",
   "gui.archweaver.chunkloader.map_settings_title": "Map Settings",
+  "gui.archweaver.chunkloader.map_real_players": "Show other players",
   "gui.archweaver.chunkloader.marker_name_scale": "Name size: %s%%",
   "gui.archweaver.chunkloader.marker_name_preview": "Preview",
   "gui.archweaver.chunkloader.fake_player_settings": "Fake Player Settings",
@@ -463,5 +463,12 @@
   "gui.archweaver.main.settings_hint": "Adjust global settings in the center",
   "gui.archweaver.main.settings_count": "Settings: %s",
   "gui.archweaver.fakeplayer.restore.title": "Fake Player Settings",
-  "gui.archweaver.fakeplayer.restore.toggle": "Auto-login fake player after game restart"
+  "gui.archweaver.fakeplayer.restore.toggle": "Auto-login fake player after game restart",
+  "gui.archweaver.chunkloader.journey_failed": "JourneyMap unavailable; using the built-in map",
+  "gui.archweaver.chunkloader.unsaved": "Unsaved map edits",
+  "gui.archweaver.chunkloader.save_continue": "Save and continue",
+  "gui.archweaver.chunkloader.discard_continue": "Discard and continue",
+  "gui.archweaver.chunkloader.default_map_type": "Default map type",
+  "gui.archweaver.chunkloader.backend_journey": "JourneyMap",
+  "gui.archweaver.chunkloader.backend_builtin": "Built-in"
 }

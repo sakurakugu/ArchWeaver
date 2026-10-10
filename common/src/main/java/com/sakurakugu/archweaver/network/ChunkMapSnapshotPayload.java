@@ -40,7 +40,8 @@ public record ChunkMapSnapshotPayload(
     int playerChunkZ,
     List<RegionView> regions,
     List<RegionSummary> managementRegions,
-    List<FakePlayerView> fakePlayers
+    List<FakePlayerView> fakePlayers,
+    long requestId
 ) implements CustomPacketPayload {
     public static final int MAX_REGIONS = 1024;
     public static final int MAX_SNAPSHOT_CHUNKS = 65536;
@@ -58,11 +59,17 @@ public record ChunkMapSnapshotPayload(
         fakePlayers = List.copyOf(fakePlayers);
     }
 
+    public ChunkMapSnapshotPayload(ChunkMapOpenTarget target, int mask, int radius, long revision,
+                                   boolean unchanged, String dimension, int x, int z,
+                                   List<RegionView> regions, List<RegionSummary> summaries, List<FakePlayerView> fakes) {
+        this(target, mask, radius, revision, unchanged, dimension, x, z, regions, summaries, fakes, 0);
+    }
+
     private ChunkMapSnapshotPayload(RegistryFriendlyByteBuf buffer) {
         this(buffer.readEnum(ChunkMapOpenTarget.class), buffer.readVarInt(),
             buffer.readVarInt(), buffer.readVarLong(), buffer.readBoolean(),
             buffer.readUtf(256), buffer.readInt(), buffer.readInt(),
-            readRegions(buffer), readRegionSummaries(buffer), readFakePlayers(buffer));
+            readRegions(buffer), readRegionSummaries(buffer), readFakePlayers(buffer), buffer.readVarLong());
     }
 
     private void write(RegistryFriendlyByteBuf buffer) {
@@ -80,6 +87,7 @@ public record ChunkMapSnapshotPayload(
         managementRegions.forEach(region -> region.write(buffer));
         buffer.writeVarInt(fakePlayers.size());
         fakePlayers.forEach(fake -> fake.write(buffer));
+        buffer.writeVarLong(requestId);
     }
 
     public static ChunkMapSnapshotPayload create(ServerPlayer player, ChunkLoaderSavedData data,
@@ -94,7 +102,14 @@ public record ChunkMapSnapshotPayload(
     public static ChunkMapSnapshotPayload create(ServerPlayer player, ChunkLoaderSavedData data,
                                                  ChunkMapOpenTarget openTarget,
                                                  long knownRevision, String knownDimension) {
-        String dimension = player.level().dimension().identifier().toString();
+        return create(player, data, openTarget, knownRevision, knownDimension,
+            player.level().dimension().identifier().toString(), 0);
+    }
+
+    /** 目标维度须已由网络入口验证存在。 */
+    public static ChunkMapSnapshotPayload create(ServerPlayer player, ChunkLoaderSavedData data,
+                                                 ChunkMapOpenTarget openTarget, long knownRevision,
+                                                 String knownDimension, String dimension, long requestId) {
         boolean regionsUnchanged = canSkipRegions(knownRevision, knownDimension, data.revision(), dimension);
         List<RegionView> regionViews = regionsUnchanged ? List.of() : data.regions().stream()
             .filter(region -> region.dimension().toString().equals(dimension))
@@ -157,7 +172,7 @@ public record ChunkMapSnapshotPayload(
             com.sakurakugu.archweaver.config.ArchWeaverConfig.globalSettingsMask(),
             com.sakurakugu.archweaver.config.ArchWeaverConfig.maxChunkLoadingRadius(), data.revision(),
             regionsUnchanged, dimension,
-            player.chunkPosition().x(), player.chunkPosition().z(), regionViews, summaries, fakeViews);
+            player.chunkPosition().x(), player.chunkPosition().z(), regionViews, summaries, fakeViews, requestId);
     }
 
     /**
@@ -173,7 +188,7 @@ public record ChunkMapSnapshotPayload(
     public ChunkMapSnapshotPayload withPreviousRegions(ChunkMapSnapshotPayload previous) {
         return new ChunkMapSnapshotPayload(openTarget, globalSettingsMask,
             maximumRadius, revision, false, dimension, playerChunkX, playerChunkZ, previous.regions,
-            managementRegions, fakePlayers);
+            managementRegions, fakePlayers, requestId);
     }
 
     private static List<RegionView> readRegions(RegistryFriendlyByteBuf buffer) {

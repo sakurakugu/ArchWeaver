@@ -281,33 +281,41 @@ public final class ModNetworking {
                 }
             }
         );
-        registrar.playToServer(
-            ApplyChunkLoadEditsPayload.TYPE,
-            ApplyChunkLoadEditsPayload.STREAM_CODEC,
+        registrar.playToServer(ApplyChunkLoadEditsPayload.TYPE, ApplyChunkLoadEditsPayload.STREAM_CODEC,
             (payload, context) -> {
-                if (context.player() instanceof ServerPlayer player
-                    && ArchWeaverConfig.canUseCommands(player.createCommandSourceStack())) {
-                    var result = ChunkLoadApplicationService.apply(player, payload);
-                    if (!result.successful()) player.sendSystemMessage(net.minecraft.network.chat.Component.literal(result.reason()));
-                    PacketDistributor.sendToPlayer(player, ChunkMapSnapshotPayload.create(player,
-                        ChunkLoaderManager.data(player.level().getServer()), ChunkMapOpenTarget.NONE));
+                if (!(context.player() instanceof ServerPlayer player)) return;
+                if (!ArchWeaverConfig.canUseCommands(player.createCommandSourceStack())) {
+                    PacketDistributor.sendToPlayer(player, new ChunkMapApplyResultPayload(
+                        payload.submissionId(), payload.dimension(), false, false, "没有使用 ArchWeaver 的权限"));
+                    return;
                 }
-            }
-        );
-        registrar.playToServer(
-            RequestChunkMapPayload.TYPE,
-            RequestChunkMapPayload.STREAM_CODEC,
+                var data = ChunkLoaderManager.data(player.level().getServer());
+                var result = ChunkLoadApplicationService.apply(player, payload);
+                // 先发送完整快照，再确认保存；回执之后才允许客户端继续导航。
+                PacketDistributor.sendToPlayer(player, ChunkMapSnapshotPayload.create(player, data,
+                    ChunkMapOpenTarget.NONE, RequestChunkMapPayload.NO_REVISION, "",
+                    player.level().dimension().identifier().toString(), 0));
+                PacketDistributor.sendToPlayer(player, new ChunkMapApplyResultPayload(
+                    payload.submissionId(), payload.dimension(), result.successful(), result.conflict(), result.reason()));
+            });
+        registrar.playToServer(RequestChunkMapPayload.TYPE, RequestChunkMapPayload.STREAM_CODEC,
             (payload, context) -> {
-                if (context.player() instanceof ServerPlayer player
-                    && ArchWeaverConfig.canUseCommands(player.createCommandSourceStack())) {
-                    var data = ChunkLoaderManager.data(player.level().getServer());
-                    PacketDistributor.sendToPlayer(player,
-                        ChunkMapSnapshotPayload.create(player, data,
-                            payload.openTarget(),
-                            payload.knownRevision(), payload.knownDimension()));
+                if (!(context.player() instanceof ServerPlayer player)) return;
+                if (!ArchWeaverConfig.canUseCommands(player.createCommandSourceStack())) {
+                    PacketDistributor.sendToPlayer(player, new ChunkMapRequestFailedPayload(
+                        payload.requestId(), "没有使用 ArchWeaver 的权限"));
+                    return;
                 }
-            }
-        );
+                String dimension = player.level().dimension().identifier().toString();
+                if (!payload.dimension().isEmpty() && !dimension.equals(payload.dimension())) {
+                    PacketDistributor.sendToPlayer(player, new ChunkMapRequestFailedPayload(
+                        payload.requestId(), "只能查看当前所在维度的加载区域"));
+                    return;
+                }
+                PacketDistributor.sendToPlayer(player, ChunkMapSnapshotPayload.create(player,
+                    ChunkLoaderManager.data(player.level().getServer()), payload.openTarget(),
+                    payload.knownRevision(), payload.knownDimension(), dimension, payload.requestId()));
+            });
         registrar.playToServer(
             StopPossessionPayload.TYPE,
             StopPossessionPayload.STREAM_CODEC,
@@ -318,6 +326,8 @@ public final class ModNetworking {
             }
         );
         registrar.playToClient(ChunkMapSnapshotPayload.TYPE, ChunkMapSnapshotPayload.STREAM_CODEC);
+        registrar.playToClient(ChunkMapApplyResultPayload.TYPE, ChunkMapApplyResultPayload.STREAM_CODEC);
+        registrar.playToClient(ChunkMapRequestFailedPayload.TYPE, ChunkMapRequestFailedPayload.STREAM_CODEC);
         registrar.playToClient(OpenMainPagePayload.TYPE, OpenMainPagePayload.STREAM_CODEC);
         registrar.playToClient(PossessionStatePayload.TYPE, PossessionStatePayload.STREAM_CODEC);
         registrar.playToClient(BodyRotationPayload.TYPE, BodyRotationPayload.STREAM_CODEC);

@@ -7,7 +7,7 @@ import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.Identifier;
 
 /** 提交区块加载点管理界面的操作。 */
-public record ChunkLoaderActionPayload(Action action, String name, String newName)
+public record ChunkLoaderActionPayload(Action action, String name, String newName, String dimension)
     implements CustomPacketPayload {
     public static final Type<ChunkLoaderActionPayload> TYPE = new Type<>(
         Identifier.fromNamespaceAndPath(ArchWeaverMod.MOD_ID, "chunk_loader_action")
@@ -17,17 +17,22 @@ public record ChunkLoaderActionPayload(Action action, String name, String newNam
 
     /** 不需要附加名称的操作（启停、删除、备份、恢复）。 */
     public ChunkLoaderActionPayload(Action action, String name) {
-        this(action, name, "");
+        this(action, name, "", "");
+    }
+
+    public ChunkLoaderActionPayload(Action action, String name, String newName) {
+        this(action, name, newName, "");
     }
 
     private ChunkLoaderActionPayload(RegistryFriendlyByteBuf buffer) {
-        this(buffer.readEnum(Action.class), buffer.readUtf(32), buffer.readUtf(32));
+        this(buffer.readEnum(Action.class), buffer.readUtf(32), buffer.readUtf(32), buffer.readUtf(256));
     }
 
     private void write(RegistryFriendlyByteBuf buffer) {
         buffer.writeEnum(action);
         buffer.writeUtf(name, 32);
         buffer.writeUtf(newName, 32);
+        buffer.writeUtf(dimension, 256);
     }
 
     @Override

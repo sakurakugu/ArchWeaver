@@ -16,6 +16,7 @@ sourceSets.main {
 
 repositories {
     // 下面两个是 REI 的依赖
+    // https://github.com/shedaniel/RoughlyEnoughItems
     maven {
         url = 'https://maven.shedaniel.me'
         content {
@@ -29,17 +30,23 @@ repositories {
             includeGroup 'dev.architectury'
         }
     }
-    // 这个是 JEI 的依赖（JEI的api）
+    // JEI 物品管理器
+    // JourneyMap 旅行地图
     maven {
         url = 'https://maven.blamejared.com'
         content {
+            // https://github.com/mezz/JustEnoughItems
             includeGroup 'mezz.jei'
+            // https://github.com/TeamJM/journeymap-api
+            // https://github.com/TeamJM/journeymap
+            includeGroup 'info.journeymap'
         }
     }
 }
 
 dependencies {
     compileOnly "org.jetbrains:annotations:${jetbrains_annotations_version}"
+    compileOnly "info.journeymap:journeymap-api-neoforge:${journeymap_api_version}"
     // JEI 仅供兼容插件编译，安装与开发运行时均不强制携带。
     compileOnly "mezz.jei:jei-${minecraft_version}-common-api:${jei_version}"
     // REI API 含 NeoForge 客户端插件注解；同样只用于编译，不随模组发布。

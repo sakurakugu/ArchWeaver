@@ -13,6 +13,10 @@ import net.minecraft.client.multiplayer.ClientLevel;
 /** 保存服务端最近一次同步的加载点快照。 */
 public final class ClientChunkLoadingState {
     private static ChunkMapSnapshotPayload snapshot;
+    private static final ChunkMapSnapshotCache CACHE = new ChunkMapSnapshotCache();
+    private static long nextRequestId;
+    private static long pendingOpenId;
+    private static final java.util.Map<Long, String> REQUESTS = new java.util.HashMap<>();
     private static boolean mainScreenPending;
     /** 等待快照期间要打开的主页面视图，只在 {@link #mainScreenPending} 为真时有意义。 */
     private static MainPageScreen.View pendingMainView = MainPageScreen.View.FAKE_PLAYERS;
@@ -24,54 +28,87 @@ public final class ClientChunkLoadingState {
     }
 
     public static void accept(ChunkMapSnapshotPayload value) {
-        ChunkMapSnapshotPayload previous = snapshot;
-        // 服务端说区域没变时列表是空的，得把上一份拼回去
-        boolean mergeable = value.regionsUnchanged() && previous != null
-            && value.dimension().equals(previous.dimension());
-        ChunkMapSnapshotPayload effective = mergeable ? value.withPreviousRegions(previous) : value;
-        // 拼不出来（刚连接或刚换维度）就忘掉已知 revision，下一次请求要全量
-        boolean lostRegions = value.regionsUnchanged() && !mergeable;
-        snapshot = lostRegions ? null : effective;
+        REQUESTS.remove(value.requestId());
+        ChunkMapSnapshotPayload effective = CACHE.accept(value);
+        if (effective == null) return;
+        snapshot = effective;
+        ChunkMapFrontends.accept(effective);
+        boolean openResponse = value.requestId() == pendingOpenId;
 
         int transferSetting = ArchWeaverConfig.GlobalSetting.CONTAINER_TRANSFER_BUTTONS.ordinal();
         ClientGlobalSettings.setContainerTransferButtons(
             (value.globalSettingsMask() & (1 << transferSetting)) != 0);
-        if (value.openTarget() != ChunkMapOpenTarget.NONE) {
+        if (value.openTarget() != ChunkMapOpenTarget.NONE && openResponse) {
             mainScreenPending = false;
             MapReturnTarget returnTarget = mapReturnTarget;
             mapReturnTarget = MapReturnTarget.CLOSE;
             if (value.openTarget() != ChunkMapOpenTarget.MAP) {
                 ChunkMapScreen.openPanel(effective, value.openTarget());
             } else {
-                Minecraft.getInstance().setScreen(new ChunkMapScreen(effective, returnTarget));
+                ChunkMapFrontends.open(effective, returnTarget);
             }
-        } else if (mainScreenPending) {
+        } else if (mainScreenPending && openResponse) {
             mainScreenPending = false;
             MainPageScreen.View view = pendingMainView;
             pendingMainView = MainPageScreen.View.FAKE_PLAYERS;
             Minecraft.getInstance().setScreen(new MainPageScreen(effective, view));
-        } else if (Minecraft.getInstance().screen instanceof ChunkMapScreen screen) {
-            screen.update(effective);
+        } else if (Minecraft.getInstance().screen instanceof ChunkMapScreen) {
+            // 活动地图已在上面按维度更新，不接受其他维度的推送。
         } else if (Minecraft.getInstance().screen instanceof MainPageScreen screen) {
             screen.update(effective);
         } else {
-            ClientScreenNavigation.updateBackground(effective);
+            if (ChunkMapFrontends.active() == null || effective.dimension().equals(ChunkMapFrontends.dimension()))
+                ClientScreenNavigation.updateBackground(effective);
         }
     }
 
     /** 按已知快照构造请求，让服务端能跳过区块列表。 */
     public static RequestChunkMapPayload request(ChunkMapOpenTarget openTarget) {
-        ChunkMapSnapshotPayload known = snapshot;
-        return known == null
-            ? new RequestChunkMapPayload(openTarget)
-            : new RequestChunkMapPayload(openTarget,
-                known.revision(), known.dimension());
+        String dimension = openTarget == ChunkMapOpenTarget.NONE ? ChunkMapFrontends.dimension() : playerDimension();
+        return request(openTarget, dimension);
+    }
+
+    public static String playerDimension() {
+        var level = Minecraft.getInstance().level;
+        return level == null ? "" : level.dimension().identifier().toString();
+    }
+
+    public static RequestChunkMapPayload request(ChunkMapOpenTarget target, String dimension) {
+        var known = CACHE.get(dimension);
+        long id = ++nextRequestId;
+        REQUESTS.put(id, dimension);
+        // 请求历史只用于错误归属，限制长期打开地图时的内存占用。
+        if (REQUESTS.size() > 256) REQUESTS.keySet().removeIf(key -> key < id - 128);
+        return new RequestChunkMapPayload(target, known == null ? RequestChunkMapPayload.NO_REVISION : known.revision(),
+            known == null ? "" : known.dimension(), dimension, id);
+    }
+
+    public static ChunkMapSnapshotPayload snapshot(String dimension) { return CACHE.get(dimension); }
+
+    public static long refresh(String dimension) {
+        var request = request(ChunkMapOpenTarget.NONE, dimension);
+        com.sakurakugu.archweaver.platform.PlatformNetworking.sendToServer(request);
+        return request.requestId();
+    }
+
+    public static void acceptResult(com.sakurakugu.archweaver.network.ChunkMapApplyResultPayload result) {
+        var active = ChunkMapFrontends.active();
+        if (active != null && active.controller().acceptResult(result) && !result.successful())
+            ChunkMapFrontends.message(net.minecraft.network.chat.Component.literal(result.reason()));
+    }
+
+    public static void requestFailed(com.sakurakugu.archweaver.network.ChunkMapRequestFailedPayload failure) {
+        String dimension = REQUESTS.remove(failure.requestId());
+        if (failure.requestId() == pendingOpenId) mainScreenPending = false;
+        if (dimension != null && dimension.equals(ChunkMapFrontends.dimension())) ChunkMapFrontends.deny(failure.reason());
     }
 
     /** 从指定页面打开地图，返回键和 Esc 会回到该页面。 */
     public static void openMap(MapReturnTarget returnTarget, ChunkMapOpenTarget openTarget) {
         mapReturnTarget = returnTarget;
-        com.sakurakugu.archweaver.platform.PlatformNetworking.sendToServer(request(openTarget));
+        var request = request(openTarget);
+        pendingOpenId = request.requestId();
+        com.sakurakugu.archweaver.platform.PlatformNetworking.sendToServer(request);
     }
 
     /** 从地图页面返回进入地图前的页面。关闭按钮不调用此方法。 */
@@ -107,7 +144,9 @@ public final class ClientChunkLoadingState {
         }
         pendingMainView = view;
         mainScreenPending = true;
-        com.sakurakugu.archweaver.platform.PlatformNetworking.sendToServer(request(ChunkMapOpenTarget.NONE));
+        var request = request(ChunkMapOpenTarget.NONE, playerDimension());
+        pendingOpenId = request.requestId();
+        com.sakurakugu.archweaver.platform.PlatformNetworking.sendToServer(request);
     }
 
     /** 图集跟随连接存在：换维度时释放重建，同一个世界内数据一直有效。 */
@@ -123,6 +162,10 @@ public final class ClientChunkLoadingState {
 
     public static void clear() {
         snapshot = null;
+        CACHE.clear();
+        REQUESTS.clear();
+        pendingOpenId = 0;
+        ChunkMapFrontends.clear();
         mainScreenPending = false;
         pendingMainView = MainPageScreen.View.FAKE_PLAYERS;
         mapReturnTarget = MapReturnTarget.CLOSE;

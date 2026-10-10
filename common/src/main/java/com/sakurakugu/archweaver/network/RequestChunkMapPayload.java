@@ -14,7 +14,8 @@ import net.minecraft.resources.Identifier;
  * 客户端没有快照时传 {@link #NO_REVISION} 与空维度。
  */
 public record RequestChunkMapPayload(ChunkMapOpenTarget openTarget,
-                                     long knownRevision, String knownDimension)
+                                     long knownRevision, String knownDimension,
+                                     String dimension, long requestId)
     implements CustomPacketPayload {
     /** 客户端还没有任何区域数据。 */
     public static final long NO_REVISION = Long.MIN_VALUE;
@@ -25,18 +26,24 @@ public record RequestChunkMapPayload(ChunkMapOpenTarget openTarget,
         CustomPacketPayload.codec(RequestChunkMapPayload::write, RequestChunkMapPayload::new);
 
     public RequestChunkMapPayload(ChunkMapOpenTarget openTarget) {
-        this(openTarget, NO_REVISION, "");
+        this(openTarget, NO_REVISION, "", "", 0);
+    }
+
+    public RequestChunkMapPayload(ChunkMapOpenTarget target, long revision, String knownDimension) {
+        this(target, revision, knownDimension, "", 0);
     }
 
     private RequestChunkMapPayload(RegistryFriendlyByteBuf buffer) {
         this(buffer.readEnum(ChunkMapOpenTarget.class),
-            buffer.readVarLong(), buffer.readUtf(256));
+            buffer.readVarLong(), buffer.readUtf(256), buffer.readUtf(256), buffer.readVarLong());
     }
 
     private void write(RegistryFriendlyByteBuf buffer) {
         buffer.writeEnum(openTarget);
         buffer.writeVarLong(knownRevision);
         buffer.writeUtf(knownDimension, 256);
+        buffer.writeUtf(dimension, 256);
+        buffer.writeVarLong(requestId);
     }
 
     @Override

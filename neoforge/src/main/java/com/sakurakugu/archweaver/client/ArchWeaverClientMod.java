@@ -11,6 +11,7 @@ import com.sakurakugu.archweaver.network.MannequinAnglesPayload;
 import com.sakurakugu.archweaver.network.FakePlayerAliasPayload;
 import com.sakurakugu.archweaver.network.OpenMainPagePayload;
 import com.sakurakugu.archweaver.client.chunkloading.ClientChunkLoadingState;
+import com.sakurakugu.archweaver.client.chunkloading.ChunkMapFrontends;
 import com.sakurakugu.archweaver.client.chunkloading.ChunkLoadingDebugEntry;
 import com.sakurakugu.archweaver.client.chunkloading.ChunkMapClientConfig;
 import com.sakurakugu.archweaver.config.NeoForgeConfigs;
@@ -35,6 +36,7 @@ import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.common.Mod;
 import net.neoforged.fml.ModContainer;
+import net.neoforged.fml.ModList;
 import net.neoforged.fml.config.ModConfig;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
 import net.neoforged.neoforge.client.event.ExtractLevelRenderStateEvent;
@@ -67,6 +69,7 @@ public final class ArchWeaverClientMod {
 
     public ArchWeaverClientMod(IEventBus modBus, ModContainer container) {
         ChunkMapClientConfig.install(NeoForgeConfigs.CLIENT);
+        ChunkMapFrontends.setJourneyMapInstalled(ModList.get().isLoaded("journeymap"));
         CameraPreferences.install(NeoForgeConfigs.CLIENT);
         tweakerooCameraCompat = TweakerooCameraCompat.create();
         CameraExclusivity.install(tweakerooCameraCompat);
@@ -111,6 +114,10 @@ public final class ArchWeaverClientMod {
     }
 
     private static void registerClientPayloads(RegisterClientPayloadHandlersEvent event) {
+        event.register(com.sakurakugu.archweaver.network.ChunkMapApplyResultPayload.TYPE,
+            (payload, context) -> ClientChunkLoadingState.acceptResult(payload));
+        event.register(com.sakurakugu.archweaver.network.ChunkMapRequestFailedPayload.TYPE,
+            (payload, context) -> ClientChunkLoadingState.requestFailed(payload));
         event.register(ChunkMapSnapshotPayload.TYPE,
             (payload, context) -> ClientChunkLoadingState.accept(payload));
         event.register(OpenMainPagePayload.TYPE,
@@ -138,7 +145,9 @@ public final class ArchWeaverClientMod {
     }
 
     private static void trackScreenOpening(ScreenEvent.Opening event) {
-        ClientScreenNavigation.onOpening(event.getCurrentScreen(), event.getNewScreen());
+        var replacement = ChunkMapFrontends.guard(event.getCurrentScreen(), event.getNewScreen());
+        if (replacement != event.getNewScreen()) event.setNewScreen(replacement);
+        ClientScreenNavigation.onOpening(event.getCurrentScreen(), replacement);
     }
 
     private static void trackScreenClosing(ScreenEvent.Closing event) {
@@ -148,6 +157,7 @@ public final class ArchWeaverClientMod {
     private static void clientTick(ClientTickEvent.Post event) {
         Minecraft minecraft = Minecraft.getInstance();
         ClientScreenNavigation.tick();
+        ChunkMapFrontends.tick();
         ClientPossession.tick(minecraft);
         ClientBodyRotation.tick(minecraft);
         updateCreativePossessionButton(minecraft);

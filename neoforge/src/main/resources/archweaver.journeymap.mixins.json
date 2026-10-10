@@ -1,0 +1,9 @@
+{
+  "required": false,
+  "minVersion": "0.8",
+  "package": "com.sakurakugu.archweaver.compat.journeymap.mixin",
+  "compatibilityLevel": "JAVA_25",
+  "client": [
+    "JourneyMapBlockInfoMixin"
+  ]
+}

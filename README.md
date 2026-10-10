@@ -160,6 +160,8 @@ fakePlayerEmptyAliasMarker = true
 markerNameScale = 1.0
 # 是否显示强加载区域外围由票据传播出的弱加载范围。
 showWeakLoading = true
+# 是否优先使用 JourneyMap 全屏地图；未安装时使用内置地图。
+journeyMap = false
 
 [mainPage]
 # 控制中心上次停留的页面：0 假人列表，1 区块地图，2 全局设置。
