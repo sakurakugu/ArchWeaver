@@ -94,9 +94,9 @@ public final class CameraExclusivity {
         return !externalEnabled() || setExternalEnabled(false);
     }
 
-    public static CameraSelection selectorSnapshot(CameraSelection selection, boolean preferPrevious) {
-        CameraSelection snapshot = selection.selectorSnapshot(preferPrevious);
-        if (externalEnabled()) snapshot.select(CameraSelection.Category.FREE, 0);
-        return snapshot;
+    /** 视角历史记录实际使用的视角，外部相机也参与上一个视角的切换。 */
+    public static void synchronizeSelection(CameraSelection history, CameraSelection.Category category, int mode) {
+        if (externalEnabled()) history.select(CameraSelection.Category.FREE, 0);
+        else history.select(category, mode);
     }
 }

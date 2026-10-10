@@ -24,6 +24,8 @@ import org.joml.Vector3d;
 /** 只改变客户端相机，不替换玩家实体，不改变服务端坐标或区块订阅。 */
 public final class ClientCamera {
     private static final CameraSelection SELECTION = new CameraSelection();
+    // 外部相机接管时内部控制回到原版，视角历史仍须保留灵魂出窍。
+    private static final CameraSelection VIEW_HISTORY = new CameraSelection();
     private static final ShoulderAim SHOULDER_AIM = new ShoulderAim();
     private static ClientLevel level;
     private static LocalPlayer player;
@@ -42,7 +44,11 @@ public final class ClientCamera {
     public static CameraSelection selectionSnapshot() {
         // 原版 F5 可能刚在本帧切换，打开选择器前先同步真实视角。
         if (!active()) SELECTION.select(Category.VANILLA, Minecraft.getInstance().options.getCameraType().ordinal());
-        return CameraExclusivity.selectorSnapshot(SELECTION, CameraPreferences.get(Toggle.SELECT_PREVIOUS));
+        synchronizeViewHistory();
+        return VIEW_HISTORY.selectorSnapshot(CameraPreferences.get(Toggle.SELECT_PREVIOUS));
+    }
+    private static void synchronizeViewHistory() {
+        CameraExclusivity.synchronizeSelection(VIEW_HISTORY, category(), mode());
     }
     public static boolean active() { return category() != Category.VANILLA; }
     public static boolean orthographic() { return category() == Category.ORTHOGRAPHIC; }
@@ -135,8 +141,14 @@ public final class ClientCamera {
                 return false;
             }
         }
+        // 切换外部开关前记录来源视角，关闭灵魂出窍后仍能切回。
+        if (!active()) SELECTION.select(Category.VANILLA, mc.options.getCameraType().ordinal());
+        synchronizeViewHistory();
         if (!CameraExclusivity.prepareSelection(next, () -> reset(mc, false))) return selectionFailed(mc);
-        if (next == Category.FREE && CameraExclusivity.externalControlAvailable()) return true;
+        if (next == Category.FREE && CameraExclusivity.externalControlAvailable()) {
+            synchronizeViewHistory();
+            return true;
+        }
         Category previous = category();
         if (next != previous) SHOULDER_AIM.reset();
         if (previous == Category.VANILLA) {
@@ -166,6 +178,7 @@ public final class ClientCamera {
             position = oldPosition = mc.gameRenderer.getMainCamera().position();
         }
         SELECTION.select(next, nextMode);
+        synchronizeViewHistory();
         mc.options.setCameraType(next == Category.VANILLA ? CameraType.values()[SELECTION.mode()] : CameraType.THIRD_PERSON_BACK);
         mc.gameRenderer.checkEntityPostEffect(next == Category.VANILLA && SELECTION.mode() == 0 ? mc.getCameraEntity() : null);
         if (blockInteraction() && mc.gameMode != null) {
@@ -184,6 +197,7 @@ public final class ClientCamera {
 
     public static void refreshExclusivity() {
         if (CameraExclusivity.shouldYield()) reset(Minecraft.getInstance(), false);
+        synchronizeViewHistory();
     }
 
     public static void cycleMode() {
@@ -251,10 +265,12 @@ public final class ClientCamera {
         if (mc.player == null || mc.level == null) return;
         if (CameraExclusivity.shouldYield()) {
             if (active() || selectorPreview != null) reset(mc, false);
+            synchronizeViewHistory();
             return;
         }
         if (!active()) {
             SELECTION.select(Category.VANILLA, mc.options.getCameraType().ordinal());
+            synchronizeViewHistory();
             return;
         }
         if (blockInteraction() && mc.gameMode != null) {
@@ -306,6 +322,7 @@ public final class ClientCamera {
             mc.levelRenderer.needsUpdate();
         }
         SELECTION.clear(mc.options.getCameraType().ordinal());
+        if (closeScreen) VIEW_HISTORY.clear(mc.options.getCameraType().ordinal());
         SHOULDER_AIM.reset();
         targetId = null;
         orbitCenter = null;

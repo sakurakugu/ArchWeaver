@@ -108,17 +108,67 @@ class CameraExclusivityTest {
     }
 
     @Test
-    void externalHotkeyOverridesHistoryWithoutModifyingActualSelection() {
+    void externalHotkeyParticipatesInHistoryAndPreviewDoesNotChangeIt() {
         CameraSelection selection = new CameraSelection();
         selection.select(Category.SHOULDER, 1);
         selection.select(Category.VANILLA, 2);
         external.enabled = true;
-        assertEquals(Category.FREE, CameraExclusivity.selectorSnapshot(selection, true).category());
-        assertEquals(Category.VANILLA, selection.category());
-        assertEquals(Category.SHOULDER, selection.selectorSnapshot(true).category());
+        CameraExclusivity.synchronizeSelection(selection, Category.VANILLA, 2);
+        assertEquals(Category.FREE, selection.selectorSnapshot(false).category());
+        var preview = selection.selectorSnapshot(true);
+        assertEquals(Category.VANILLA, preview.category());
+        assertEquals(2, preview.mode());
+        preview.select(Category.ORTHOGRAPHIC, 1);
+        assertEquals(Category.FREE, selection.category());
+        assertEquals(Category.VANILLA, selection.selectorSnapshot(true).category());
+        // 重复同步外部相机不能覆盖原来的子视角历史。
+        CameraExclusivity.synchronizeSelection(selection, Category.VANILLA, 2);
+        assertEquals(2, selection.selectorSnapshot(true).mode());
         external.enabled = false;
-        assertEquals(Category.SHOULDER, CameraExclusivity.selectorSnapshot(selection, true).category());
+        CameraExclusivity.synchronizeSelection(selection, Category.VANILLA, 2);
+        assertEquals(Category.FREE, selection.selectorSnapshot(true).category());
         assertTrue(external.events.isEmpty());
+    }
+
+    @Test
+    void selectingExternalFreeCameraAndReturningRemembersItAsPrevious() {
+        CameraSelection controls = new CameraSelection();
+        CameraSelection history = new CameraSelection();
+        controls.select(Category.SHOULDER, 1);
+        CameraExclusivity.synchronizeSelection(history, controls.category(), controls.mode());
+        assertTrue(CameraExclusivity.prepareSelection(Category.FREE, () -> controls.clear(2)));
+        CameraExclusivity.synchronizeSelection(history, controls.category(), controls.mode());
+        assertEquals(Category.VANILLA, controls.category());
+        assertEquals(Category.FREE, history.category());
+        assertEquals(Category.SHOULDER, history.selectorSnapshot(true).category());
+        assertEquals(1, history.selectorSnapshot(true).mode());
+
+        assertTrue(CameraExclusivity.prepareSelection(Category.VANILLA, () -> fail("Must not release")));
+        controls.select(Category.VANILLA, 2);
+        CameraExclusivity.synchronizeSelection(history, controls.category(), controls.mode());
+        var preview = history.selectorSnapshot(true);
+        assertEquals(Category.FREE, preview.category());
+        assertEquals(Category.VANILLA, history.selectorSnapshot(false).category());
+        assertEquals(2, history.selectorSnapshot(false).mode());
+
+        assertTrue(CameraExclusivity.prepareSelection(preview.category(), () -> controls.clear(2)));
+        CameraExclusivity.synchronizeSelection(history, controls.category(), controls.mode());
+        assertEquals(Category.VANILLA, history.selectorSnapshot(true).category());
+        assertEquals(2, history.selectorSnapshot(true).mode());
+        assertEquals(List.of("enable", "disable", "enable"), external.events);
+    }
+
+    @Test
+    void externalFreeCameraWithoutHistoryPreselectsStartingView() {
+        CameraSelection history = new CameraSelection();
+        history.clear(2);
+        external.enabled = true;
+        CameraExclusivity.synchronizeSelection(history, Category.VANILLA, 2);
+        assertEquals(Category.VANILLA, history.selectorSnapshot(true).category());
+        assertEquals(2, history.selectorSnapshot(true).mode());
+        history.clear(2);
+        assertEquals(Category.VANILLA, history.selectorSnapshot(true).category());
+        assertEquals(2, history.selectorSnapshot(true).mode());
     }
 
     @Test
