@@ -1,6 +1,7 @@
 package com.sakurakugu.archweaver.mixin;
 
 import com.sakurakugu.archweaver.client.camera.ClientCamera;
+import com.sakurakugu.archweaver.client.camera.CameraExclusivity;
 import com.sakurakugu.archweaver.client.camera.BodyAimIndicators;
 import com.sakurakugu.archweaver.client.camera.CameraPreferences;
 import com.sakurakugu.archweaver.client.camera.CameraPreferences.Toggle;
@@ -22,7 +23,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 public abstract class CameraHudMixin {
     @Inject(method = "extractCrosshair", at = @At("HEAD"))
     private void archweaver$cameraHud(GuiGraphicsExtractor graphics, DeltaTracker tracker, CallbackInfo ci) {
-        if (!ClientCamera.active()) return;
+        if (CameraExclusivity.shouldYield() || !ClientCamera.active()) return;
         Minecraft mc = Minecraft.getInstance();
         boolean hideText = CameraPreferences.get(Toggle.HIDE_HUD_TEXT);
         if (!hideText) graphics.text(mc.font, Component.translatable(ClientCamera.category().modeKey(ClientCamera.mode())), 5, 5, 0xFFFFFFFF);

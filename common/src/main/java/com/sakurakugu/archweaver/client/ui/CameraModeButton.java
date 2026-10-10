@@ -25,8 +25,9 @@ public final class CameraModeButton extends Button {
         graphics.blitSprite(RenderPipelines.GUI_TEXTURED, SLOT, getX(), getY(), 26, 26);
         graphics.blit(RenderPipelines.GUI_TEXTURED, icon, getX() + 3, getY() + 3,
             0.0F, 0.0F, 20, 20, 20, 20);
-        if (selected || isMouseOver(mouseX, mouseY)) {
+        if (active && (selected || isMouseOver(mouseX, mouseY))) {
             graphics.blitSprite(RenderPipelines.GUI_TEXTURED, SELECTED, getX(), getY(), 26, 26);
         }
+        if (!active) graphics.fill(getX(), getY(), getX() + 26, getY() + 26, 0xA0404040);
     }
 }

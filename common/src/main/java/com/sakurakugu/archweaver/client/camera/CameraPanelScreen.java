@@ -13,6 +13,7 @@ import com.sakurakugu.archweaver.client.ui.TargetButton;
 import com.sakurakugu.archweaver.client.ui.ToggleSwitchButton;
 import com.sakurakugu.archweaver.client.ui.ViewCube;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.EnumMap;
 import java.util.List;
@@ -66,6 +67,7 @@ public final class CameraPanelScreen extends Screen {
     private static final int TARGET_LIMIT_SLIDER_WIDTH = 140; // 目标数滑条的宽度（像素），贴着内容列右边缘。
     private static final int TARGET_LIMIT_LABEL_GAP = 6; // 目标数文字到滑条之间留出的间距（像素）。
     private static final Toggle[] SETTINGS_TOGGLES = {
+        Toggle.PAUSE_ARCHWEAVER, Toggle.TWEAKEROO_EXCLUSIVITY,
         Toggle.BODY_INTERACTION, Toggle.BODY_MOVEMENT, Toggle.HIDE_HUD_TEXT, Toggle.SELECT_PREVIOUS,
         Toggle.SHOW_BODY_CROSSHAIR, Toggle.SHOW_BODY_RAY, Toggle.BODY_RAY_WHEN_INTERACTION_DISABLED
     };
@@ -73,9 +75,11 @@ public final class CameraPanelScreen extends Screen {
     /** 行标签：只画文字、不占控件，绘制时按记录的位置画，放不下的部分截断。 */
     private record RowLabel(Component text, int x, int y, int maxWidth) { }
     private final boolean pickFollow;
+    private List<Toggle> settingsToggles = List.of();
     private final List<RowLabel> rowLabels = new ArrayList<>();
     private final EnumMap<NumberSetting, EditBox> angleFields = new EnumMap<>(NumberSetting.class);
     private boolean syncingAngleFields;
+    private boolean lastBlocked, lastYield;
     private Tab tab;
     private String filter = "";
     private int page;
@@ -128,18 +132,26 @@ public final class CameraPanelScreen extends Screen {
     }
 
     private CameraSettingsLayout settingsLayout() {
-        return CameraSettingsLayout.forHeight(height, page, SETTINGS_TOGGLES.length);
+        return CameraSettingsLayout.forHeight(height, page, settingsToggles.size());
     }
     /** 面板底边：贴着当前页的内容，不再一律拉到窗口底部。 */
     private int panelBottom() { return Math.min(height - PANEL_BOTTOM, contentBottom() + PANEL_PADDING); }
     private int panelHeight() { return panelBottom() - PANEL_TOP; }
     private Component panelTitle() {
+        if (CameraExclusivity.paused()) return Component.translatable("camera.archweaver.paused");
+        if (CameraExclusivity.externalEnabled()) return Component.translatable("camera.archweaver.free.tweakeroo");
         return title.copy().append(" · ").append(Component.translatable(ClientCamera.category().key()));
     }
 
     @Override
     protected void init() {
         clearWidgets();
+        // 只在安装 Tweakeroo 后显示互斥开关，布局与分页使用实际可见的行数。
+        settingsToggles = Arrays.stream(SETTINGS_TOGGLES)
+            .filter(setting -> setting != Toggle.TWEAKEROO_EXCLUSIVITY || CameraExclusivity.externalInstalled())
+            .toList();
+        lastBlocked = CameraExclusivity.selectionBlocked();
+        lastYield = CameraExclusivity.shouldYield();
         rowLabels.clear();
         angleFields.clear();
         // 四个标签页改用一个四档开关，档位与 Tab 的顺序一致。
@@ -183,11 +195,12 @@ public final class CameraPanelScreen extends Screen {
     }
 
     private void angleControls() {
-        addRenderableWidget(new ViewCube(left() + 112, 56, 56,
+        var cube = addRenderableWidget(new ViewCube(left() + 112, 56, 56,
             () -> numberValue(NumberSetting.YAW), () -> numberValue(NumberSetting.PITCH), (yaw, pitch) -> {
                 ClientCamera.rotationAroundCenter(yaw, pitch);
                 syncAngleFields();
             }));
+        cube.active = !CameraExclusivity.shouldYield();
         number(NumberSetting.YAW, 118);
         number(NumberSetting.PITCH, 140);
         number(NumberSetting.SCALE, 162);
@@ -213,8 +226,8 @@ public final class CameraPanelScreen extends Screen {
         page = layout.page();
         for (int index = layout.firstRow(); index < layout.endRow(); index++) {
             int y = layout.rowY(index);
-            if (index < SETTINGS_TOGGLES.length) switchToggle(SETTINGS_TOGGLES[index], y);
-            else if (index == SETTINGS_TOGGLES.length) targetLimitSlider(y);
+            if (index < settingsToggles.size()) switchToggle(settingsToggles.get(index), y);
+            else if (index == settingsToggles.size()) targetLimitSlider(y);
             else sortToggle(y);
         }
         if (pages > 1) addPageButtons();
@@ -229,7 +242,11 @@ public final class CameraPanelScreen extends Screen {
         boolean active = setting != Toggle.BODY_RAY_WHEN_INTERACTION_DISABLED || CameraPreferences.get(Toggle.SHOW_BODY_RAY);
         var button = addRenderableWidget(new ToggleSwitchButton(x, y, width, 20,
             Component.translatable("camera.archweaver.toggle." + setting.key()), active ? 0xFFFFFFFF : 0xFF888888,
-            () -> CameraPreferences.get(setting), b -> { CameraPreferences.flip(setting); init(); }));
+            () -> CameraPreferences.get(setting), b -> {
+                CameraPreferences.flip(setting);
+                ClientCamera.refreshExclusivity();
+                init();
+            }));
         button.active = active;
         button.setTooltip(Tooltip.create(Component.translatable("camera.archweaver.toggle." + setting.key() + ".tooltip")));
     }
@@ -293,7 +310,7 @@ public final class CameraPanelScreen extends Screen {
     }
 
     private static double numberValue(NumberSetting setting) {
-        if (ClientCamera.active()) {
+        if (!CameraExclusivity.shouldYield() && ClientCamera.active()) {
             if (setting == NumberSetting.YAW) return ClientCamera.yaw();
             if (setting == NumberSetting.PITCH) return ClientCamera.pitch();
         }
@@ -324,15 +341,15 @@ public final class CameraPanelScreen extends Screen {
             else minecraft.player.sendOverlayMessage(Component.translatable("camera.archweaver.no_entity"));
         });
         quickAction(PixelGlyph.CUBE, "camera.archweaver.block_center", 1, () -> {
-            if (ClientCamera.category() != Category.ORBIT) ClientCamera.select(Category.ORBIT, 0);
+            if (ClientCamera.category() != Category.ORBIT && !ClientCamera.select(Category.ORBIT, 0)) return;
             if (!ClientCamera.useBlockCenter()) minecraft.player.sendOverlayMessage(Component.translatable("camera.archweaver.no_block"));
         });
         quickAction(PixelGlyph.PERSON, "camera.archweaver.player_center", 2, () -> {
-            ClientCamera.select(Category.ORBIT, 0);
+            if (!ClientCamera.select(Category.ORBIT, 0)) return;
             ClientCamera.usePlayerCenter();
         });
         quickAction(PixelGlyph.CAMERA, "camera.archweaver.refix", 3, () -> {
-            ClientCamera.select(Category.FIXED, 0);
+            if (!ClientCamera.select(Category.FIXED, 0)) return;
             ClientCamera.refix();
         });
         // 目标数与排序在设置页；列表紧跟在搜索行下面，每行放两个。
@@ -346,7 +363,9 @@ public final class CameraPanelScreen extends Screen {
             int slot = i - page * capacity;
             int x = left() + slot % TARGET_COLUMNS * TARGET_COLUMN_PITCH;
             int y = TARGET_ROW_TOP + slot / TARGET_COLUMNS * TARGET_ROW_PITCH;
-            addRenderableWidget(new TargetButton(x, y, 138, TARGET_ROW_HEIGHT, entity, button -> choose(entity)));
+            var button = addRenderableWidget(new TargetButton(x, y, 138, TARGET_ROW_HEIGHT, entity, b -> choose(entity)));
+            button.active = !CameraExclusivity.selectionBlocked();
+            if (!button.active) button.setTooltip(Tooltip.create(Component.translatable(CameraExclusivity.blockedReasonKey())));
         }
         addPageButtons();
     }
@@ -359,9 +378,11 @@ public final class CameraPanelScreen extends Screen {
 
     /** 快捷动作图标按钮：只画图标，说明文字放进 tooltip，朗读同样取自 tooltip。 */
     private void quickAction(PixelGlyph glyph, String tooltip, int index, Runnable action) {
-        addRenderableWidget(new SolidButton(
+        var button = addRenderableWidget(new SolidButton(
             contentRight() - QUICK_ACTIONS_WIDTH + index * (QUICK_ACTION_SIZE + QUICK_ACTION_GAP), SEARCH_ROW_TOP,
-            QUICK_ACTION_SIZE, QUICK_ACTION_SIZE, glyph, Component.translatable(tooltip), button -> action.run()));
+            QUICK_ACTION_SIZE, QUICK_ACTION_SIZE, glyph, Component.translatable(tooltip), b -> action.run()));
+        button.active = !CameraExclusivity.selectionBlocked();
+        if (!button.active) button.setTooltip(Tooltip.create(Component.translatable(CameraExclusivity.blockedReasonKey())));
     }
 
     /** 翻页按钮：图标按钮不留文字，提示与朗读都取自 tooltip。 */
@@ -399,9 +420,9 @@ public final class CameraPanelScreen extends Screen {
     }
 
     private void choose(Entity entity) {
+        if (CameraExclusivity.selectionBlocked()) return;
         if (entity.isRemoved() || !entity.isAlive()) return;
-        ClientCamera.follow(entity);
-        if (pickFollow) onClose();
+        if (ClientCamera.follow(entity) && pickFollow) onClose();
     }
 
     private Button button(Component label, int x, int y, int width, Runnable action) {
@@ -411,7 +432,9 @@ public final class CameraPanelScreen extends Screen {
     @Override
     public void extractBackground(GuiGraphicsExtractor graphics, int x, int y, float partial) {
         // 与视角选择器同一套原版 F3+F4 面板，标题栏中央显示面板名和当前类别。
-        new GameModePanel(panelLeft(), PANEL_TOP, panelWidth(), panelHeight(), panelTitle()).draw(graphics, font);
+        Component heading = Component.literal(font.plainSubstrByWidth(panelTitle().getString(),
+            panelWidth() - 2 * (HEADER_MARGIN + HEADER_BUTTON_SIZE + 4)));
+        new GameModePanel(panelLeft(), PANEL_TOP, panelWidth(), panelHeight(), heading).draw(graphics, font);
     }
 
     @Override
@@ -433,6 +456,9 @@ public final class CameraPanelScreen extends Screen {
     }
 
     @Override public boolean isPauseScreen() { return false; }
+    @Override public void tick() {
+        if (lastBlocked != CameraExclusivity.selectionBlocked() || lastYield != CameraExclusivity.shouldYield()) init();
+    }
     @Override public void removed() { CameraPreferences.save(); ClientCamera.flushPreferences(); super.removed(); }
     /** 从控制中心打开时回到控制中心，直接在世界里打开时退回游戏。 */
     @Override public void onClose() { ClientScreenNavigation.back(this); }

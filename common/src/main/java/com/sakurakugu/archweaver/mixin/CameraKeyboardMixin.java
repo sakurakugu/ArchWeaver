@@ -2,6 +2,7 @@ package com.sakurakugu.archweaver.mixin;
 
 import com.sakurakugu.archweaver.client.camera.CameraSelectorScreen;
 import com.sakurakugu.archweaver.client.camera.ClientCamera;
+import com.sakurakugu.archweaver.client.camera.CameraExclusivity;
 import net.minecraft.client.KeyboardHandler;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.input.KeyEvent;
@@ -27,7 +28,7 @@ public abstract class CameraKeyboardMixin {
                 mc.setScreen(new CameraSelectorScreen());
             }
             ci.cancel();
-        } else if (ClientCamera.active()) {
+        } else if (!CameraExclusivity.shouldYield() && ClientCamera.active()) {
             if (action == 1) ClientCamera.cycleMode();
             ci.cancel();
         }

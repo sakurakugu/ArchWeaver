@@ -42,13 +42,13 @@ public final class ClientCamera {
     public static CameraSelection selectionSnapshot() {
         // 原版 F5 可能刚在本帧切换，打开选择器前先同步真实视角。
         if (!active()) SELECTION.select(Category.VANILLA, Minecraft.getInstance().options.getCameraType().ordinal());
-        return SELECTION.selectorSnapshot(CameraPreferences.get(Toggle.SELECT_PREVIOUS));
+        return CameraExclusivity.selectorSnapshot(SELECTION, CameraPreferences.get(Toggle.SELECT_PREVIOUS));
     }
     public static boolean active() { return category() != Category.VANILLA; }
     public static boolean orthographic() { return category() == Category.ORTHOGRAPHIC; }
     /** 渲染读取临时预览，游戏控制和已确认的选择仍读取实际相机。 */
-    public static boolean renderOrthographic() { return selectorPreview != null || orthographic(); }
-    public static boolean renderActive() { return selectorPreview != null || active(); }
+    public static boolean renderOrthographic() { return !CameraExclusivity.shouldYield() && (selectorPreview != null || orthographic()); }
+    public static boolean renderActive() { return !CameraExclusivity.shouldYield() && (selectorPreview != null || active()); }
     public static float yaw() { return yaw; }
     public static float pitch() { return pitch; }
     public static UUID targetId() { return targetId; }
@@ -65,6 +65,7 @@ public final class ClientCamera {
     }
 
     public static void selectorPreview(OrthographicPreview preview) {
+        if (CameraExclusivity.shouldYield()) preview = null;
         if (selectorPreview == preview) return;
         selectorPreview = preview;
         Minecraft mc = Minecraft.getInstance();
@@ -87,17 +88,19 @@ public final class ClientCamera {
     }
 
     public static boolean blockMovement() {
-        return CameraSelection.blockMovement(category(), mode(), CameraPreferences.get(Toggle.BODY_MOVEMENT), cameraScreen());
+        return !CameraExclusivity.shouldYield()
+            && CameraSelection.blockMovement(category(), mode(), CameraPreferences.get(Toggle.BODY_MOVEMENT), cameraScreen());
     }
 
     public static boolean blockInteraction() {
-        return CameraSelection.blockInteraction(category(), mode(), CameraPreferences.get(Toggle.BODY_INTERACTION), cameraScreen());
+        return !CameraExclusivity.shouldYield()
+            && CameraSelection.blockInteraction(category(), mode(), CameraPreferences.get(Toggle.BODY_INTERACTION), cameraScreen());
     }
 
     /** 只提取当前帧的身体射线，关闭交互时也可用于观察朝向。 */
     public static BodyRay bodyRay(float partial) {
         Minecraft mc = Minecraft.getInstance();
-        if (mc.player == null || mc.level == null || !mc.player.isAlive() || mc.options.hideGui || cameraScreen()
+        if (CameraExclusivity.shouldYield() || mc.player == null || mc.level == null || !mc.player.isAlive() || mc.options.hideGui || cameraScreen()
             || !BodyAimIndicators.showRay(category(), blockInteraction(), CameraPreferences.get(Toggle.SHOW_BODY_RAY),
                 CameraPreferences.get(Toggle.BODY_RAY_WHEN_INTERACTION_DISABLED))) return null;
         Vec3 eye = mc.player.getEyePosition(partial);
@@ -113,7 +116,7 @@ public final class ClientCamera {
     public record BodyRay(Vec3 start, Vec3 end) { }
 
     public static boolean cameraMouse() {
-        return active() && Minecraft.getInstance().screen == null &&
+        return !CameraExclusivity.shouldYield() && active() && Minecraft.getInstance().screen == null &&
             (category() == Category.SHOULDER
                 || orthographic() && mode() == 0
                 || CameraSelection.detachedControls(category(), mode()) && !CameraPreferences.get(Toggle.BODY_MOVEMENT));
@@ -123,6 +126,7 @@ public final class ClientCamera {
     public static boolean select(Category next, int nextMode) {
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null || mc.level == null || !mc.player.isAlive()) return false;
+        if (CameraExclusivity.selectionBlocked()) return selectionFailed(mc);
         if (next == Category.FOLLOW && resolveTarget() == null) {
             HitResult hit = bodyHit();
             if (hit instanceof EntityHitResult entityHit && entityHit.getEntity() != mc.player) targetId = entityHit.getEntity().getUUID();
@@ -131,6 +135,8 @@ public final class ClientCamera {
                 return false;
             }
         }
+        if (!CameraExclusivity.prepareSelection(next, () -> reset(mc, false))) return selectionFailed(mc);
+        if (next == Category.FREE && CameraExclusivity.externalControlAvailable()) return true;
         Category previous = category();
         if (next != previous) SHOULDER_AIM.reset();
         if (previous == Category.VANILLA) {
@@ -170,6 +176,16 @@ public final class ClientCamera {
         return true;
     }
 
+    private static boolean selectionFailed(Minecraft mc) {
+        mc.player.sendOverlayMessage(Component.translatable(CameraExclusivity.paused()
+            ? "camera.archweaver.paused" : "camera.archweaver.external_unavailable"));
+        return false;
+    }
+
+    public static void refreshExclusivity() {
+        if (CameraExclusivity.shouldYield()) reset(Minecraft.getInstance(), false);
+    }
+
     public static void cycleMode() {
         select(category(), (mode() + 1) % category().modes());
     }
@@ -177,6 +193,7 @@ public final class ClientCamera {
     public static void angle(CameraMath.Angle angle) { rotation(angle.yaw, angle.pitch); }
     /** 面板旋转自由正交相机时保持观察中心，跟随模式由变换计算自动保持中心。 */
     public static void rotationAroundCenter(double y, double p) {
+        if (CameraExclusivity.shouldYield()) return;
         if (!orthographic() || mode() != 1) {
             rotation(y, p);
             return;
@@ -188,6 +205,7 @@ public final class ClientCamera {
     }
 
     public static void rotation(double y, double p) {
+        if (CameraExclusivity.shouldYield()) return;
         yaw = oldYaw = wrap((float) y);
         pitch = oldPitch = (float) Math.clamp(p, -90, 90);
         // 面板也可在原版视角预先配置下次进入正交视角的角度。
@@ -212,7 +230,7 @@ public final class ClientCamera {
 
     /** 身体移动开启时滚轮留给快捷栏，其余情况下调整相机参数。 */
     public static boolean scroll(double amount) {
-        if (!active() || Minecraft.getInstance().screen != null || category() == Category.FIXED) return false;
+        if (CameraExclusivity.shouldYield() || !active() || Minecraft.getInstance().screen != null || category() == Category.FIXED) return false;
         if (CameraSelection.detachedControls(category(), mode()) && CameraPreferences.get(Toggle.BODY_MOVEMENT)) return false;
         NumberSetting setting = orthographic() ? NumberSetting.SCALE : switch (category()) {
             case FREE -> NumberSetting.SPEED;
@@ -231,6 +249,10 @@ public final class ClientCamera {
             player = mc.player;
         }
         if (mc.player == null || mc.level == null) return;
+        if (CameraExclusivity.shouldYield()) {
+            if (active() || selectorPreview != null) reset(mc, false);
+            return;
+        }
         if (!active()) {
             SELECTION.select(Category.VANILLA, mc.options.getCameraType().ordinal());
             return;
@@ -273,6 +295,10 @@ public final class ClientCamera {
     }
 
     public static void reset(Minecraft mc) {
+        reset(mc, true);
+    }
+
+    private static void reset(Minecraft mc, boolean closeScreen) {
         selectorPreview(null);
         if (active()) {
             mc.options.setCameraType(returnType);
@@ -285,7 +311,7 @@ public final class ClientCamera {
         orbitCenter = null;
         position = oldPosition = Vec3.ZERO;
         flushPreferences();
-        if (cameraScreen()) mc.setScreen(null);
+        if (closeScreen && cameraScreen()) mc.setScreen(null);
     }
 
     public static Entity resolveTarget() {
@@ -297,9 +323,10 @@ public final class ClientCamera {
         return null;
     }
 
-    public static void follow(Entity entity) {
+    public static boolean follow(Entity entity) {
+        if (CameraExclusivity.selectionBlocked()) return false;
         targetId = entity.getUUID();
-        select(Category.FOLLOW, 0);
+        return select(Category.FOLLOW, 0);
     }
 
     public static HitResult bodyHit() {
@@ -308,14 +335,16 @@ public final class ClientCamera {
     }
 
     public static boolean useBlockCenter() {
+        if (CameraExclusivity.shouldYield()) return false;
         if (bodyHit() instanceof BlockHitResult hit && hit.getType() == HitResult.Type.BLOCK) {
             orbitCenter = Vec3.atCenterOf(hit.getBlockPos());
             return true;
         }
         return false;
     }
-    public static void usePlayerCenter() { orbitCenter = null; }
+    public static void usePlayerCenter() { if (!CameraExclusivity.shouldYield()) orbitCenter = null; }
     public static void refix() {
+        if (CameraExclusivity.shouldYield()) return;
         var mc = Minecraft.getInstance();
         if (mc.player == null) return;
         position = oldPosition = mc.player.getEyePosition();
@@ -326,6 +355,7 @@ public final class ClientCamera {
     /** 原版先更新玩家相机，再在视锥构建之前覆写观察变换。 */
     public static Transform transform(float partial) {
         Minecraft mc = Minecraft.getInstance();
+        if (CameraExclusivity.shouldYield()) return null;
         if (selectorPreview != null && mc.player != null && mc.level != null) {
             Vec3 eye = mc.player.getEyePosition(partial);
             Vector3d pos = selectorPreview.position(new Vector3d(eye.x, eye.y, eye.z), CameraPreferences.get(NumberSetting.SCALE));
@@ -353,7 +383,7 @@ public final class ClientCamera {
     /** 每次原版选取前对齐身体，渲染帧和交互刻共用相同的肩后变换。 */
     public static void updateShoulderAim(float partial) {
         Minecraft mc = Minecraft.getInstance();
-        if (category() != Category.SHOULDER || selectorPreview != null || mc.player == null || mc.level == null
+        if (CameraExclusivity.shouldYield() || category() != Category.SHOULDER || selectorPreview != null || mc.player == null || mc.level == null
             || !mc.player.isAlive() || mc.screen != null || !mc.isWindowActive() || mc.isPaused()) return;
         LocalPlayer body = mc.player;
         Transform camera = transform(partial);

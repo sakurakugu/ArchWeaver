@@ -2,7 +2,7 @@
 
 English | [简体中文](../../README.md)
 
-A utility mod for Minecraft 26.1.2 / NeoForge, currently featuring fake player management and chunk loading. It supports spawning fake players and mannequins, inventory management, pose control, and more.
+A utility mod for Minecraft 26.1.2 / NeoForge, currently featuring fake player management, chunk loading, and client-side camera perspectives. It supports spawning fake players and mannequins, inventory management, pose control, and more.
 
 ![ArchWeaver icon](../../common/src/main/resources/icon.png)
 
@@ -16,10 +16,10 @@ Future ideas include connecting fake players to AI and adding world editing tool
 
 This project produces two separate JARs:
 
-| Mod                      | Mod ID                | Scope                                                                                                     | Dependency          |
-| ------------------------ | --------------------- | --------------------------------------------------------------------------------------------------------- | ------------------- |
-| **ArchWeaver**           | `archweaver`          | Fake players, chunk loading, and other utility features. Registers no blocks, items, or entities.         | None                |
-| **ArchWeaver: Artifice** | `archweaver_artifice` | Some utility blocks, items, entities, etc.                                                                | Requires ArchWeaver |
+| Mod                      | Mod ID                | Scope                                                                                             | Dependency          |
+| ------------------------ | --------------------- | ------------------------------------------------------------------------------------------------- | ------------------- |
+| **ArchWeaver**           | `archweaver`          | Fake players, chunk loading, and other utility features. Registers no blocks, items, or entities. | None                |
+| **ArchWeaver: Artifice** | `archweaver_artifice` | Some utility blocks, items, entities, etc.                                                        | Requires ArchWeaver |
 
 > ArchWeaver can be installed or removed without leaving registered content in a world save. Content that requires registry entries belongs in Artifice. The two mods have independent version numbers; Artifice declares a compatible range of ArchWeaver versions.
 
@@ -189,6 +189,10 @@ body_movement = false
 auto_orbit = false
 # Preselect the previous view (including its submode) when opening F3+F5; history is kept only for the current session.
 select_previous = true
+# Whether to manage Tweakeroo free camera as an exclusive external camera; requires Tweakeroo to be installed.
+tweakerooExclusivity = true
+# Pause ArchWeaver cameras without changing external camera state; select a view again after resuming.
+pause_archweaver = false
 ```
 
 ### Persistent Data

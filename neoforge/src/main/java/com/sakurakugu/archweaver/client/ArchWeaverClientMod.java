@@ -19,6 +19,7 @@ import com.sakurakugu.archweaver.client.ui.InventorySlotButton;
 import com.sakurakugu.archweaver.client.ui.TransferButton;
 import com.sakurakugu.archweaver.client.camera.CameraPreferences;
 import com.sakurakugu.archweaver.client.camera.ClientCamera;
+import com.sakurakugu.archweaver.client.camera.CameraExclusivity;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.Button;
@@ -62,10 +63,13 @@ public final class ArchWeaverClientMod {
     private static int refreshTicks;
     private static CreativeModeInventoryScreen creativeInventoryScreen;
     private static Button creativePossessionButton;
+    private final TweakerooCameraCompat tweakerooCameraCompat;
 
     public ArchWeaverClientMod(IEventBus modBus, ModContainer container) {
         ChunkMapClientConfig.install(NeoForgeConfigs.CLIENT);
         CameraPreferences.install(NeoForgeConfigs.CLIENT);
+        tweakerooCameraCompat = TweakerooCameraCompat.create();
+        CameraExclusivity.install(tweakerooCameraCompat);
         PlatformNetworking.installClientSender(payload -> net.neoforged.neoforge.client.network.ClientPacketDistributor.sendToServer(payload));
         container.registerConfig(ModConfig.Type.CLIENT, NeoForgeConfigs.CLIENT.spec(), ArchWeaverMod.MOD_ID + "-client.toml");
         modBus.addListener(ArchWeaverClientMod::registerKeys);

@@ -46,6 +46,7 @@ public final class CameraSelectorScreen extends Screen {
     private final OrthographicPreview rotationPreview = ClientCamera.createSelectorPreview();
     private boolean previewInitialized;
     private ViewCube cube;
+    private boolean lastBlocked, lastExternalControl, lastYield;
     private int firstMouseX = Integer.MIN_VALUE, firstMouseY;
 
     public CameraSelectorScreen() { super(Component.translatable("camera.archweaver.selector")); }
@@ -54,8 +55,8 @@ public final class CameraSelectorScreen extends Screen {
     private int tileRowWidth() { return (Category.values().length - 1) * TILE_PITCH + TILE_SIZE; }
     private int contentLeft() { return width / 2 - tileRowWidth() / 2; }
     /** 图标行与底部提示取宽的那个，英文提示比图标行还长，不能让它顶出面板边框。 */
-    private int panelWidth() { return Math.max(tileRowWidth(), font.width(hint())) + PANEL_INSET * 2; }
-    private int panelLeft() { return contentLeft() - PANEL_INSET; }
+    private int panelWidth() { return Math.min(width - 8, Math.max(tileRowWidth(), font.width(hint())) + PANEL_INSET * 2); }
+    private int panelLeft() { return width / 2 - panelWidth() / 2; }
     private int panelTop() { return tileTop() - PANEL_TOP_GAP; }
     /** 最后一行内容的下边：正交立方体与子模式按钮共用内容区。 */
     private int contentBottom() {
@@ -70,29 +71,36 @@ public final class CameraSelectorScreen extends Screen {
     @Override
     protected void init() {
         clearWidgets();
+        lastBlocked = CameraExclusivity.selectionBlocked();
+        lastExternalControl = CameraExclusivity.externalControlAvailable();
+        lastYield = CameraExclusivity.shouldYield();
         cube = null;
         updatePreview();
         for (Category category : Category.values()) {
             int x = contentLeft() + category.ordinal() * TILE_PITCH;
             for (int i = 0; i < category.modes(); i++) {
                 int mode = i;
-                addRenderableWidget(new CameraModeButton(x, tileTop() + 30 + i * 28,
+                var modeButton = addRenderableWidget(new CameraModeButton(x, tileTop() + 30 + i * 28,
                     Identifier.fromNamespaceAndPath("archweaver", "textures/gui/camera/" + MODE_ICONS[category.ordinal()][i] + ".png"),
                     category == selected && i == selectedMode,
-                    Component.translatable(category.modeKey(i)), button -> {
+                    modeLabel(category, i), button -> {
+                        if (CameraExclusivity.selectionBlocked()) return;
                         selected = category;
                         selectedMode = mode;
                         preview.select(category, mode);
                         init();
                     }));
+                modeButton.active = !lastBlocked;
             }
         }
         if (selected == Category.ORTHOGRAPHIC) {
             cube = addRenderableWidget(new ViewCube(contentLeft() + Category.FIXED.ordinal() * TILE_PITCH,
                 tileTop() + CUBE_TOP, CUBE_SIZE,
                 rotationPreview::yaw, rotationPreview::pitch, rotationPreview::rotation));
+            cube.active = !lastBlocked;
         }
-        if (selected != Category.ORTHOGRAPHIC && CameraSelection.detachedControls(selected, selectedMode)) {
+        if (!lastBlocked && !(selected == Category.FREE && lastExternalControl)
+            && selected != Category.ORTHOGRAPHIC && CameraSelection.detachedControls(selected, selectedMode)) {
             // 竖着落在固定机位、跟随视角两列，横着与第三人称正面同一行；这两列没有第三个子模式，不会和模式按钮重叠。
             int toggleY = tileTop() + 30 + 2 * 28;
             addToggle(Toggle.BODY_INTERACTION, contentLeft() + Category.FIXED.ordinal() * TILE_PITCH, toggleY);
@@ -101,6 +109,17 @@ public final class CameraSelectorScreen extends Screen {
         addRenderableWidget(new SolidButton(headerButtonX(), headerButtonY(), HEADER_BUTTON_SIZE, HEADER_BUTTON_SIZE,
             PixelGlyph.SETTING, Component.translatable("camera.archweaver.open_panel"),
             button -> openPanel()).withoutFrame());
+    }
+
+    private Component categoryLabel(Category category) {
+        if (category == Category.FREE) return Component.translatable((CameraExclusivity.externalControlAvailable() || CameraExclusivity.externalEnabled())
+            ? "camera.archweaver.free.tweakeroo" : "camera.archweaver.free.archweaver");
+        return Component.translatable(category.key());
+    }
+
+    private Component modeLabel(Category category, int mode) {
+        if (CameraExclusivity.selectionBlocked()) return Component.translatable(CameraExclusivity.blockedReasonKey());
+        return category == Category.FREE ? categoryLabel(category) : Component.translatable(category.modeKey(mode));
     }
 
     private void addToggle(Toggle toggle, int x, int y) {
@@ -128,7 +147,8 @@ public final class CameraSelectorScreen extends Screen {
     public void extractBackground(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partial) {
         // 面板与标题都取自原版 F3+F4 的游戏模式切换器，标题栏中央显示当前类别。
         new GameModePanel(panelLeft(), panelTop(), panelWidth(), panelBottom() - panelTop(),
-            Component.translatable(selected.key())).draw(graphics, font);
+            Component.literal(font.plainSubstrByWidth(categoryLabel(selected).getString(),
+                panelWidth() - 2 * (HEADER_BUTTON_MARGIN + HEADER_BUTTON_SIZE + 4)))).draw(graphics, font);
     }
 
     @Override
@@ -145,13 +165,22 @@ public final class CameraSelectorScreen extends Screen {
             graphics.blitSprite(RenderPipelines.GUI_TEXTURED, SLOT, x, tileTop(), TILE_SIZE, TILE_SIZE);
             graphics.item(new ItemStack(ICONS[category.ordinal()]), x + 5, tileTop() + 5);
             if (category == selected) graphics.blitSprite(RenderPipelines.GUI_TEXTURED, SELECTED, x, tileTop(), TILE_SIZE, TILE_SIZE);
+            if (CameraExclusivity.selectionBlocked()) graphics.fill(x, tileTop(), x + TILE_SIZE, tileTop() + TILE_SIZE, 0xA0404040);
+            if (mouseX >= x && mouseX < x + TILE_SIZE && mouseY >= tileTop() && mouseY < tileTop() + TILE_SIZE) {
+                graphics.setTooltipForNextFrame(font, modeLabel(category, preview.mode(category)), mouseX, mouseY);
+            }
         }
         super.extractRenderState(graphics, mouseX, mouseY, partial);
-        graphics.centeredText(font, hint(), width / 2, hintY(), 0xFFFFFFFF);
+        Component hint = hint();
+        int hintWidth = panelWidth() - PANEL_INSET * 2;
+        if (font.width(hint) > hintWidth) hint = Component.literal(font.plainSubstrByWidth(hint.getString(), hintWidth));
+        graphics.centeredText(font, hint, width / 2, hintY(), 0xFFFFFFFF);
     }
 
     /** 底部提示：松开 F3 确认、F5 换类别、Esc 取消；面板宽度要放得下它。 */
     private Component hint() {
+        if (CameraExclusivity.selectionBlocked()) return Component.translatable(CameraExclusivity.paused()
+            ? "camera.archweaver.paused" : "camera.archweaver.external_blocked");
         return Component.translatable("camera.archweaver.selector_hint", keyName("F5"), keyName("F3"), keyName("Esc"));
     }
 
@@ -161,6 +190,7 @@ public final class CameraSelectorScreen extends Screen {
     }
 
     private void select(Category value) {
+        if (CameraExclusivity.selectionBlocked()) return;
         if (selected == value) return;
         selected = value;
         selectedMode = preview.mode(value);
@@ -170,6 +200,7 @@ public final class CameraSelectorScreen extends Screen {
 
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double horizontalAmount, double verticalAmount) {
+        if (CameraExclusivity.selectionBlocked()) return true;
         if (cube != null && cube.pressed()) return true;
         if (verticalAmount == 0) return super.mouseScrolled(mouseX, mouseY, horizontalAmount, verticalAmount);
         preview.cycleView(verticalAmount < 0);
@@ -185,6 +216,7 @@ public final class CameraSelectorScreen extends Screen {
     @Override
     public boolean keyPressed(KeyEvent event) {
         if (minecraft.options.keyTogglePerspective.matches(event)) {
+            if (CameraExclusivity.selectionBlocked()) return true;
             if (cube != null && cube.pressed()) return true;
             select(selected.next());
             firstMouseX = Integer.MIN_VALUE;
@@ -203,11 +235,15 @@ public final class CameraSelectorScreen extends Screen {
     public void tick() {
         // 窗口失焦或修饰键释放事件丢失时取消，避免留下卡住的临时界面。
         if (!minecraft.isWindowActive()) onClose();
+        else if (lastBlocked != CameraExclusivity.selectionBlocked()
+            || lastExternalControl != CameraExclusivity.externalControlAvailable()
+            || lastYield != CameraExclusivity.shouldYield()) init();
     }
 
     /** 松开 F3 才提交选中的视角与角度。 */
     private void commit() {
         minecraft.setScreen(null);
+        if (CameraExclusivity.selectionBlocked()) return;
         if (selected == Category.ORTHOGRAPHIC) ClientCamera.commitSelectorPreview(rotationPreview);
         else ClientCamera.select(selected, selectedMode);
     }
@@ -215,7 +251,7 @@ public final class CameraSelectorScreen extends Screen {
     /** 标题栏的齿轮：按 Esc 的方式退出，预览不提交，再打开相机面板，防止误触改掉当前视角。 */
     private void openPanel() {
         minecraft.setScreen(null);
-        minecraft.setScreen(new CameraPanelScreen(false));
+        minecraft.setScreen(CameraExclusivity.paused() ? CameraPanelScreen.settings() : new CameraPanelScreen(false));
     }
 
     private void updatePreview() {

@@ -17,11 +17,12 @@ public final class CameraPreferences {
 
     public enum Toggle {
         BODY_INTERACTION(false), BODY_MOVEMENT(false), AUTO_ORBIT(false), SELECT_PREVIOUS(true), HIDE_HUD_TEXT(false),
-        SHOW_BODY_CROSSHAIR(true), SHOW_BODY_RAY(true), BODY_RAY_WHEN_INTERACTION_DISABLED(true);
+        SHOW_BODY_CROSSHAIR(true), SHOW_BODY_RAY(true), BODY_RAY_WHEN_INTERACTION_DISABLED(true),
+        PAUSE_ARCHWEAVER(false), TWEAKEROO_EXCLUSIVITY(true);
 
         public final boolean initial;
         Toggle(boolean initial) { this.initial = initial; }
-        public String key() { return name().toLowerCase(java.util.Locale.ROOT); }
+        public String key() { return this == TWEAKEROO_EXCLUSIVITY ? "tweakerooExclusivity" : name().toLowerCase(java.util.Locale.ROOT); }
     }
 
     public interface Backend {

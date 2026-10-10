@@ -4,15 +4,18 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import java.util.HashSet;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 class CameraSettingsLayoutTest {
-    @Test
-    void everySettingIsReachableAndFitsAbovePagerAtDifferentGuiHeights() {
+    @ParameterizedTest
+    @ValueSource(ints = {8, 9})
+    void everySettingIsReachableAndFitsAbovePagerAtDifferentGuiHeights(int toggleCount) {
         for (int height : new int[] {144, 180, 240, 270, 288, 360, 480}) {
-            var first = CameraSettingsLayout.forHeight(height, 0, 7);
+            var first = CameraSettingsLayout.forHeight(height, 0, toggleCount);
             var covered = new HashSet<Integer>();
             for (int page = 0; page < first.pages(); page++) {
-                var layout = CameraSettingsLayout.forHeight(height, page, 7);
+                var layout = CameraSettingsLayout.forHeight(height, page, toggleCount);
                 assertTrue(layout.contentBottom() + 14 <= height);
                 for (int index = layout.firstRow(); index < layout.endRow(); index++) {
                     assertTrue(covered.add(index));
@@ -22,11 +25,11 @@ class CameraSettingsLayoutTest {
                 }
                 if (first.pages() > 1) assertTrue(layout.pagerY() >= layout.bottom() + 6);
                 if (layout.dividerY() >= 0) {
-                    assertTrue(layout.dividerY() > layout.rowY(6) + 20);
-                    assertTrue(layout.dividerY() < layout.rowY(7));
+                    assertTrue(layout.dividerY() > layout.rowY(toggleCount - 1) + 20);
+                    assertTrue(layout.dividerY() < layout.rowY(toggleCount));
                 }
             }
-            assertEquals(9, covered.size());
+            assertEquals(toggleCount + 2, covered.size());
         }
     }
 

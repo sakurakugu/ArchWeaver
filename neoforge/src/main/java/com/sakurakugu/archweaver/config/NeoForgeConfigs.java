@@ -93,7 +93,12 @@ public final class NeoForgeConfigs {
                     .defineInRange(setting.key(), setting.initial, setting.min, setting.max));
             }
             for (var setting : CameraPreferences.Toggle.values()) {
-                cameraToggles.put(setting, builder.comment("相机开关：" + setting.key()).define(setting.key(), setting.initial));
+                String comment = switch (setting) {
+                    case PAUSE_ARCHWEAVER -> "暂停 ArchWeaver 相机，不改变外部相机状态；关闭后需要重新选择视角。";
+                    case TWEAKEROO_EXCLUSIVITY -> "使用 Tweakeroo 灵魂出窍并让出相机，选择其他视角时关闭 Tweakeroo 灵魂出窍。";
+                    default -> "相机开关：" + setting.key();
+                };
+                cameraToggles.put(setting, builder.comment(comment).define(setting.key(), setting.initial));
             }
             builder.pop();
             spec = builder.build();

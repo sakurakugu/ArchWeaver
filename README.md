@@ -2,7 +2,7 @@
 
 [English](./docs/all_readme/README_EN.md) | 简体中文
 
-适用于 Minecraft 26.1.2 / NeoForge 的辅助模组，目前提供假玩家管理与区块加载功能，支持假人/玩偶生成、背包管理、姿态控制等。
+适用于 Minecraft 26.1.2 / NeoForge 的辅助模组，目前提供假玩家管理、区块加载和客户端相机功能，支持假人/玩偶生成、背包管理、姿态控制等。
 
 ![icon](./common/src/main/resources/icon.png)
 
@@ -190,6 +190,10 @@ body_movement = false
 auto_orbit = false
 # F3+F5 打开选择器时是否预选上一个视角（包含子视角）；历史仅保留在当前会话中。
 select_previous = true
+# 是否将 Tweakeroo 灵魂出窍作为外部相机进行互斥控制；需要安装 Tweakeroo 才会生效。
+tweakerooExclusivity = true
+# 暂停 ArchWeaver 相机；不会修改外部相机状态，解除后需要重新选择视角。
+pause_archweaver = false
 ```
 
 ### 持久化数据
