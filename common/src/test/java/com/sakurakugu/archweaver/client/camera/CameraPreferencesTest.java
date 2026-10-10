@@ -8,6 +8,20 @@ import java.util.EnumMap;
 import org.junit.jupiter.api.Test;
 
 class CameraPreferencesTest {
+    @Test
+    void bodyIndicatorsDefaultOnAndPersistIndependently() {
+        Backend backend = new Backend();
+        CameraPreferences.install(backend);
+        Toggle[] indicators = {Toggle.SHOW_BODY_CROSSHAIR, Toggle.SHOW_BODY_RAY, Toggle.BODY_RAY_WHEN_INTERACTION_DISABLED};
+        for (Toggle toggle : indicators) assertTrue(CameraPreferences.get(toggle));
+        CameraPreferences.flip(Toggle.SHOW_BODY_RAY);
+        assertTrue(CameraPreferences.get(Toggle.SHOW_BODY_CROSSHAIR));
+        assertTrue(CameraPreferences.get(Toggle.BODY_RAY_WHEN_INTERACTION_DISABLED));
+        CameraPreferences.install(backend);
+        assertFalse(CameraPreferences.get(Toggle.SHOW_BODY_RAY));
+        assertEquals(1, backend.saves);
+    }
+
     private static final class Backend implements CameraPreferences.Backend {
         private final EnumMap<NumberSetting, Double> numbers = new EnumMap<>(NumberSetting.class);
         private final EnumMap<Toggle, Boolean> toggles = new EnumMap<>(Toggle.class);

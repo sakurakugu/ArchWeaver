@@ -16,7 +16,8 @@ public final class CameraPreferences {
     }
 
     public enum Toggle {
-        BODY_INTERACTION(false), BODY_MOVEMENT(false), AUTO_ORBIT(false), SELECT_PREVIOUS(true), HIDE_HUD_TEXT(false);
+        BODY_INTERACTION(false), BODY_MOVEMENT(false), AUTO_ORBIT(false), SELECT_PREVIOUS(true), HIDE_HUD_TEXT(false),
+        SHOW_BODY_CROSSHAIR(true), SHOW_BODY_RAY(true), BODY_RAY_WHEN_INTERACTION_DISABLED(true);
 
         public final boolean initial;
         Toggle(boolean initial) { this.initial = initial; }

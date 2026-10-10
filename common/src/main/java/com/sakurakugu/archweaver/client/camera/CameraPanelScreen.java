@@ -62,12 +62,13 @@ public final class CameraPanelScreen extends Screen {
     private static final int TARGET_LIMIT_STEP = 8; // 目标数滑条每档的步长（个）。
     private static final int TARGET_LIMIT_STEP_MIN = 1; // 最小档位，对应 TARGET_LIMIT 的下界 8 个目标。
     private static final int TARGET_LIMIT_STEP_MAX = 16; // 最大档位，对应 TARGET_LIMIT 的上界 128 个目标。
-    private static final int DIVIDER_TOP = 154; // 目标数上方分割线的纵坐标（像素），两侧留白比开关组那边宽。
     private static final int DIVIDER_COLOR = 0x60FFFFFF; // 分割线颜色：半透明白，压在原版面板的深色底上。
-    private static final int TARGET_LIMIT_ROW_TOP = 162; // 目标数一行的纵坐标（像素），上方是分割线。
     private static final int TARGET_LIMIT_SLIDER_WIDTH = 140; // 目标数滑条的宽度（像素），贴着内容列右边缘。
     private static final int TARGET_LIMIT_LABEL_GAP = 6; // 目标数文字到滑条之间留出的间距（像素）。
-    private static final int SORT_TOGGLE_TOP = 184; // 按距离排序开关的纵坐标（像素），紧跟目标数一行。
+    private static final Toggle[] SETTINGS_TOGGLES = {
+        Toggle.BODY_INTERACTION, Toggle.BODY_MOVEMENT, Toggle.HIDE_HUD_TEXT, Toggle.SELECT_PREVIOUS,
+        Toggle.SHOW_BODY_CROSSHAIR, Toggle.SHOW_BODY_RAY, Toggle.BODY_RAY_WHEN_INTERACTION_DISABLED
+    };
     private enum Tab { CAMERA, ANGLES, TARGETS, SETTINGS }
     /** 行标签：只画文字、不占控件，绘制时按记录的位置画，放不下的部分截断。 */
     private record RowLabel(Component text, int x, int y, int maxWidth) { }
@@ -107,7 +108,7 @@ public final class CameraPanelScreen extends Screen {
         return switch (tab) {
             case CAMERA -> 186; // 五项数值设置加一行开关
             case ANGLES -> 182; // 视图立方体加三项数值设置
-            case SETTINGS -> SORT_TOGGLE_TOP + 20; // 四行开关加目标数一行和排序开关
+            case SETTINGS -> settingsLayout().contentBottom();
             case TARGETS -> pagerY() + PAGER_HEIGHT; // 列表末行下面就是翻页按钮
         };
     }
@@ -122,7 +123,12 @@ public final class CameraPanelScreen extends Screen {
     }
     /** 翻页按钮紧跟着列表末行，面板再往下收一个内边距，目标页不会拉满整个窗口。 */
     private int pagerY() {
+        if (tab == Tab.SETTINGS) return settingsLayout().pagerY();
         return TARGET_ROW_TOP + (targetRows() - 1) * TARGET_ROW_PITCH + TARGET_ROW_HEIGHT + PAGER_GAP;
+    }
+
+    private CameraSettingsLayout settingsLayout() {
+        return CameraSettingsLayout.forHeight(height, page, SETTINGS_TOGGLES.length);
     }
     /** 面板底边：贴着当前页的内容，不再一律拉到窗口底部。 */
     private int panelBottom() { return Math.min(height - PANEL_BOTTOM, contentBottom() + PANEL_PADDING); }
@@ -202,12 +208,16 @@ public final class CameraPanelScreen extends Screen {
 
     /** 设置页：开关组在上，目标数一行用分割线隔开，行距与其它页面的设置行一致。 */
     private void settingsControls() {
-        switchToggle(Toggle.BODY_INTERACTION, 62);
-        switchToggle(Toggle.BODY_MOVEMENT, 84);
-        switchToggle(Toggle.HIDE_HUD_TEXT, 106);
-        switchToggle(Toggle.SELECT_PREVIOUS, 128);
-        targetLimitSlider(TARGET_LIMIT_ROW_TOP);
-        sortToggle(SORT_TOGGLE_TOP);
+        var layout = settingsLayout();
+        pages = layout.pages();
+        page = layout.page();
+        for (int index = layout.firstRow(); index < layout.endRow(); index++) {
+            int y = layout.rowY(index);
+            if (index < SETTINGS_TOGGLES.length) switchToggle(SETTINGS_TOGGLES[index], y);
+            else if (index == SETTINGS_TOGGLES.length) targetLimitSlider(y);
+            else sortToggle(y);
+        }
+        if (pages > 1) addPageButtons();
     }
 
     private void switchToggle(Toggle setting, int y) {
@@ -216,9 +226,11 @@ public final class CameraPanelScreen extends Screen {
 
     /** 设置行：左侧标签、右侧滑动开关，与主界面设置页一致。 */
     private void switchToggle(Toggle setting, int x, int y, int width) {
+        boolean active = setting != Toggle.BODY_RAY_WHEN_INTERACTION_DISABLED || CameraPreferences.get(Toggle.SHOW_BODY_RAY);
         var button = addRenderableWidget(new ToggleSwitchButton(x, y, width, 20,
-            Component.translatable("camera.archweaver.toggle." + setting.key()), 0xFFFFFFFF,
+            Component.translatable("camera.archweaver.toggle." + setting.key()), active ? 0xFFFFFFFF : 0xFF888888,
             () -> CameraPreferences.get(setting), b -> { CameraPreferences.flip(setting); init(); }));
+        button.active = active;
         button.setTooltip(Tooltip.create(Component.translatable("camera.archweaver.toggle." + setting.key() + ".tooltip")));
     }
 
@@ -233,7 +245,6 @@ public final class CameraPanelScreen extends Screen {
             step -> {
                 // 拖动中不重建控件，分页数等切回目标页时再按新的目标数计算。
                 CameraPreferences.set(NumberSetting.TARGET_LIMIT, step * TARGET_LIMIT_STEP);
-                page = 0;
             }));
     }
 
@@ -251,7 +262,7 @@ public final class CameraPanelScreen extends Screen {
         addRenderableWidget(new ToggleSwitchButton(left(), y, 280, 20,
             Component.translatable("camera.archweaver.toggle.sort_by_distance"), 0xFFFFFFFF,
             () -> sortTargetsByDistance,
-            button -> { sortTargetsByDistance = !sortTargetsByDistance; page = 0; init(); }));
+            button -> { sortTargetsByDistance = !sortTargetsByDistance; init(); }));
     }
 
     /** 数值设置行：左侧只留文字标签，减号与加号夹住输入框。 */
@@ -337,8 +348,13 @@ public final class CameraPanelScreen extends Screen {
             int y = TARGET_ROW_TOP + slot / TARGET_COLUMNS * TARGET_ROW_PITCH;
             addRenderableWidget(new TargetButton(x, y, 138, TARGET_ROW_HEIGHT, entity, button -> choose(entity)));
         }
+        addPageButtons();
+    }
+
+    private void addPageButtons() {
         pageButton(PixelGlyph.ARROW_LEFT, "gui.archweaver.page.previous", left(), () -> { page = Math.max(0, page - 1); init(); });
-        pageButton(PixelGlyph.ARROW_RIGHT, "gui.archweaver.page.next", left() + 256, () -> { page = Math.min(pages - 1, page + 1); init(); });
+        pageButton(PixelGlyph.ARROW_RIGHT, "gui.archweaver.page.next", contentRight() - PAGER_HEIGHT,
+            () -> { page = Math.min(pages - 1, page + 1); init(); });
     }
 
     /** 快捷动作图标按钮：只画图标，说明文字放进 tooltip，朗读同样取自 tooltip。 */
@@ -407,9 +423,10 @@ public final class CameraPanelScreen extends Screen {
         }
         if (tab == Tab.SETTINGS) {
             // 分割开关组与目标数：两端对齐上下两行的控件，只留面板自身的内边距，不和边框相连。
-            graphics.fill(left(), DIVIDER_TOP, contentRight(), DIVIDER_TOP + 1, DIVIDER_COLOR);
+            int divider = settingsLayout().dividerY();
+            if (divider >= 0) graphics.fill(left(), divider, contentRight(), divider + 1, DIVIDER_COLOR);
         }
-        if (tab == Tab.TARGETS) {
+        if (tab == Tab.TARGETS || tab == Tab.SETTINGS && pages > 1) {
             graphics.centeredText(font, Component.literal((page + 1) + " / " + pages), left() + 140, pagerY() + 6, 0xFFFFFFFF);
         }
         super.extractRenderState(graphics, x, y, partial);

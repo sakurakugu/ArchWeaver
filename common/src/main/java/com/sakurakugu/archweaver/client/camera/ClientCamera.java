@@ -94,6 +94,24 @@ public final class ClientCamera {
         return CameraSelection.blockInteraction(category(), mode(), CameraPreferences.get(Toggle.BODY_INTERACTION), cameraScreen());
     }
 
+    /** 只提取当前帧的身体射线，关闭交互时也可用于观察朝向。 */
+    public static BodyRay bodyRay(float partial) {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.player == null || mc.level == null || !mc.player.isAlive() || mc.options.hideGui || cameraScreen()
+            || !BodyAimIndicators.showRay(category(), blockInteraction(), CameraPreferences.get(Toggle.SHOW_BODY_RAY),
+                CameraPreferences.get(Toggle.BODY_RAY_WHEN_INTERACTION_DISABLED))) return null;
+        Vec3 eye = mc.player.getEyePosition(partial);
+        Vec3 view = mc.player.getViewVector(partial);
+        Vec3 hit = mc.hitResult != null && mc.hitResult.getType() != HitResult.Type.MISS
+            ? mc.hitResult.getLocation() : null;
+        Vector3d end = BodyAimIndicators.rayEnd(new Vector3d(eye.x, eye.y, eye.z),
+            new Vector3d(view.x, view.y, view.z), hit == null ? null : new Vector3d(hit.x, hit.y, hit.z),
+            mc.player.blockInteractionRange(), mc.player.entityInteractionRange());
+        return new BodyRay(eye, new Vec3(end.x, end.y, end.z));
+    }
+
+    public record BodyRay(Vec3 start, Vec3 end) { }
+
     public static boolean cameraMouse() {
         return active() && Minecraft.getInstance().screen == null &&
             (category() == Category.SHOULDER

@@ -28,6 +28,7 @@ import net.minecraft.client.gui.screens.inventory.InventoryScreen;
 import net.minecraft.client.gui.components.debug.DebugScreenEntryStatus;
 import net.minecraft.client.gui.components.debug.DebugScreenProfile;
 import net.minecraft.network.chat.Component;
+import net.minecraft.gizmos.Gizmos;
 import net.minecraft.resources.Identifier;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.IEventBus;
@@ -35,6 +36,7 @@ import net.neoforged.fml.common.Mod;
 import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.config.ModConfig;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
+import net.neoforged.neoforge.client.event.ExtractLevelRenderStateEvent;
 import net.neoforged.neoforge.client.event.RegisterDebugEntriesEvent;
 import net.neoforged.neoforge.client.event.RegisterKeyMappingsEvent;
 import net.neoforged.neoforge.client.event.ScreenEvent;
@@ -71,6 +73,7 @@ public final class ArchWeaverClientMod {
         modBus.addListener(ArchWeaverClientMod::registerClientPayloads);
         NeoForge.EVENT_BUS.addListener(ArchWeaverClientMod::clientTick);
         NeoForge.EVENT_BUS.addListener(ArchWeaverClientMod::cameraTick);
+        NeoForge.EVENT_BUS.addListener(ArchWeaverClientMod::extractBodyRay);
         NeoForge.EVENT_BUS.addListener(ArchWeaverClientMod::addInventoryButtons);
         NeoForge.EVENT_BUS.addListener(ArchWeaverClientMod::trackScreenOpening);
         NeoForge.EVENT_BUS.addListener(ArchWeaverClientMod::trackScreenClosing);
@@ -85,6 +88,14 @@ public final class ArchWeaverClientMod {
 
     private static void cameraTick(ClientTickEvent.Pre event) {
         ClientCamera.tick(Minecraft.getInstance());
+    }
+
+    private static void extractBodyRay(ExtractLevelRenderStateEvent event) {
+        var ray = ClientCamera.bodyRay(event.getDeltaTracker().getGameTimeDeltaPartialTick(false));
+        if (ray == null || ray.start().distanceToSqr(ray.end()) < 1.0E-8) return;
+        try (var ignored = event.getLevelRenderer().collectPerFrameGizmos()) {
+            Gizmos.line(ray.start(), ray.end(), 0xCCFFFF55, 1.5F);
+        }
     }
 
     private static void registerDebugEntries(RegisterDebugEntriesEvent event) {
