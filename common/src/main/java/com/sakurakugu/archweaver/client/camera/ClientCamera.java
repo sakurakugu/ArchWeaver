@@ -11,7 +11,10 @@ import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EntitySelector;
+import net.minecraft.world.entity.projectile.ProjectileUtil;
 import net.minecraft.world.level.ClipContext;
+import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.EntityHitResult;
 import net.minecraft.world.phys.HitResult;
@@ -21,6 +24,7 @@ import org.joml.Vector3d;
 /** 只改变客户端相机，不替换玩家实体，不改变服务端坐标或区块订阅。 */
 public final class ClientCamera {
     private static final CameraSelection SELECTION = new CameraSelection();
+    private static final ShoulderAim SHOULDER_AIM = new ShoulderAim();
     private static ClientLevel level;
     private static LocalPlayer player;
     private static CameraType returnType = CameraType.FIRST_PERSON;
@@ -92,7 +96,9 @@ public final class ClientCamera {
 
     public static boolean cameraMouse() {
         return active() && Minecraft.getInstance().screen == null &&
-            (orthographic() && mode() == 0 || CameraSelection.detachedControls(category(), mode()) && !CameraPreferences.get(Toggle.BODY_MOVEMENT));
+            (category() == Category.SHOULDER
+                || orthographic() && mode() == 0
+                || CameraSelection.detachedControls(category(), mode()) && !CameraPreferences.get(Toggle.BODY_MOVEMENT));
     }
 
     /** 跟随目标尚未选定时先打开面板，实际视角保持不变。 */
@@ -108,6 +114,7 @@ public final class ClientCamera {
             }
         }
         Category previous = category();
+        if (next != previous) SHOULDER_AIM.reset();
         if (previous == Category.VANILLA) {
             returnType = mc.options.getCameraType();
             SELECTION.select(Category.VANILLA, returnType.ordinal());
@@ -117,6 +124,10 @@ public final class ClientCamera {
             position = oldPosition = camera.position();
             yaw = oldYaw = camera.yRot();
             pitch = oldPitch = camera.xRot();
+            if (next == Category.SHOULDER) {
+                yaw = oldYaw = mc.player.getYRot();
+                pitch = oldPitch = mc.player.getXRot();
+            }
             if (next == Category.ORTHOGRAPHIC) {
                 yaw = oldYaw = (float) CameraPreferences.get(NumberSetting.YAW);
                 pitch = oldPitch = (float) CameraPreferences.get(NumberSetting.PITCH);
@@ -251,6 +262,7 @@ public final class ClientCamera {
             mc.levelRenderer.needsUpdate();
         }
         SELECTION.clear(mc.options.getCameraType().ordinal());
+        SHOULDER_AIM.reset();
         targetId = null;
         orbitCenter = null;
         position = oldPosition = Vec3.ZERO;
@@ -308,14 +320,8 @@ public final class ClientCamera {
         if (orthographic() && mode() == 0) {
             pos = orthographicPosition(mc.player.getEyePosition(partial), y, p);
         } else if (category() == Category.SHOULDER) {
-            y = mc.player.getViewYRot(partial);
-            p = mc.player.getViewXRot(partial);
-            double radians = Math.toRadians(y);
-            double offset = CameraPreferences.get(NumberSetting.SHOULDER_OFFSET) * (mode() == 0 ? -1 : 1);
             Vec3 eye = mc.player.getEyePosition(partial);
-            pos = eye.subtract(direction(y, p).scale(CameraPreferences.get(NumberSetting.SHOULDER_DISTANCE)))
-                .add(-Math.cos(radians) * offset, 0, -Math.sin(radians) * offset);
-            pos = avoidWall(eye, pos);
+            pos = shoulderPosition(eye, y, p);
         } else if (category() == Category.ORBIT || category() == Category.FOLLOW) {
             Entity target = category() == Category.FOLLOW ? resolveTarget() : mc.player;
             if (target != null) {
@@ -324,6 +330,55 @@ public final class ClientCamera {
             }
         }
         return new Transform(pos, y, p);
+    }
+
+    /** 每次原版选取前对齐身体，渲染帧和交互刻共用相同的肩后变换。 */
+    public static void updateShoulderAim(float partial) {
+        Minecraft mc = Minecraft.getInstance();
+        if (category() != Category.SHOULDER || selectorPreview != null || mc.player == null || mc.level == null
+            || !mc.player.isAlive() || mc.screen != null || !mc.isWindowActive() || mc.isPaused()) return;
+        LocalPlayer body = mc.player;
+        Transform camera = transform(partial);
+        Vec3 eye = body.getEyePosition(partial);
+        Vec3 target = shoulderAimPoint(body, camera);
+        CameraMath.Rotation rotation = SHOULDER_AIM.rotation(new Vector3d(eye.x, eye.y, eye.z),
+            target == null ? null : new Vector3d(target.x, target.y, target.z), camera.yaw(), camera.pitch());
+        float bodyYaw = (float) rotation.yaw();
+        float bodyPitch = (float) rotation.pitch();
+        body.setYRot(bodyYaw);
+        body.setXRot(bodyPitch);
+        body.yRotO = bodyYaw;
+        body.xRotO = bodyPitch;
+        // 只更新当前身体角度，保留上一帧数值让模型渲染自然插值。
+        body.yBodyRot = bodyYaw;
+        body.yHeadRot = bodyYaw;
+        body.yHeadRotO = bodyYaw;
+        if (body.isPassenger()) body.getVehicle().onPassengerTurned(body);
+    }
+
+    /** 从肩后相机中央取点；未命中时返回空值，身体沿用上次瞄准补偿。 */
+    private static Vec3 shoulderAimPoint(LocalPlayer body, Transform camera) {
+        Minecraft mc = Minecraft.getInstance();
+        Vec3 from = camera.position();
+        double range = Math.max(128, Math.max(body.blockInteractionRange(), body.entityInteractionRange()));
+        Vec3 end = from.add(direction(camera.yaw(), camera.pitch()).scale(range));
+        HitResult block = mc.level.clip(new ClipContext(from, end, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, body));
+        double blockDistance = block.getType() == HitResult.Type.MISS
+            ? range * range : from.distanceToSqr(block.getLocation());
+        EntityHitResult entity = ProjectileUtil.getEntityHitResult(
+            body, from, end, new AABB(from, end).inflate(1.0), EntitySelector.CAN_BE_PICKED, blockDistance
+        );
+        if (entity != null && from.distanceToSqr(entity.getLocation()) < blockDistance) {
+            return entity.getLocation();
+        }
+        return block.getType() == HitResult.Type.MISS ? null : block.getLocation();
+    }
+
+    private static Vec3 shoulderPosition(Vec3 eye, float y, float p) {
+        double offset = CameraPreferences.get(NumberSetting.SHOULDER_OFFSET) * (mode() == 0 ? -1 : 1);
+        Vector3d to = CameraMath.shoulderPosition(new Vector3d(eye.x, eye.y, eye.z), y, p,
+            CameraPreferences.get(NumberSetting.SHOULDER_DISTANCE), offset);
+        return avoidWall(eye, new Vec3(to.x, to.y, to.z));
     }
 
     private static Vec3 orthographicPosition(Vec3 center, float yaw, float pitch) {

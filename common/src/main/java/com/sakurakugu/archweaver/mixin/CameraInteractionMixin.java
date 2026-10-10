@@ -11,6 +11,11 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 /** 身体交互关闭时禁用攻击和使用；打开时原版射线和距离校验完整保留。 */
 @Mixin(Minecraft.class)
 public abstract class CameraInteractionMixin {
+    @Inject(method = "pick", at = @At("HEAD"))
+    private void archweaver$shoulderAim(float partial, CallbackInfo ci) {
+        ClientCamera.updateShoulderAim(partial);
+    }
+
     @Inject(method = "startAttack", at = @At("HEAD"), cancellable = true)
     private void archweaver$attack(CallbackInfoReturnable<Boolean> cir) {
         if (ClientCamera.blockInteraction()) cir.setReturnValue(false);
