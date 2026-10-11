@@ -81,11 +81,19 @@ public final class MannequinManager {
         if (!name.matches("[A-Za-z0-9_-]{1,16}")) throw new IllegalArgumentException("invalid_name");
         Mannequin entity = loaded(server, id).orElseThrow(() -> new IllegalArgumentException("not_loaded"));
         var old = data(server).find(id).orElseThrow();
-        if (find(server, name).filter(other -> !other.uuid().equals(id)).isPresent()
-            || server.getPlayerList().getPlayers().stream().anyMatch(player -> player.getGameProfile().name().equalsIgnoreCase(name))
-            || com.sakurakugu.archweaver.persistence.FakePlayerPersistence.data(server).residents().stream()
-                .anyMatch(player -> player.name().equalsIgnoreCase(name) && !player.uuid().equals(entity.getProfile().partialProfile().id())))
+        // 同名玩偶、在线玩家和未加载的登记假人都要占用名称；异常消息保留来源，由调用方翻译成对应提示。
+        if (find(server, name).filter(other -> !other.uuid().equals(id)).isPresent()) {
+            throw new IllegalArgumentException("mannequin_duplicate");
+        }
+        if (server.getPlayerList().getPlayers().stream()
+            .anyMatch(player -> player.getGameProfile().name().equalsIgnoreCase(name))) {
             throw new IllegalArgumentException("duplicate");
+        }
+        if (com.sakurakugu.archweaver.persistence.FakePlayerPersistence.data(server).residents().stream()
+            .anyMatch(player -> player.name().equalsIgnoreCase(name)
+                && !player.uuid().equals(entity.getProfile().partialProfile().id()))) {
+            throw new IllegalArgumentException("registered_duplicate");
+        }
         entity.setCustomName(net.minecraft.network.chat.Component.literal(name));
         data(server).put(new MannequinSavedData.Record(old.uuid(), name, old.dimension(), old.x(), old.y(), old.z(),
             old.look(), old.pose(), old.immovable(), old.biologicalBehavior(), old.profile(), old.modelCustomisation(),
@@ -206,6 +214,26 @@ public final class MannequinManager {
         ((AvatarModelParts) entity).archweaver$setModelParts(mask);
         MannequinSavedData.Record old = data(server).find(id).orElseThrow();
         data(server).put(copy(old, entity, old.immovable(), old.biologicalBehavior(), old.pose(), mask, old.leftArm(), old.rightArm(), old.leftLeg(), old.rightLeg()));
+    }
+
+    /** 只替换玩偶使用的皮肤档案，实体 UUID 和登记状态保持不变。 */
+    public static void setProfile(MinecraftServer server, UUID id, GameProfile profile) {
+        Mannequin entity = loaded(server, id).orElse(null);
+        MannequinSavedData.Record old = data(server).find(id).orElseThrow(() -> new IllegalArgumentException("not_found"));
+        if (entity != null) {
+            ((MannequinInvoker) entity).archweaver$setProfile(ResolvableProfile.createResolved(profile));
+            capture(server, entity);
+        } else {
+            data(server).put(new MannequinSavedData.Record(old.uuid(), old.name(), old.dimension(), old.x(), old.y(), old.z(), old.look(),
+                old.pose(), old.immovable(), old.biologicalBehavior(), ResolvableProfile.createResolved(profile), old.modelCustomisation(),
+                old.leftArm(), old.rightArm(), old.leftLeg(), old.rightLeg()));
+        }
+    }
+
+    /** 清除皮肤覆盖后恢复以玩偶名称解析的原版档案。 */
+    public static void clearProfile(MinecraftServer server, UUID id) {
+        MannequinSavedData.Record old = data(server).find(id).orElseThrow(() -> new IllegalArgumentException("not_found"));
+        setProfile(server, id, new GameProfile(net.minecraft.core.UUIDUtil.createOfflinePlayerUUID(old.name()), old.name()));
     }
 
     public static void setLimbAngles(MinecraftServer server, UUID id, int limb, float x, float y, float z) {

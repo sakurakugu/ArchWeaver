@@ -28,6 +28,8 @@ import com.sakurakugu.archweaver.network.ChunkMapSnapshotPayload;
 import com.sakurakugu.archweaver.network.OpenMainPagePayload;
 import com.sakurakugu.archweaver.persistence.FakePlayerPersistence;
 import com.sakurakugu.archweaver.platform.PlatformNetworking;
+import com.sakurakugu.archweaver.skin.SkinService;
+import com.sakurakugu.archweaver.skin.SkinSavedData;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.commands.SharedSuggestionProvider;
@@ -48,6 +50,7 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec2;
 import net.minecraft.world.phys.Vec3;
+import java.util.Optional;
 
 /** 注册并处理 {@code /fakeplayer}、{@code /fakeplayer player} 与 {@code /player} 命令。 */
 public final class FakePlayerCommand {
@@ -91,7 +94,8 @@ public final class FakePlayerCommand {
         return Commands.literal("mannequin")
             .executes(context -> spawnMannequin(context, nextMannequinName(context)))
             .then(Commands.argument("name", StringArgumentType.word())
-                .executes(context -> spawnMannequin(context, name(context))))
+                .executes(context -> spawnMannequin(context, name(context)))
+                .then(skinCommand(SkinSavedData.TargetType.MANNEQUIN)))
             .then(Commands.literal("spawn")
                 .then(Commands.argument("name", StringArgumentType.word())
                     .executes(context -> spawnMannequin(context, name(context)))))
@@ -200,6 +204,7 @@ public final class FakePlayerCommand {
         target.then(ChunkLoaderCommand.simulationCommand(FakePlayerCommand::getFake));
         target.then(Commands.literal("possess").executes(FakePlayerCommand::possess));
         target.then(Commands.literal("unpossess").executes(FakePlayerCommand::unpossessTarget));
+        target.then(skinCommand(SkinSavedData.TargetType.PLAYER));
         target.then(dropCommand("drop", false));
         target.then(dropCommand("dropStack", true));
         target.then(Commands.literal("hotbar")
@@ -225,6 +230,44 @@ public final class FakePlayerCommand {
         target.then(repeatingCommand("use", (fake, mode, interval) -> fake.actions().use(mode, interval)));
         target.then(simpleAction("stop", fake -> fake.actions().stop()));
         return target;
+    }
+
+    /** {@code skin} 子树：{@code skin clear} 恢复默认皮肤，{@code skin player <来源>} 套用在线玩家的档案。 */
+    private static com.mojang.brigadier.builder.ArgumentBuilder<CommandSourceStack, ?> skinCommand(SkinSavedData.TargetType type) {
+        return Commands.literal("skin")
+            .then(Commands.literal("clear").executes(context -> clearSkin(context, type)))
+            .then(Commands.literal("player").then(Commands.argument("source", StringArgumentType.word())
+                    .suggests((context, builder) -> SharedSuggestionProvider.suggest(
+                        context.getSource().getServer().getPlayerList().getPlayers().stream().map(p -> p.getGameProfile().name()), builder))
+                    .executes(context -> applySkin(context, type))));
+    }
+
+    private static int applySkin(CommandContext<CommandSourceStack> context, SkinSavedData.TargetType type) {
+        String targetName = StringArgumentType.getString(context, "name");
+        String sourceName = StringArgumentType.getString(context, "source");
+        var server = context.getSource().getServer();
+        java.util.UUID id = type == SkinSavedData.TargetType.PLAYER
+            ? Optional.ofNullable(FakePlayerManager.findAny(server, targetName)).map(ServerPlayer::getUUID).orElse(null)
+            : MannequinManager.find(server, targetName).map(r -> r.uuid()).orElse(null);
+        if (id == null) { context.getSource().sendFailure(Component.literal("找不到目标")); return 0; }
+        ProfileResolver.resolve(server, sourceName).whenCompleteAsync((result, error) -> {
+            if (error != null || result == null || !result.successful()) { context.getSource().sendFailure(Component.literal("无法解析皮肤玩家")); return; }
+            SkinService.applyProfile(server, id, type, result.profile());
+            context.getSource().sendSuccess(() -> Component.literal("已更换皮肤"), true);
+        }, server);
+        return 1;
+    }
+
+    private static int clearSkin(CommandContext<CommandSourceStack> context, SkinSavedData.TargetType type) {
+        String targetName = StringArgumentType.getString(context, "name");
+        var server = context.getSource().getServer();
+        java.util.UUID id = type == SkinSavedData.TargetType.PLAYER
+            ? Optional.ofNullable(FakePlayerManager.findAny(server, targetName)).map(ServerPlayer::getUUID).orElse(null)
+            : MannequinManager.find(server, targetName).map(r -> r.uuid()).orElse(null);
+        if (id == null) { context.getSource().sendFailure(Component.literal("找不到目标")); return 0; }
+        SkinService.clear(server, id, type);
+        context.getSource().sendSuccess(() -> Component.literal("已恢复默认皮肤"), true);
+        return 1;
     }
 
     private static LiteralArgumentBuilder<CommandSourceStack> automationCommand() {
@@ -677,6 +720,15 @@ public final class FakePlayerCommand {
         if (server.getPlayerList().getPlayerByName(name) != null) {
             source.sendFailure(Component.translatable("commands.archweaver.fakeplayer.duplicate", name));
             return 0;
+        }
+
+        // 已登记假人使用保存的身份，避免改名后重新查询而改变 UUID 和皮肤。
+        var resident = FakePlayerPersistence.data(server).residents().stream()
+            .filter(record -> record.name().equalsIgnoreCase(name))
+            .findFirst();
+        if (resident.isPresent()) {
+            spawnResolved(source, level, resident.get().profile(), position, rotation, effectiveGameType, flying);
+            return 1;
         }
 
         boolean requestedFlying = flying;

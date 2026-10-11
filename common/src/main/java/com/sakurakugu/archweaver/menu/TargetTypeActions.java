@@ -15,6 +15,8 @@ import com.sakurakugu.archweaver.network.AvatarSkinPartPayload;
 import com.sakurakugu.archweaver.network.TargetTypePayload;
 import com.sakurakugu.archweaver.persistence.FakePlayerPersistence;
 import com.sakurakugu.archweaver.persistence.MannequinSavedData;
+import com.sakurakugu.archweaver.skin.SkinSavedData;
+import com.sakurakugu.archweaver.skin.SkinService;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.EquipmentSlot;
@@ -79,6 +81,8 @@ public final class TargetTypeActions {
                 old.leftArm(), old.rightArm(), old.leftLeg(), old.rightLeg()));
             MannequinManager.data(server).putPlayerSnapshot(mannequin.getUUID(), snapshot);
             MannequinManager.capture(server, mannequin);
+            SkinService.transfer(server, fake.getUUID(), SkinSavedData.TargetType.PLAYER,
+                mannequin.getUUID(), SkinSavedData.TargetType.MANNEQUIN);
         } catch (RuntimeException exception) {
             // 提交前出错时撤销新玩偶，原玩家的背包和身份仍完整保留。
             MannequinManager.remove(server, mannequin.getUUID());
@@ -127,6 +131,8 @@ public final class TargetTypeActions {
             }
             FakePlayerPersistence.data(server).migratePlayer(profile.id(), profile);
             FakePlayerPersistence.track(fake);
+            SkinService.transfer(server, mannequin.getUUID(), SkinSavedData.TargetType.MANNEQUIN,
+                fake.getUUID(), SkinSavedData.TargetType.PLAYER);
         } catch (RuntimeException exception) {
             // 玩偶与其快照仍持有原物品；清空临时玩家，退出保存也不能留下第二份。
             fake.getInventory().clearContent();

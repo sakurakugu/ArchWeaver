@@ -22,14 +22,54 @@ import com.sakurakugu.archweaver.chunkloading.ChunkLoaderManager;
 import com.sakurakugu.archweaver.chunkloading.ChunkLoadApplicationService;
 import com.sakurakugu.archweaver.chunkloading.FakePlayerSimulationService;
 import net.minecraft.network.chat.Component;
+import com.sakurakugu.archweaver.skin.SkinService;
+import com.sakurakugu.archweaver.skin.SkinSavedData;
 
-/** 注册客户端与服务端之间的假人菜单请求。 */
+/** 注册客户端与服务端之间的网络请求。 */
 public final class ModNetworking {
     private ModNetworking() {
     }
 
     public static void register(RegisterPayloadHandlersEvent event) {
         PayloadRegistrar registrar = event.registrar("2");
+        registrar.playToServer(SkinApplyPayload.TYPE, SkinApplyPayload.STREAM_CODEC, (payload, context) -> {
+            if (!(context.player() instanceof ServerPlayer player)
+                || !ArchWeaverConfig.canUseCommands(player.createCommandSourceStack())) return;
+            try {
+                var server = player.level().getServer();
+                SkinSavedData.TargetType type = payload.targetType();
+                boolean menuMatches = type == SkinSavedData.TargetType.PLAYER
+                    ? player.containerMenu instanceof com.sakurakugu.archweaver.menu.FakePlayerInventoryMenu playerMenu
+                        && playerMenu.targetName().equalsIgnoreCase(payload.targetName())
+                    : player.containerMenu instanceof com.sakurakugu.archweaver.menu.MannequinInventoryMenu mannequinMenu
+                        && mannequinMenu.mannequinName().equalsIgnoreCase(payload.targetName());
+                if (!menuMatches) throw new IllegalArgumentException("请从目标管理界面操作皮肤");
+                var target = type == SkinSavedData.TargetType.PLAYER
+                    ? com.sakurakugu.archweaver.entity.FakePlayerManager.findAny(server, payload.targetName())
+                    : com.sakurakugu.archweaver.entity.MannequinManager.find(server, payload.targetName()).map(r -> (Object) r).orElse(null);
+                if (target == null) throw new IllegalArgumentException("找不到目标");
+                java.util.UUID id = type == SkinSavedData.TargetType.PLAYER
+                    ? ((net.minecraft.server.level.ServerPlayer) target).getUUID()
+                    : ((com.sakurakugu.archweaver.persistence.MannequinSavedData.Record) target).uuid();
+                if (payload.clear()) SkinService.clear(server, id, type);
+                else if (payload.png().length > 0) SkinService.applyPng(server, id, type, payload.png(), payload.model(), payload.fileName());
+                else {
+                    // 档案解析会访问 Mojang 服务，绝不能在服务器主线程阻塞等待。
+                    com.sakurakugu.archweaver.entity.ProfileResolver.resolve(server, payload.sourceName())
+                        .whenCompleteAsync((result, error) -> {
+                            if (error != null || result == null || !result.successful()) {
+                                player.sendSystemMessage(Component.literal("皮肤操作失败：无法解析皮肤玩家"));
+                                return;
+                            }
+                            try {
+                                SkinService.applyProfile(server, id, type, result.profile());
+                            } catch (RuntimeException exception) {
+                                player.sendSystemMessage(Component.literal("皮肤操作失败：" + exception.getMessage()));
+                            }
+                        }, server);
+                }
+            } catch (RuntimeException exception) { player.sendSystemMessage(Component.literal("皮肤操作失败：" + exception.getMessage())); }
+        });
         registrar.playToServer(TargetTypePayload.TYPE, TargetTypePayload.STREAM_CODEC,
             (payload, context) -> {
                 if (context.player() instanceof ServerPlayer player && ArchWeaverConfig.canUseCommands(player.createCommandSourceStack())) {
@@ -326,6 +366,7 @@ public final class ModNetworking {
             }
         );
         registrar.playToClient(ChunkMapSnapshotPayload.TYPE, ChunkMapSnapshotPayload.STREAM_CODEC);
+        registrar.playToClient(SkinSyncPayload.TYPE, SkinSyncPayload.STREAM_CODEC);
         registrar.playToClient(ChunkMapApplyResultPayload.TYPE, ChunkMapApplyResultPayload.STREAM_CODEC);
         registrar.playToClient(ChunkMapRequestFailedPayload.TYPE, ChunkMapRequestFailedPayload.STREAM_CODEC);
         registrar.playToClient(OpenMainPagePayload.TYPE, OpenMainPagePayload.STREAM_CODEC);

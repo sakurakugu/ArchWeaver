@@ -8,6 +8,8 @@ import com.sakurakugu.archweaver.network.ChunkMapOpenTarget;
 import com.sakurakugu.archweaver.network.ChunkMapSnapshotPayload;
 import com.sakurakugu.archweaver.network.BodyRotationPayload;
 import com.sakurakugu.archweaver.network.MannequinAnglesPayload;
+import com.sakurakugu.archweaver.network.SkinSyncPayload;
+import com.sakurakugu.archweaver.client.skin.ClientSkinCache;
 import com.sakurakugu.archweaver.network.FakePlayerAliasPayload;
 import com.sakurakugu.archweaver.network.OpenMainPagePayload;
 import com.sakurakugu.archweaver.client.chunkloading.ClientChunkLoadingState;
@@ -141,6 +143,7 @@ public final class ArchWeaverClientMod {
         event.register(MannequinAnglesPayload.TYPE,
             (payload, context) -> ClientMannequinAngles.set(payload.id(), payload.leftArm(), payload.rightArm(),
                 payload.leftLeg(), payload.rightLeg()));
+        event.register(SkinSyncPayload.TYPE, (payload, context) -> ClientSkinCache.accept(payload));
     }
 
     /** 网络包里的页面枚举措意与客户端界面类型解耦，在这里做一次映射。 */
@@ -186,6 +189,7 @@ public final class ArchWeaverClientMod {
             ClientChunkLoadingState.clear();
             ClientFakePlayerAliases.clear();
             ClientMannequinAngles.clear();
+            ClientSkinCache.clearAll();
             refreshTicks = 0;
         } else if (!minecraft.debugEntries.isOverlayVisible()) {
             refreshTicks = 0;

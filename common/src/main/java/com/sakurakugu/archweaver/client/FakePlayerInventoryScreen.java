@@ -27,6 +27,10 @@ import com.sakurakugu.archweaver.network.FakePlayerViewRotationPayload;
 import com.sakurakugu.archweaver.network.ToggleFakePlayerRestorePayload;
 import com.sakurakugu.archweaver.network.TargetTypePayload;
 import com.sakurakugu.archweaver.network.AvatarSkinPartPayload;
+import com.sakurakugu.archweaver.network.SkinApplyPayload;
+import com.sakurakugu.archweaver.skin.SkinSavedData;
+import com.sakurakugu.archweaver.client.skin.SkinFilePicker;
+import com.sakurakugu.archweaver.client.ui.SkinStatusDisplay;
 import net.minecraft.world.entity.player.PlayerModelPart;
 import com.sakurakugu.archweaver.platform.PlatformNetworking;
 import com.sakurakugu.archweaver.client.ui.HotbarSelector;
@@ -73,6 +77,11 @@ import java.util.Optional;
 /** 绘制假人完整物品栏；末影箱使用原版三行容器界面。 */
 public final class FakePlayerInventoryScreen extends AbstractContainerScreen<FakePlayerInventoryMenu> {
     private OverlayPanelManager.Panel skinPanel;
+    private EditBox skinSourceInput;
+    private SegmentedSwitchButton skinPageSwitch; // 皮肤部件面板顶部的修改/显示二态开关。
+    private boolean skinPartsPage; // 皮肤部件面板是否停在“显示”页，false 表示停在“修改”页。
+    private List<AbstractWidget> skinDisplayControls = List.of(); // 显示页的部件开关，切页时与修改页互换绑定。
+    private List<AbstractWidget> skinModifyControls = List.of(); // 修改页的当前皮肤、玩家名与三个按钮。
     private static final FontDescription EFFECT_DURATION_FONT = new FontDescription.Resource(
         Identifier.fromNamespaceAndPath(ArchWeaverMod.MOD_ID, "effect_duration")); // 时间专用字体，将星号字形调整为与数字等高。
     private static final Identifier CONTAINER_BACKGROUND =
@@ -173,8 +182,27 @@ public final class FakePlayerInventoryScreen extends AbstractContainerScreen<Fak
         + EFFECT_GRID_WIDTH + EFFECT_SCROLLBAR_GAP + EFFECT_SCROLLBAR_WIDTH; // 网格和始终显示的滚动条共用固定宽度。
     private static final int EFFECTS_PANEL_HEIGHT = EFFECT_GRID_TOP + EFFECT_GRID_HEIGHT
         + EFFECT_GRID_PADDING; // 底部边距与左侧相同，不再额外留空。
+    // 皮肤部件面板：顶部二态开关切换“修改/显示”两页，两页共用同一高度，切页时面板不跳动。
+    private static final int SKIN_SWITCH_TOP = 24; // 顶部二态开关相对面板顶边的偏移，与模拟面板一致。
+    private static final int SKIN_SWITCH_HEIGHT = 18; // 顶部二态开关的高度，单位为像素。
+    private static final int SKIN_CONTENT_TOP = 46; // 两页内容相对面板顶边的偏移，让开顶部的二态开关。
+    private static final int SKIN_TOGGLE_HEIGHT = 18; // 显示页单个部件开关的高度，单位为像素。
+    private static final int SKIN_TOGGLE_STEP = 20; // 显示页相邻部件开关的偏移，留 2 像素空隙。
+    private static final int SKIN_ROW_HEIGHT = 16; // 修改页输入框与按钮行的高度，单位为像素。
+    private static final int SKIN_STATUS_ROW = SKIN_CONTENT_TOP; // 修改页当前皮肤行相对面板顶边的偏移。
+    private static final int SKIN_SOURCE_ROW = SKIN_STATUS_ROW + 16; // 修改页玩家名输入框相对面板顶边的偏移。
+    private static final int SKIN_BUTTON_ROW = SKIN_SOURCE_ROW + 19; // 修改页 PNG/应用/恢复按钮行相对面板顶边的偏移。
+    private static final int SKIN_PANEL_BOTTOM_PADDING = 7; // 最后一行的下方内边距，与左列其他面板一致。
+    private static final int SKIN_DISPLAY_HEIGHT = SKIN_CONTENT_TOP
+        + SKIN_TOGGLE_STEP * (PlayerModelPart.values().length - 1) + SKIN_TOGGLE_HEIGHT
+        + SKIN_PANEL_BOTTOM_PADDING; // 显示页七个部件开关加内边距后的高度。
+    private static final int SKIN_MODIFY_HEIGHT = SKIN_BUTTON_ROW + SKIN_ROW_HEIGHT
+        + SKIN_PANEL_BOTTOM_PADDING; // 修改页三行加内边距后的高度。
+    private static final int SKIN_PANEL_HEIGHT = Math.max(SKIN_DISPLAY_HEIGHT, SKIN_MODIFY_HEIGHT); // 取两页较高者，避免切页时面板高度变化。
+    private static final OverlayPanelManager.Layout SKIN_PANEL_LAYOUT = nextPanelLayout(
+        SIMULATION_PANEL_LAYOUT, SIMULATION_PANEL_LAYOUT.width(), SKIN_PANEL_HEIGHT); // 皮肤部件面板紧接模拟侧栏标签。
     private static final OverlayPanelManager.Layout EFFECTS_PANEL_LAYOUT = nextPanelLayout(
-        SIMULATION_PANEL_LAYOUT, EFFECTS_PANEL_WIDTH, EFFECTS_PANEL_HEIGHT); // 药水效果面板紧接模拟侧栏标签。
+        SKIN_PANEL_LAYOUT, EFFECTS_PANEL_WIDTH, EFFECTS_PANEL_HEIGHT); // 药水效果面板紧接皮肤部件标签。
     // 应用按钮三态文字色：红=有未保存改动，绿=已保存，白=无需保存。
     private static final int APPLY_DIRTY_COLOR = 0xFFFF5555; // 应用按钮“有未保存改动”状态的文字色，ARGB 红色。
     private static final int APPLY_SAVED_COLOR = 0xFF55FF55; // 应用按钮“刚保存成功”状态的文字色，ARGB 绿色。
@@ -374,8 +402,8 @@ public final class FakePlayerInventoryScreen extends AbstractContainerScreen<Fak
         addInfoPanel();
         addAimPanel();
         addSimulationPanel();
-        addEffectsPanel();
         addSkinPartPanel();
+        addEffectsPanel();
         addAutomationPanel();
         addMountPanel();
         addContinuousPanel();
@@ -448,25 +476,86 @@ public final class FakePlayerInventoryScreen extends AbstractContainerScreen<Fak
     }
 
     private void addSkinPartPanel() {
-        var layout = nextPanelLayout(EFFECTS_PANEL_LAYOUT, SIMULATION_PANEL_LAYOUT.width(), 174);
-        int left = leftPos - layout.width();
-        int top = topPos + layout.top();
-        skinPanel = leftPanelManager.addLeftPanel("skin_parts", left, topPos, layout,
+        int left = leftPos - SKIN_PANEL_LAYOUT.width();
+        int top = topPos + SKIN_PANEL_LAYOUT.top();
+        skinPanel = leftPanelManager.addLeftPanel("skin_parts", left, topPos, SKIN_PANEL_LAYOUT,
             Component.translatable("gui.archweaver.fakeplayer.skin_parts.title"));
         addRenderableWidget(skinPanel);
         addRenderableWidget(skinPanel.createTab(new ItemStack(Items.LEATHER_CHESTPLATE)));
-        List<AbstractWidget> controls = new ArrayList<>();
+        skinPageSwitch = addRenderableWidget(new SegmentedSwitchButton(
+            left + 6, top + SKIN_SWITCH_TOP, skinPanel.contentWidth() - 12, SKIN_SWITCH_HEIGHT,
+            Component.translatable("gui.archweaver.skin.page.modify"),
+            Component.translatable("gui.archweaver.skin.page.display"),
+            () -> skinPartsPage,
+            this::showSkinPage));
+        // 显示页：披风到帽子共七个部件开关。
+        skinDisplayControls = new ArrayList<>();
         PlayerModelPart[] parts = PlayerModelPart.values();
         for (int i = 0; i < parts.length; i++) {
             PlayerModelPart part = parts[i];
-            controls.add(addRenderableWidget(new ToggleSwitchButton(left + 6, top + 25 + i * 20,
-                skinPanel.contentWidth() - 12, 18,
+            skinDisplayControls.add(addRenderableWidget(new ToggleSwitchButton(
+                left + 6, top + SKIN_CONTENT_TOP + i * SKIN_TOGGLE_STEP,
+                skinPanel.contentWidth() - 12, SKIN_TOGGLE_HEIGHT,
                 Component.translatable("gui.archweaver.fakeplayer.skin_parts." + part.getId()),
                 () -> modelPartShown(part),
                 button -> PlatformNetworking.sendToServer(new AvatarSkinPartPayload(menu.containerId,
                     menu.targetUuid(), part, !modelPartShown(part))))));
         }
-        skinPanel.bindContents(controls.toArray(AbstractWidget[]::new));
+        // 修改页：当前皮肤、玩家名与 PNG/应用/恢复。
+        skinModifyControls = new ArrayList<>();
+        skinModifyControls.add(addRenderableWidget(new SkinStatusDisplay(font, left + 6, top + SKIN_STATUS_ROW,
+            skinPanel.contentWidth() - 12, menu::targetUuid, SkinSavedData.TargetType.PLAYER)));
+        skinSourceInput = addRenderableWidget(new EditBox(font, left + 6, top + SKIN_SOURCE_ROW,
+            skinPanel.contentWidth() - 12, SKIN_ROW_HEIGHT, Component.translatable("gui.archweaver.skin.player")));
+        skinSourceInput.setMaxLength(16);
+        skinSourceInput.setHint(Component.translatable("gui.archweaver.skin.player_hint"));
+        skinModifyControls.add(skinSourceInput);
+        skinModifyControls.add(addRenderableWidget(new SolidButton(left + 6, top + SKIN_BUTTON_ROW, 28, SKIN_ROW_HEIGHT,
+            Component.translatable("gui.archweaver.skin.png"), button -> applySkinPng())));
+        Button applyButton = addRenderableWidget(new SolidButton(left + 36, top + SKIN_BUTTON_ROW, 28, SKIN_ROW_HEIGHT,
+            Component.translatable("gui.archweaver.skin.apply"), button -> applySkinPlayer()));
+        skinModifyControls.add(applyButton);
+        applyButton.active = false;
+        skinSourceInput.setResponder(value -> applyButton.active = applyButton.visible && !value.isBlank());
+        skinPanel.setContentRenderer((graphics, x, y) -> applyButton.active = applyButton.visible && !skinSourceInput.getValue().isBlank());
+        Button restoreButton = addRenderableWidget(new SolidButton(left + 66, top + SKIN_BUTTON_ROW, 28, SKIN_ROW_HEIGHT,
+            Component.translatable("gui.archweaver.skin.clear"), button -> clearSkin()));
+        restoreButton.setTooltip(Tooltip.create(Component.translatable("gui.archweaver.skin.restore_hint")));
+        skinModifyControls.add(restoreButton);
+        showSkinPage(skinPartsPage);
+    }
+
+    /**
+     * 切换皮肤部件面板显示哪一页：先把上一页的控件连顶部开关一起隐藏，再把当前页绑到面板上，
+     * 由面板统一决定展开时的显隐，未绑定的一页始终保持隐藏。
+     */
+    private void showSkinPage(boolean displayPage) {
+        skinPartsPage = displayPage;
+        for (AbstractWidget widget : displayPage ? skinModifyControls : skinDisplayControls) {
+            widget.visible = false;
+            widget.active = false;
+        }
+        List<AbstractWidget> page = new ArrayList<>();
+        page.add(skinPageSwitch);
+        page.addAll(displayPage ? skinDisplayControls : skinModifyControls);
+        skinPanel.bindContents(page.toArray(AbstractWidget[]::new));
+    }
+
+    private void applySkinPng() {
+        var png = SkinFilePicker.choosePng();
+        if (png != null) PlatformNetworking.sendToServer(new SkinApplyPayload(SkinSavedData.TargetType.PLAYER,
+            menu.targetName(), "", png.bytes(), "", false, png.fileName()));
+    }
+
+    private void applySkinPlayer() {
+        String source = skinSourceInput == null ? "" : skinSourceInput.getValue().trim();
+        if (!source.isEmpty()) PlatformNetworking.sendToServer(new SkinApplyPayload(SkinSavedData.TargetType.PLAYER,
+            menu.targetName(), source, new byte[0], "", false));
+    }
+
+    private void clearSkin() {
+        PlatformNetworking.sendToServer(new SkinApplyPayload(SkinSavedData.TargetType.PLAYER,
+            menu.targetName(), "", new byte[0], "", true));
     }
 
     private boolean modelPartShown(PlayerModelPart part) {
@@ -661,6 +750,7 @@ public final class FakePlayerInventoryScreen extends AbstractContainerScreen<Fak
         nameInput.setMaxLength(16);
         nameInput.setValue(menu.targetName());
         nameInput.setHint(Component.translatable("gui.archweaver.fakeplayer.info.name"));
+        nameInput.setTooltip(Tooltip.create(Component.translatable("gui.archweaver.fakeplayer.info.name_hint")));
         Button renameButton = addRenderableWidget(new SolidButton(
             left + 96, top + 28, 28, 16,
             Component.translatable("gui.archweaver.fakeplayer.info.rename"),
@@ -1171,8 +1261,7 @@ public final class FakePlayerInventoryScreen extends AbstractContainerScreen<Fak
         continuousPanel.drawBackground(graphics);
         aimPanel.drawBackground(graphics);
         effectsPanel.drawBackground(graphics);
-        // 药水效果面板展开时会遮住皮肤部件标签，避免再绘制其折叠边框。
-        if (!effectsPanel.isOpen()) skinPanel.drawBackground(graphics);
+        skinPanel.drawBackground(graphics);
         simulationPanel.drawBackground(graphics);
         restorePanel.drawBackground(graphics);
 

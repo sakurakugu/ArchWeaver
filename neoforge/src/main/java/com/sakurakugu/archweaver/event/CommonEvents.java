@@ -16,6 +16,7 @@ import com.sakurakugu.archweaver.entity.FakeServerPlayer;
 import com.sakurakugu.archweaver.entity.ExternalFakePlayerSupport;
 import com.sakurakugu.archweaver.menu.FakePlayerMenuOpener;
 import com.sakurakugu.archweaver.persistence.FakePlayerPersistence;
+import com.sakurakugu.archweaver.skin.SkinService;
 import java.util.concurrent.CompletableFuture;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.protocol.game.ClientboundUpdateMobEffectPacket;
@@ -138,9 +139,14 @@ public final class CommonEvents {
         if (event.getEntity() instanceof ServerPlayer player) {
             ExternalFakePlayerSupport.track(player);
             if (!(player instanceof FakeServerPlayer)) MannequinManager.syncAnglesTo(player);
+            SkinService.syncTo(player);
             FakePlayerPossession.syncTo(player);
             if (player instanceof FakeServerPlayer fake) FakePlayerAliasSync.broadcast(fake);
             else FakePlayerAliasSync.syncTo(player);
+            // 假人重新上线时启用它的皮肤覆盖；真人接替同一 UUID 登录时不会下发。
+            if (FakePlayerManager.isFakePlayer(player)) {
+                SkinService.syncFakePresence(player.level().getServer(), player.getUUID(), true);
+            }
         }
     }
 
@@ -165,6 +171,10 @@ public final class CommonEvents {
     @SubscribeEvent
     public static void playerLoggedOut(PlayerEvent.PlayerLoggedOutEvent event) {
         if (event.getEntity() instanceof FakeServerPlayer fake) FakePlayerAliasSync.clear(fake);
+        // 假人下线后客户端立即停止套用它的覆盖，避免同 UUID 的真人沿用假人皮肤。
+        if (event.getEntity() instanceof ServerPlayer player && FakePlayerManager.isFakePlayer(player)) {
+            SkinService.syncFakePresence(player.level().getServer(), player.getUUID(), false);
+        }
         if (event.getEntity() instanceof ServerPlayer player && !(player instanceof FakeServerPlayer)) {
             // 真人退出前先恢复附身前的身体状态，确保原版保存的 playerdata 仍是真人原来的位置。
             if (!FakePlayerPossession.stop(player)) {

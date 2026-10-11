@@ -5,7 +5,6 @@ import com.sakurakugu.archweaver.persistence.FakePlayerPersistence;
 import com.sakurakugu.archweaver.persistence.FakePlayerSavedData;
 import com.sakurakugu.archweaver.chunkloading.FakePlayerSimulationService;
 import com.sakurakugu.archweaver.menu.FakePlayerInventoryMenu;
-import java.io.IOException;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -15,7 +14,6 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.network.CommonListenerCookie;
-import net.minecraft.server.players.NameAndId;
 import net.minecraft.world.Container;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.GameType;
@@ -209,76 +207,64 @@ public final class FakePlayerManager {
         container.setChanged();
     }
 
-    /** 将全部玩家状态迁移到新身份，并重建实体以同步玩家列表。 */
-    public static RenameResult rename(FakeServerPlayer player, GameProfile profile) {
+    /** 只更新名称，保留 UUID 和基础皮肤，并重建实体以同步玩家列表。 */
+    public static RenameResult rename(FakeServerPlayer player, String name) {
+        if (!name.matches("[A-Za-z0-9_-]{1,16}")) {
+            return RenameResult.failure("commands.archweaver.fakeplayer.invalid_name");
+        }
         MinecraftServer server = player.server();
         if (player.isPassenger() || !player.getPassengers().isEmpty()) {
             return RenameResult.failure("commands.archweaver.fakeplayer.rename_riding");
         }
+        GameProfile profile = new GameProfile(player.getUUID(), name, player.getGameProfile().properties());
         FakePlayerSavedData savedData = FakePlayerPersistence.data(server);
-        if (server.getPlayerList().getPlayers().stream().anyMatch(other -> other != player
-            && (other.getUUID().equals(profile.id())
-                || other.getGameProfile().name().equalsIgnoreCase(profile.name())))) {
+        boolean onlineConflict = server.getPlayerList().getPlayers().stream().anyMatch(other -> other != player
+            && other.getGameProfile().name().equalsIgnoreCase(name));
+        // 未加载假人仍要占用名称，否则之后按名称 load 时会出现两个候选记录。
+        boolean registeredConflict = savedData.residents().stream().anyMatch(other ->
+            !other.uuid().equals(player.getUUID()) && other.name().equalsIgnoreCase(name));
+        boolean mannequinConflict = MannequinManager.find(server, name).isPresent();
+        // 占用名称的对象不同，提示也必须不同：在线玩家、未加载的登记假人和玩偶不是同一回事。
+        if (onlineConflict) {
             return RenameResult.failure("commands.archweaver.fakeplayer.duplicate");
         }
-        if (!profile.id().equals(player.getUUID())
-            && (server.getPlayerList().loadPlayerData(new NameAndId(profile)).isPresent()
-                || FakePlayerPersistence.hasPlayerProgressData(server, profile.id()))) {
-            return RenameResult.failure("commands.archweaver.fakeplayer.rename_existing_data");
+        if (registeredConflict) {
+            return RenameResult.failure("commands.archweaver.fakeplayer.registered_duplicate");
+        }
+        if (mannequinConflict) {
+            return RenameResult.failure("commands.archweaver.fakeplayer.mannequin_duplicate");
         }
 
-        String oldName = player.getGameProfile().name();
-        UUID oldUuid = player.getUUID();
+        UUID uuid = player.getUUID();
         ServerLevel level = player.level();
         Vec3 position = player.position();
         Vec2 rotation = player.getRotationVector();
         GameType gameType = player.gameMode.getGameModeForPlayer();
         boolean flying = player.getAbilities().flying;
         FakePlayerSavedData.PlayerSnapshot snapshot = FakePlayerSavedData.PlayerSnapshot.from(player, true);
-        savedData.migratePlayer(oldUuid, profile);
-        remove(player, false);
-
         FakeServerPlayer renamed = null;
-        boolean progressDataMoved = false;
         try {
-            if (!oldUuid.equals(profile.id())) {
-                FakePlayerPersistence.movePlayerProgressData(server, oldUuid, profile.id());
-                progressDataMoved = true;
-            }
-            renamed = restoreSnapshot(
-                server, level, snapshot, profile, position, rotation, gameType, flying);
-            if (!oldUuid.equals(profile.id())) {
-                FakePlayerPersistence.movePlayerData(renamed, oldUuid);
-            }
+            savedData.migratePlayer(uuid, profile);
+            remove(player, false);
+            renamed = restoreSnapshot(server, level, snapshot, profile, position, rotation, gameType, flying);
             FakePlayerPersistence.track(renamed);
             return RenameResult.success(renamed);
-        } catch (RuntimeException | IOException exception) {
-            if (renamed != null) {
-                remove(renamed, false);
-                try {
-                    FakePlayerPersistence.deletePlayerData(server, profile.id());
-                } catch (IOException cleanupException) {
-                    exception.addSuppressed(cleanupException);
-                }
-            }
-            if (progressDataMoved) {
-                try {
-                    FakePlayerPersistence.movePlayerProgressData(server, profile.id(), oldUuid);
-                } catch (IOException rollbackException) {
-                    exception.addSuppressed(rollbackException);
-                }
-            }
-            savedData.migratePlayer(profile.id(), new GameProfile(oldUuid, oldName, snapshot.profile().properties()));
+        } catch (RuntimeException exception) {
+            // UUID 没有变化，回滚绝不能删除其原版玩家存档。
             try {
-                FakeServerPlayer restored = restoreSnapshot(
-                    server, level, snapshot, snapshot.profile(), position, rotation, gameType, flying);
-                if (!oldUuid.equals(profile.id())) {
-                    FakePlayerPersistence.movePlayerData(restored, profile.id());
+                if (renamed != null) remove(renamed, false);
+                savedData.migratePlayer(uuid, snapshot.profile());
+                if (server.getPlayerList().getPlayers().contains(player) && !player.hasDisconnected()) {
+                    FakePlayerPersistence.track(player);
+                } else {
+                    FakeServerPlayer restored = restoreSnapshot(
+                        server, level, snapshot, snapshot.profile(), position, rotation, gameType, flying);
+                    FakePlayerPersistence.track(restored);
                 }
-                FakePlayerPersistence.track(restored);
-            } catch (RuntimeException | IOException rollbackException) {
+            } catch (RuntimeException rollbackException) {
                 exception.addSuppressed(rollbackException);
             }
+            com.sakurakugu.archweaver.ArchWeaverMod.LOGGER.error("假人改名失败，已尝试恢复原状态", exception);
             return RenameResult.failure("commands.archweaver.fakeplayer.rename_failed");
         }
     }
@@ -298,9 +284,19 @@ public final class FakePlayerManager {
         FakeServerPlayer restored = spawnFromPlayerData(
             server, level, profile, position, rotation, gameType, flying,
             migratedPlayerData);
-        restored.actions().restore(snapshot.actions());
-        restored.automation().setSettings(snapshot.automation());
-        return restored;
+        try {
+            restored.actions().restore(snapshot.actions());
+            restored.automation().setSettings(snapshot.automation());
+            return restored;
+        } catch (RuntimeException exception) {
+            // 状态恢复失败时撤销临时实体，回滚才可用同一 UUID 重建原假人。
+            try {
+                remove(restored, false);
+            } catch (RuntimeException cleanupException) {
+                exception.addSuppressed(cleanupException);
+            }
+            throw exception;
+        }
     }
 
     public record RenameResult(FakeServerPlayer player, String messageKey) {
@@ -324,7 +320,21 @@ public final class FakePlayerManager {
     /** 查找 ArchWeaver 或外部模组提供的假玩家实体。 */
     public static ServerPlayer findAny(MinecraftServer server, String name) {
         ServerPlayer player = server.getPlayerList().getPlayerByName(name);
-        return player instanceof FakeServerPlayer || ExternalFakePlayerSupport.isExternalFake(player) ? player : null;
+        return isFakePlayer(player) ? player : null;
+    }
+
+    /** 按 UUID 查找 ArchWeaver 或外部模组提供的假玩家实体；同名真人不会命中。 */
+    public static ServerPlayer findAny(MinecraftServer server, UUID id) {
+        return server.getPlayerList().getPlayers().stream()
+            .filter(player -> player.getUUID().equals(id))
+            .filter(FakePlayerManager::isFakePlayer)
+            .findFirst()
+            .orElse(null);
+    }
+
+    /** 是否由本模组或外部模组提供的假玩家，用于把假人和同名真人区分开。 */
+    public static boolean isFakePlayer(ServerPlayer player) {
+        return player instanceof FakeServerPlayer || ExternalFakePlayerSupport.isExternalFake(player);
     }
 
     public static FakeServerPlayer find(MinecraftServer server, GameProfile profile) {

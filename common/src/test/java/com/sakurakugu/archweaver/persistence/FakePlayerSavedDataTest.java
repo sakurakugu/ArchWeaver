@@ -239,6 +239,42 @@ class FakePlayerSavedDataTest {
         assertEquals(newProfile.id(), restored.uuid());
     }
 
+    @Test
+    void renameWithSameIdentityPreservesSkinAndStateAcrossPersistence() {
+        FakePlayerSavedData data = new FakePlayerSavedData();
+        var original = preset("Miner");
+        var snapshot = original.player();
+        var properties = ArrayListMultimap.<String, Property>create();
+        properties.put("textures", new Property("textures", "original skin", "signature"));
+        var profile = new GameProfile(snapshot.uuid(), snapshot.name(), new PropertyMap(properties));
+        var resident = new FakePlayerSavedData.Resident(profile.id(), profile.name(),
+            List.of(new FakePlayerSavedData.ProfileProperty("textures", "original skin", "signature")), snapshot.automation(), true);
+        data.putResident(resident);
+        data.putPreset(new FakePlayerSavedData.Preset(original.id(), original.description(),
+            new FakePlayerSavedData.PlayerSnapshot(snapshot.uuid(), snapshot.name(), resident.profileProperties(),
+                snapshot.playerData(), snapshot.actions(), snapshot.automation())));
+        var renamed = new GameProfile(profile.id(), "RenamedBot", profile.properties());
+
+        data.migratePlayer(profile.id(), renamed);
+        var decoded = FakePlayerSavedData.CODEC.parse(JsonOps.INSTANCE,
+            FakePlayerSavedData.CODEC.encodeStart(JsonOps.INSTANCE, data).getOrThrow()).getOrThrow();
+        var savedResident = decoded.residents().getFirst();
+        var savedPreset = decoded.preset("Miner").orElseThrow();
+        assertEquals(profile.id(), savedResident.uuid());
+        assertEquals("RenamedBot", savedResident.name());
+        assertEquals(profile.properties(), savedResident.profile().properties());
+        assertEquals(true, savedResident.restoreOnRestart());
+        assertEquals(profile.id(), savedPreset.player().uuid());
+        assertEquals("RenamedBot", savedPreset.player().name());
+        assertEquals(profile.properties(), savedPreset.player().profile().properties());
+        assertEquals(snapshot.actions(), savedPreset.player().actions());
+        assertEquals(snapshot.automation(), savedPreset.player().automation());
+        var expectedPlayerData = snapshot.playerData().copy();
+        expectedPlayerData.remove("UUID");
+        assertEquals(expectedPlayerData, savedPreset.player().playerData());
+        assertEquals(original.description(), savedPreset.description());
+    }
+
     private static FakePlayerSavedData.Preset preset(String id) {
         FakePlayerActions.State actions = new FakePlayerActions.State(
             List.of(new FakePlayerActions.ScheduledState(

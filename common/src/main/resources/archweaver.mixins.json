@@ -30,6 +30,7 @@
     "CameraTerrainMixin",
     "CameraWorldRendererMixin",
     "AbstractClientPlayerMixin",
+    "PlayerInfoSkinMixin",
     "PlayerAppearanceMixin",
     "EntityNameMixin",
     "EntityRendererNameMixin",

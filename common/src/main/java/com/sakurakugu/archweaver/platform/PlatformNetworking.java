@@ -3,6 +3,7 @@ package com.sakurakugu.archweaver.platform;
 import java.util.Objects;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
+import java.util.function.BiConsumer;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.server.level.ServerPlayer;
 import org.jetbrains.annotations.ApiStatus;
@@ -35,5 +36,10 @@ public final class PlatformNetworking {
 
     public static void sendToPlayer(ServerPlayer player, CustomPacketPayload payload) {
         playerSender.accept(player, payload);
+    }
+
+    /** 向所有已连接玩家广播服务端状态。 */
+    public static void sendToAllPlayers(net.minecraft.server.MinecraftServer server, CustomPacketPayload payload) {
+        server.getPlayerList().getPlayers().forEach(player -> sendToPlayer(player, payload));
     }
 }
