@@ -8,6 +8,7 @@ import com.sakurakugu.archweaver.client.ui.CameraModeButton;
 import com.sakurakugu.archweaver.client.ui.CameraToggleButton;
 import com.sakurakugu.archweaver.client.ui.SolidButton;
 import com.sakurakugu.archweaver.client.ui.ViewCube;
+import java.util.Objects;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.input.KeyEvent;
@@ -47,6 +48,8 @@ public final class CameraSelectorScreen extends Screen {
     private boolean previewInitialized;
     private ViewCube cube;
     private boolean lastBlocked, lastExternalControl, lastYield;
+    private Boolean lastBodyInteraction, lastBodyMovement;
+    private final ExternalCameraBodyControls externalBodyControls = new ExternalCameraBodyControls();
     private int firstMouseX = Integer.MIN_VALUE, firstMouseY;
 
     public CameraSelectorScreen() { super(Component.translatable("camera.archweaver.selector")); }
@@ -74,6 +77,8 @@ public final class CameraSelectorScreen extends Screen {
         lastBlocked = CameraExclusivity.selectionBlocked();
         lastExternalControl = CameraExclusivity.externalControlAvailable();
         lastYield = CameraExclusivity.shouldYield();
+        lastBodyInteraction = CameraExclusivity.externalBodyToggle(Toggle.BODY_INTERACTION);
+        lastBodyMovement = CameraExclusivity.externalBodyToggle(Toggle.BODY_MOVEMENT);
         cube = null;
         updatePreview();
         for (Category category : Category.values()) {
@@ -99,7 +104,7 @@ public final class CameraSelectorScreen extends Screen {
                 rotationPreview::yaw, rotationPreview::pitch, rotationPreview::rotation));
             cube.active = !lastBlocked;
         }
-        if (!lastBlocked && !(selected == Category.FREE && lastExternalControl)
+        if (!lastBlocked
             && selected != Category.ORTHOGRAPHIC && CameraSelection.detachedControls(selected, selectedMode)) {
             // 竖着落在固定机位、跟随视角两列，横着与第三人称正面同一行；这两列没有第三个子模式，不会和模式按钮重叠。
             int toggleY = tileTop() + 30 + 2 * 28;
@@ -123,6 +128,10 @@ public final class CameraSelectorScreen extends Screen {
     }
 
     private void addToggle(Toggle toggle, int x, int y) {
+        if (selected == Category.FREE && lastExternalControl) {
+            addExternalToggle(toggle, x, y);
+            return;
+        }
         // 图标按钮不再显示文字，标签挪到提示的第一行。
         Component tooltip = toggleLabel(toggle).copy()
             .append("\n").append(Component.translatable("camera.archweaver.toggle." + toggle.key() + ".tooltip"));
@@ -130,6 +139,22 @@ public final class CameraSelectorScreen extends Screen {
             CameraPreferences.flip(toggle);
             init();
         }));
+    }
+
+    private void addExternalToggle(Toggle toggle, int x, int y) {
+        Boolean state = toggle == Toggle.BODY_INTERACTION ? lastBodyInteraction : lastBodyMovement;
+        Component label = Component.translatable("camera.archweaver.toggle." + toggle.key());
+        Component tooltip = Component.translatable("camera.archweaver.toggle.state", label,
+            Component.translatable(state == null ? "camera.archweaver.external_body_unavailable"
+                : state ? "options.on" : "options.off"));
+        tooltip = tooltip.copy().append("\n").append(Component.translatable(
+            "camera.archweaver.toggle." + toggle.key() + ".tweakeroo.tooltip"));
+        var button = addRenderableWidget(new CameraToggleButton(x, y, toggleIcon(toggle), Boolean.TRUE.equals(state),
+            tooltip, b -> {
+                externalBodyControls.flip(toggle);
+                init();
+            }));
+        button.active = state != null;
     }
 
     private static Identifier toggleIcon(Toggle toggle) {
@@ -237,7 +262,10 @@ public final class CameraSelectorScreen extends Screen {
         if (!minecraft.isWindowActive()) onClose();
         else if (lastBlocked != CameraExclusivity.selectionBlocked()
             || lastExternalControl != CameraExclusivity.externalControlAvailable()
-            || lastYield != CameraExclusivity.shouldYield()) init();
+            || lastYield != CameraExclusivity.shouldYield()
+            || selected == Category.FREE && lastExternalControl
+                && (!Objects.equals(lastBodyInteraction, CameraExclusivity.externalBodyToggle(Toggle.BODY_INTERACTION))
+                    || !Objects.equals(lastBodyMovement, CameraExclusivity.externalBodyToggle(Toggle.BODY_MOVEMENT)))) init();
     }
 
     /** 松开 F3 才提交选中的视角与角度。 */
@@ -245,7 +273,9 @@ public final class CameraSelectorScreen extends Screen {
         minecraft.setScreen(null);
         if (CameraExclusivity.selectionBlocked()) return;
         if (selected == Category.ORTHOGRAPHIC) ClientCamera.commitSelectorPreview(rotationPreview);
-        else ClientCamera.select(selected, selectedMode);
+        else if (selected == Category.FREE && CameraExclusivity.externalControlAvailable()) {
+            externalBodyControls.selectFreeCamera(() -> ClientCamera.select(selected, selectedMode));
+        } else ClientCamera.select(selected, selectedMode);
     }
 
     /** 标题栏的齿轮：按 Esc 的方式退出，预览不提交，再打开相机面板，防止误触改掉当前视角。 */

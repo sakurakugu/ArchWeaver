@@ -1,5 +1,7 @@
 package com.sakurakugu.archweaver.client.camera;
 
+import com.sakurakugu.archweaver.client.camera.CameraPreferences.Toggle;
+import java.util.EnumSet;
 import java.util.Objects;
 
 /** 外部相机模组的互斥状态，由平台侧安装实现。 */
@@ -7,6 +9,7 @@ public final class CameraExclusivity {
     private static Backend backend = () -> false;
     private static boolean lastExternalEnabled;
     private static boolean readFailed;
+    private static final EnumSet<Toggle> failedBodyWrites = EnumSet.noneOf(Toggle.class);
 
     private CameraExclusivity() {
     }
@@ -17,12 +20,43 @@ public final class CameraExclusivity {
         default boolean externalAvailable() { return false; }
         default boolean externalControllable() { return false; }
         default boolean setExternalEnabled(boolean enabled) { return false; }
+        default boolean externalBodyToggleAvailable(Toggle toggle) { return false; }
+        default boolean externalBodyToggle(Toggle toggle) { return false; }
+        default boolean setExternalBodyToggle(Toggle toggle, boolean enabled) { return false; }
+        default boolean saveExternalBodyToggles() { return false; }
     }
 
     public static void install(Backend value) {
         backend = Objects.requireNonNull(value);
         lastExternalEnabled = false;
         readFailed = false;
+        failedBodyWrites.clear();
+    }
+
+    /** 返回外部身体开关的实时状态；不可读写时返回 null，不借用内部相机偏好。 */
+    public static Boolean externalBodyToggle(Toggle toggle) {
+        if (!bodyToggle(toggle) || paused() || !externalControlAvailable() || failedBodyWrites.contains(toggle)) return null;
+        try {
+            return backend.externalBodyToggleAvailable(toggle) ? backend.externalBodyToggle(toggle) : null;
+        } catch (RuntimeException | LinkageError ignored) {
+            return null;
+        }
+    }
+
+    public static boolean setExternalBodyToggle(Toggle toggle, boolean enabled) {
+        if (selectionBlocked() || externalBodyToggle(toggle) == null) return false;
+        try {
+            if (backend.setExternalBodyToggle(toggle, enabled)
+                && backend.externalBodyToggle(toggle) == enabled && backend.saveExternalBodyToggles()) return true;
+        } catch (RuntimeException | LinkageError ignored) {
+            // 身体配置失败只禁用对应按钮，不影响外部相机互斥。
+        }
+        failedBodyWrites.add(toggle);
+        return false;
+    }
+
+    private static boolean bodyToggle(Toggle toggle) {
+        return toggle == Toggle.BODY_INTERACTION || toggle == Toggle.BODY_MOVEMENT;
     }
 
     public static boolean shouldYield() {
