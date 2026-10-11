@@ -32,6 +32,7 @@ public final class ModNetworking {
 
     public static void register(RegisterPayloadHandlersEvent event) {
         PayloadRegistrar registrar = event.registrar("2");
+        registrar.playToClient(InvisibilityLevelPayload.TYPE, InvisibilityLevelPayload.STREAM_CODEC);
         registrar.playToServer(SkinApplyPayload.TYPE, SkinApplyPayload.STREAM_CODEC, (payload, context) -> {
             if (!(context.player() instanceof ServerPlayer player)
                 || !ArchWeaverConfig.canUseCommands(player.createCommandSourceStack())) return;

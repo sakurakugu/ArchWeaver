@@ -121,6 +121,8 @@ public final class ArchWeaverClientMod {
     }
 
     private static void registerClientPayloads(RegisterClientPayloadHandlersEvent event) {
+        event.register(com.sakurakugu.archweaver.network.InvisibilityLevelPayload.TYPE,
+            (payload, context) -> ClientInvisibility.accept(payload));
         event.register(com.sakurakugu.archweaver.network.ChunkMapApplyResultPayload.TYPE,
             (payload, context) -> ClientChunkLoadingState.acceptResult(payload));
         event.register(com.sakurakugu.archweaver.network.ChunkMapRequestFailedPayload.TYPE,

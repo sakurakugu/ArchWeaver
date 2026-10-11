@@ -25,6 +25,9 @@ public final class NeoForgeArchWeaver {
         ArchWeaverConfig.install(NeoForgeConfigs.SERVER);
         ChunkLoaderManager.installTicketService(new NeoForgeChunkTicketService());
         PlatformNetworking.installPlayerSender((player, payload) -> PacketDistributor.sendToPlayer(player, payload));
+        com.sakurakugu.archweaver.invisibility.InvisibilitySync.install(entity ->
+            PacketDistributor.sendToPlayersTrackingEntityAndSelf(entity,
+                new com.sakurakugu.archweaver.network.InvisibilityLevelPayload(entity)));
         PlatformHooks.installConnectionConfigurator(NetworkRegistry::configureMockConnection);
         PlatformHooks.installHandSwapHook(NeoForgeArchWeaver::swapHands);
         container.registerConfig(ModConfig.Type.SERVER, NeoForgeConfigs.SERVER.spec());

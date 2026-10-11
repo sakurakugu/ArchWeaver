@@ -4,6 +4,9 @@
   "package": "com.sakurakugu.archweaver.mixin",
   "compatibilityLevel": "JAVA_25",
   "mixins": [
+    "InvisibilityLivingEntityMixin",
+    "InvisibilityEntityParticlesMixin",
+    "InvisibilityLivingParticlesMixin",
     "FishingHookMixin",
     "FoodDataAccessor",
     "PlayerKnockbackMixin",
@@ -19,6 +22,9 @@
     "MannequinMovementMixin"
   ],
   "client": [
+    "InvisibilityRenderStateMixin",
+    "InvisibilityRendererMixin",
+    "InvisibilityFirstPersonMixin",
     "CameraViewMixin",
     "CameraProjectionAccessor",
     "CameraProjectionMixin",
