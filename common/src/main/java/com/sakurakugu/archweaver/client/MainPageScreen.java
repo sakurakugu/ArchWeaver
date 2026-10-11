@@ -191,16 +191,17 @@ public final class MainPageScreen extends Screen {
                 button -> toggleSetting(settingIndex)));
         }
         // 地图选择只影响客户端，下次打开地图时生效，不离开全局设置页。
-        if (ChunkMapFrontends.journeyMapInstalled()) {
-            int switchWidth = Math.max(1, buttonWidth / 2);
+        var backends = ChunkMapFrontends.installedBackends();
+        if (backends.size() > 1) {
+            int switchWidth = backends.size() > 2 ? buttonWidth : Math.max(1, buttonWidth / 2);
             var mapBackend = addRenderableWidget(new SegmentedSwitchButton(
                 centerLeft + PANEL_PADDING + buttonWidth - switchWidth,
                 contentTop() + PANEL_PADDING + settingButtons.length * 32, switchWidth, 24,
-                Component.translatable("gui.archweaver.chunkloader.backend_builtin"),
-                Component.translatable("gui.archweaver.chunkloader.backend_journey"),
-                ChunkMapClientConfig::journeyMapPreferred, journeyMap -> {
-                    if (journeyMap == ChunkMapClientConfig.journeyMapPreferred()) return;
-                    ChunkMapClientConfig.setJourneyMapPreferred(journeyMap);
+                backends.stream().<Component>map(backend -> Component.translatable(backend.labelKey())).toList(),
+                () -> backends.indexOf(ChunkMapFrontends.selectedInstalledBackend()), index -> {
+                    var selected = backends.get(index);
+                    if (selected == ChunkMapClientConfig.mapBackend()) return;
+                    ChunkMapClientConfig.setMapBackend(selected);
                     ChunkMapClientConfig.save();
                 }));
             mapBackend.setTooltip(Tooltip.create(Component.translatable("gui.archweaver.chunkloader.default_map_type")));
@@ -433,7 +434,7 @@ public final class MainPageScreen extends Screen {
                 centerLeft + PANEL_PADDING, labelY, 0xFFFFFFFF, false);
             drawRegionDetail(graphics, rightLeft, rightWidth);
         } else {
-            if (ChunkMapFrontends.journeyMapInstalled()) {
+            if (ChunkMapFrontends.installedBackends().size() == 2) {
                 int buttonWidth = Math.max(1, centerWidth - PANEL_PADDING * 2);
                 int labelLeft = centerLeft + PANEL_PADDING;
                 int labelRight = Math.max(labelLeft + 1,
@@ -503,7 +504,7 @@ public final class MainPageScreen extends Screen {
         int y = contentTop() + PANEL_PADDING;
         graphics.centeredText(font, Component.translatable("gui.archweaver.main.settings_hint"), x + w / 2, y, 0xFFFFFFFF);
         graphics.text(font, Component.translatable("gui.archweaver.main.settings_count",
-            settingButtons.length + (ChunkMapFrontends.journeyMapInstalled() ? 1 : 0)), x + PANEL_PADDING, y + 20, 0xFFC6C6C6, false);
+            settingButtons.length + (ChunkMapFrontends.installedBackends().size() > 1 ? 1 : 0)), x + PANEL_PADDING, y + 20, 0xFFC6C6C6, false);
     }
 
     /** 中间内容区可显示的页面，可由命令指定打开时的初始页面。 */

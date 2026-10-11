@@ -1,0 +1,9 @@
+{
+  "required": false,
+  "minVersion": "0.8",
+  "package": "com.sakurakugu.archweaver.compat.xaero.mixin",
+  "plugin": "com.sakurakugu.archweaver.compat.xaero.mixin.XaeroMixinPlugin",
+  "compatibilityLevel": "JAVA_25",
+  "client": ["XaeroGuiMapMixin", "XaeroScreenBaseAccessor"],
+  "injectors": {"defaultRequire": 1}
+}

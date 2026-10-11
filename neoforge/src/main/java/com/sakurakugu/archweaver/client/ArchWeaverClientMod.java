@@ -12,6 +12,8 @@ import com.sakurakugu.archweaver.network.FakePlayerAliasPayload;
 import com.sakurakugu.archweaver.network.OpenMainPagePayload;
 import com.sakurakugu.archweaver.client.chunkloading.ClientChunkLoadingState;
 import com.sakurakugu.archweaver.client.chunkloading.ChunkMapFrontends;
+import com.sakurakugu.archweaver.client.chunkloading.MapBackend;
+import com.sakurakugu.archweaver.compat.xaero.ArchWeaverXaeroMap;
 import com.sakurakugu.archweaver.client.chunkloading.ChunkLoadingDebugEntry;
 import com.sakurakugu.archweaver.client.chunkloading.ChunkMapClientConfig;
 import com.sakurakugu.archweaver.config.NeoForgeConfigs;
@@ -69,7 +71,10 @@ public final class ArchWeaverClientMod {
 
     public ArchWeaverClientMod(IEventBus modBus, ModContainer container) {
         ChunkMapClientConfig.install(NeoForgeConfigs.CLIENT);
-        ChunkMapFrontends.setJourneyMapInstalled(ModList.get().isLoaded("journeymap"));
+        ChunkMapFrontends.setInstalled(MapBackend.JOURNEYMAP, ModList.get().isLoaded("journeymap"));
+        boolean xaeroInstalled = ModList.get().isLoaded("xaeroworldmap");
+        ChunkMapFrontends.setInstalled(MapBackend.XAERO, xaeroInstalled);
+        if (xaeroInstalled) ArchWeaverXaeroMap.install();
         CameraPreferences.install(NeoForgeConfigs.CLIENT);
         tweakerooCameraCompat = TweakerooCameraCompat.create();
         CameraExclusivity.install(tweakerooCameraCompat);

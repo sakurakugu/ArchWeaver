@@ -470,5 +470,9 @@
   "gui.archweaver.chunkloader.discard_continue": "放弃并继续",
   "gui.archweaver.chunkloader.default_map_type": "默认地图类型",
   "gui.archweaver.chunkloader.backend_journey": "JourneyMap",
-  "gui.archweaver.chunkloader.backend_builtin": "内置"
+  "gui.archweaver.chunkloader.backend_builtin": "内置",
+  "gui.archweaver.chunkloader.backend_xaero": "Xaero 世界地图",
+  "gui.archweaver.chunkloader.backend_failed": "%s 无法使用，已切回内置地图",
+  "gui.archweaver.chunkloader.map_waiting": "正在获取区块加载数据…",
+  "gui.archweaver.chunkloader.map_dimension_paused": "当前维度与编辑会话不同，编辑已暂停"
 }

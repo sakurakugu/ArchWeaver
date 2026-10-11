@@ -3,31 +3,39 @@ package com.sakurakugu.archweaver.client.chunkloading;
 import com.sakurakugu.archweaver.ArchWeaverMod;
 import com.sakurakugu.archweaver.network.ChunkMapSnapshotPayload;
 import net.minecraft.client.Minecraft;
+import java.util.EnumMap;
+import java.util.EnumSet;
+import java.util.List;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 
 /** 共享层只认识前端契约，第三方类仅在平台插件中加载。 */
 public final class ChunkMapFrontends {
-    public interface JourneyMapProvider {
+    public interface MapProvider {
         boolean available();
         void open(ChunkMapSnapshotPayload snapshot, ClientChunkLoadingState.MapReturnTarget returnTarget) throws Exception;
         void tick();
         void clear();
     }
 
-    private static JourneyMapProvider journeyMap;
-    private static boolean journeyMapInstalled;
+    private static final EnumMap<MapBackend, MapProvider> PROVIDERS = new EnumMap<>(MapBackend.class);
+    private static final EnumSet<MapBackend> INSTALLED = EnumSet.of(MapBackend.BUILTIN);
     private static ChunkLoadMapFrontend active;
     private static int refreshTicks;
     private static boolean bypass;
     private static boolean denied;
 
     private ChunkMapFrontends() { }
-    public static void install(JourneyMapProvider provider) { journeyMap = provider; }
+    public static void install(MapBackend backend, MapProvider provider) { PROVIDERS.put(backend, provider); }
     /** 安装状态由平台提供，不受兼容插件运行故障影响。 */
-    public static void setJourneyMapInstalled(boolean installed) { journeyMapInstalled = installed; }
-    public static boolean journeyMapInstalled() { return journeyMapInstalled; }
-    public static boolean journeyMapAvailable() { return journeyMap != null && journeyMap.available(); }
+    public static void setInstalled(MapBackend backend, boolean installed) {
+        if (backend == MapBackend.BUILTIN) return;
+        if (installed) INSTALLED.add(backend); else INSTALLED.remove(backend);
+    }
+    public static List<MapBackend> installedBackends() { return List.copyOf(INSTALLED); }
+    public static MapBackend selectedInstalledBackend() {
+        return MapBackend.resolve(ChunkMapClientConfig.mapBackend(), INSTALLED);
+    }
     public static ChunkLoadMapFrontend active() { return active; }
     public static boolean isMap(Screen screen) { return screen != null && active != null && active.screen() == screen; }
     public static void activate(ChunkLoadMapFrontend frontend) {
@@ -39,14 +47,26 @@ public final class ChunkMapFrontends {
     }
 
     public static void open(ChunkMapSnapshotPayload snapshot, ClientChunkLoadingState.MapReturnTarget returnTarget) {
-        if (ChunkMapClientConfig.journeyMapPreferred() && journeyMapAvailable()) {
-            try {
-                journeyMap.open(snapshot, returnTarget);
+        MapBackend backend = selectedInstalledBackend();
+        var provider = PROVIDERS.get(backend);
+        var previous = active;
+        try {
+            if (provider != null && provider.available()) {
+                provider.open(snapshot, returnTarget);
                 return;
-            } catch (Exception | LinkageError exception) {
-                ArchWeaverMod.LOGGER.warn("无法打开 JourneyMap，回退到内置地图", exception);
-                message(Component.translatable("gui.archweaver.chunkloader.journey_failed"));
+            } else if (backend != MapBackend.BUILTIN) {
+                message(Component.translatable("gui.archweaver.chunkloader.backend_failed", Component.translatable(backend.labelKey())));
             }
+        } catch (Exception | LinkageError exception) {
+            ArchWeaverMod.LOGGER.warn("无法打开 {}，回退到内置地图", backend, exception);
+            message(Component.translatable("gui.archweaver.chunkloader.backend_failed", Component.translatable(backend.labelKey())));
+        }
+        // 第三方屏幕初始化到一半才报错时，保留已经建立的控制器与草稿。
+        if (active != null && active != previous && active.externalMap()) {
+            var opened = active;
+            com.sakurakugu.archweaver.client.ClientScreenNavigation.prepareMapReplacement(opened.screen());
+            runWithoutGuard(() -> Minecraft.getInstance().setScreen(new ChunkMapScreen(opened.controller(), returnTarget)));
+            return;
         }
         Minecraft.getInstance().setScreen(new ChunkMapScreen(snapshot, returnTarget));
     }
@@ -70,7 +90,7 @@ public final class ChunkMapFrontends {
     }
 
     public static void tick() {
-        if (journeyMap != null) journeyMap.tick();
+        for (var provider : PROVIDERS.values()) provider.tick();
         if (active == null || Minecraft.getInstance().player == null) return;
         active.controller().tick();
         var screen = Minecraft.getInstance().screen;
@@ -94,7 +114,7 @@ public final class ChunkMapFrontends {
     /** 返回替换屏幕给平台事件，避免在 ScreenOpening 回调内递归 setScreen。 */
     public static Screen guard(Screen current, Screen next) {
         if (bypass || active == null || current instanceof UnsavedChunkMapScreen) return next;
-        if (isMap(current) && active.journeyMap() && next == null
+        if (isMap(current) && active.externalMap() && next == null
             && active.returnTarget() == ClientChunkLoadingState.MapReturnTarget.MAIN) {
             var parent = com.sakurakugu.archweaver.client.ClientScreenNavigation.parentOf(current);
             var snapshot = active.controller().snapshot();
@@ -130,7 +150,7 @@ public final class ChunkMapFrontends {
 
     public static void clear() {
         deactivate();
-        if (journeyMap != null) journeyMap.clear();
+        for (var provider : PROVIDERS.values()) provider.clear();
         denied = false;
         refreshTicks = 0;
     }

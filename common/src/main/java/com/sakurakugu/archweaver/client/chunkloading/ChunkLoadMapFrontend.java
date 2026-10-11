@@ -7,7 +7,7 @@ public interface ChunkLoadMapFrontend {
     ChunkLoadMapController controller();
     net.minecraft.client.gui.screens.Screen screen();
     default boolean supportsDimension(String dimension) { return dimension.equals(controller().snapshot().dimension()); }
-    default boolean journeyMap() { return false; }
+    default boolean externalMap() { return false; }
     default void accessDenied() { setEditMode(ChunkMapEditMode.BROWSE); }
     default void dispose() { }
     ClientChunkLoadingState.MapReturnTarget returnTarget();

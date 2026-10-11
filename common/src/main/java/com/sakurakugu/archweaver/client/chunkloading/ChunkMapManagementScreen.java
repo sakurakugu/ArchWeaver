@@ -136,7 +136,7 @@ public final class ChunkMapManagementScreen extends Screen {
                 Component.translatable("gui.archweaver.chunkloader.view_on_map"), button -> {
                     if (map.highlightRegion(selected.name(), selected.dimension())) {
                         map.focusHighlightedRegion();
-                        if (!map.journeyMap()) onClose();
+                        if (!map.externalMap()) onClose();
                     }
                 });
             view.active = map.supportsDimension(selected.dimension());

@@ -470,5 +470,9 @@
   "gui.archweaver.chunkloader.discard_continue": "Discard and continue",
   "gui.archweaver.chunkloader.default_map_type": "Default map type",
   "gui.archweaver.chunkloader.backend_journey": "JourneyMap",
-  "gui.archweaver.chunkloader.backend_builtin": "Built-in"
+  "gui.archweaver.chunkloader.backend_builtin": "Built-in",
+  "gui.archweaver.chunkloader.backend_xaero": "Xaero’s World Map",
+  "gui.archweaver.chunkloader.backend_failed": "%s is unavailable; switched to the built-in map",
+  "gui.archweaver.chunkloader.map_waiting": "Requesting chunk loading data…",
+  "gui.archweaver.chunkloader.map_dimension_paused": "Editing paused: viewing a different dimension"
 }

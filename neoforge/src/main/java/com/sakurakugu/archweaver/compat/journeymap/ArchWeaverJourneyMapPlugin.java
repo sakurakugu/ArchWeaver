@@ -28,7 +28,7 @@ import java.util.*;
 
 /** 仅由 JourneyMap 的客户端插件发现器加载，未安装 JourneyMap 时不加载任何 API 类。 */
 @JourneyMapPlugin(apiVersion = "2.0.0")
-public final class ArchWeaverJourneyMapPlugin implements IClientPlugin, ChunkMapFrontends.JourneyMapProvider {
+public final class ArchWeaverJourneyMapPlugin implements IClientPlugin, ChunkMapFrontends.MapProvider {
     private static final String MOD = ArchWeaverMod.MOD_ID;
     private static ArchWeaverJourneyMapPlugin instance;
     private IClientAPI api;
@@ -43,7 +43,7 @@ public final class ArchWeaverJourneyMapPlugin implements IClientPlugin, ChunkMap
     @Override public void initialize(IClientAPI api) {
         this.api = api;
         instance = this;
-        ChunkMapFrontends.install(this);
+        ChunkMapFrontends.install(MapBackend.JOURNEYMAP, this);
         FullscreenEventRegistry.ADDON_BUTTON_DISPLAY_EVENT.subscribe(MOD, this::addButtons);
         FullscreenEventRegistry.FULLSCREEN_MAP_CLICK_EVENT.subscribe(MOD, event -> {
             if (event.getStage() == FullscreenMapEvent.Stage.PRE && !event.isCancelled()
@@ -282,7 +282,7 @@ public final class ArchWeaverJourneyMapPlugin implements IClientPlugin, ChunkMap
 
         @Override public ChunkLoadMapController controller() { return controller; }
         @Override public Screen screen() { return fullscreen.getScreen(); }
-        @Override public boolean journeyMap() { return true; }
+        @Override public boolean externalMap() { return true; }
         @Override public ClientChunkLoadingState.MapReturnTarget returnTarget() { return target; }
         @Override public void accessDenied() { ready = false; controller.setMode(ChunkMapEditMode.BROWSE); }
         @Override public void setEditMode(ChunkMapEditMode mode) {

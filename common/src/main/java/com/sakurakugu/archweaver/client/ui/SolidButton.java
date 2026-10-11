@@ -13,6 +13,9 @@ public final class SolidButton extends Button {
     private final PixelGlyph glyph; // 按钮中央绘制的像素图标；为 null 时改为绘制文字。
     private int textColor = 0xFFFFFFFF; // 文字或图标的颜色，默认不透明白色。
     private boolean framed = true; // 是否绘制像素风底板；无底板时只保留图标。
+    private boolean flat; // 是否改用外部界面的扁平图标配色，见 flatIcon。
+    private boolean toggled = true; // 扁平图标的开关状态；关闭时画成 offColor，但仍可点击。
+    private int idleColor, hoverColor, offColor; // flatIcon 传入的三态配色。
 
     public SolidButton(int x, int y, int width, int height, Component message, OnPress onPress) {
         super(x, y, width, height, message, onPress, DEFAULT_NARRATION);
@@ -37,16 +40,50 @@ public final class SolidButton extends Button {
         return this;
     }
 
+    /**
+     * 去掉像素风底板，改用外部界面（如地图 mod）的扁平图标配色：
+     * 开启时 idleColor，鼠标悬停 hoverColor 并上移 1px，关闭或不可用时 offColor。
+     */
+    public SolidButton flatIcon(int idleColor, int hoverColor, int offColor) {
+        framed = false;
+        flat = true;
+        this.idleColor = idleColor;
+        this.hoverColor = hoverColor;
+        this.offColor = offColor;
+        return this;
+    }
+
+    /** 设置扁平图标的开关状态；关闭时图标变暗，但按钮仍可点击。 */
+    public void setIconToggled(boolean toggled) {
+        this.toggled = toggled;
+    }
+
     @Override
     protected void extractContents(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
         boolean hovered = isMouseOver(mouseX, mouseY);
         if (framed) PixelGui.drawSolidControl(graphics, getX(), getY(), getWidth(), getHeight(), hovered);
+        if (flat) {
+            drawFlatIcon(graphics, hovered);
+            return;
+        }
         int color = active ? (framed ? textColor : hovered ? BRIGHT_COLOR : DIM_COLOR) : 0xFF777777;
         if (glyph == null) {
             PixelGui.drawCenteredScrollingText(graphics, Minecraft.getInstance().font, getMessage(),
                 getX(), getY(), getWidth(), getHeight(), color);
         } else {
             glyph.drawCentered(graphics, getX(), getY(), getWidth(), getHeight(), color);
+        }
+    }
+
+    private void drawFlatIcon(GuiGraphicsExtractor graphics, boolean hovered) {
+        boolean on = active && toggled;
+        int color = on ? (hovered ? hoverColor : idleColor) : offColor;
+        int y = getY() + (on && hovered ? -1 : 0);
+        if (glyph == null) {
+            PixelGui.drawCenteredScrollingText(graphics, Minecraft.getInstance().font, getMessage(),
+                getX(), y, getWidth(), getHeight(), color);
+        } else {
+            glyph.drawCentered(graphics, getX(), y, getWidth(), getHeight(), color);
         }
     }
 }

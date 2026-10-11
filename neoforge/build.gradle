@@ -15,6 +15,10 @@ sourceSets.main {
 }
 
 repositories {
+    maven {
+        url = 'https://api.modrinth.com/maven'
+        content { includeGroup 'maven.modrinth' }
+    }
     // 下面两个是 REI 的依赖
     // https://github.com/shedaniel/RoughlyEnoughItems
     maven {
@@ -44,7 +48,40 @@ repositories {
     }
 }
 
+configurations {
+    xaeroMapJar { canBeConsumed = false; transitive = false }
+}
+
+// ------- Xaero 世界地图依赖处理 -------
+// Xaero 把界面基类放在内嵌 XaeroLib 中；提取仅用于编译，发布包不携带第三方类。
+abstract class ExtractXaeroLib extends DefaultTask {
+    @InputFiles @Classpath abstract ConfigurableFileCollection getMapJars()
+    @OutputFile abstract RegularFileProperty getLibraryJar()
+
+    @TaskAction void extract() {
+        def output = libraryJar.get().asFile
+        output.parentFile.mkdirs()
+        new java.util.zip.ZipFile(mapJars.singleFile).withCloseable { zip ->
+            def entry = zip.entries().find { it.name.startsWith('META-INF/jarjar/xaerolib-') && it.name.endsWith('.jar') }
+            if (entry == null) throw new GradleException('Xaero 世界地图缺少内嵌 XaeroLib')
+            zip.getInputStream(entry).withCloseable { input -> output.withOutputStream { it << input } }
+        }
+    }
+}
+
+def extractXaeroLib = tasks.register('extractXaeroLib', ExtractXaeroLib) {
+    mapJars.from(configurations.xaeroMapJar)
+    libraryJar = layout.buildDirectory.file('xaero-compile/xaerolib.jar')
+}
+// -------------------------------------
+
 dependencies {
+    xaeroMapJar "maven.modrinth:xaeros-world-map:${xaero_world_map_version}"
+    compileOnly files(configurations.xaeroMapJar)
+    compileOnly files(extractXaeroLib.flatMap { it.libraryJar })
+    if (providers.gradleProperty('xaeroMapDev').map { it.toBoolean() }.getOrElse(false)) {
+        runtimeOnly "maven.modrinth:xaeros-world-map:${xaero_world_map_version}"
+    }
     compileOnly "org.jetbrains:annotations:${jetbrains_annotations_version}"
     compileOnly "info.journeymap:journeymap-api-neoforge:${journeymap_api_version}"
     // JEI 仅供兼容插件编译，安装与开发运行时均不强制携带。

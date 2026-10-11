@@ -7,7 +7,7 @@ displayName="${mod_name}"
 logoFile="icon.png"
 authors="sakurakugu"
 description='''
-Fake players with an in-game control screen.
+Fake players, chunk loading and client-side camera perspectives, all managed from an in-game control center.
 '''
 
 [[mixins]]
@@ -15,6 +15,9 @@ config="archweaver.mixins.json"
 
 [[mixins]]
 config="archweaver.journeymap.mixins.json"
+
+[[mixins]]
+config="archweaver.xaero.mixins.json"
 
 [[dependencies.${mod_id}]]
 modId="neoforge"

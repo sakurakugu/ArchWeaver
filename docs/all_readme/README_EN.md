@@ -159,8 +159,8 @@ File: `config/archweaver-client.toml`
 markerNameScale = 1.0
 # Show the weakly loaded area around force-loaded regions caused by ticket propagation.
 showWeakLoading = true
-# Prefer the JourneyMap fullscreen map; fall back to the built-in map when unavailable.
-journeyMap = false
+# Default map: BUILTIN, JOURNEYMAP, or XAERO; fall back to the built-in map when unavailable.
+backend = "BUILTIN"
 
 [mainPage]
 # Last page the control center stayed on: 0 fake player list, 1 chunk map, 2 global settings.
