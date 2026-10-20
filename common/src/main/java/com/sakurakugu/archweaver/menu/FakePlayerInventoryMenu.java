@@ -582,7 +582,7 @@ public final class FakePlayerInventoryMenu extends AbstractContainerMenu impleme
             case ENDER_CHEST -> FakePlayerMenuOpener.openEnderChest(viewer, target);
             case REMOVE -> {
                 // 与 kill 命令一致：只卸载实体，登记记录与玩家存档保留，之后可用 load 恢复。
-                player.closeContainer();
+                viewer.closeContainer();
                 FakePlayerManager.kill(target);
             }
             case POSSESS -> {
@@ -1124,7 +1124,7 @@ public final class FakePlayerInventoryMenu extends AbstractContainerMenu impleme
 
         @Override
         public boolean mayPlace(ItemStack stack) {
-            return equipmentSlot == EquipmentSlot.OFFHAND || stack.canEquip(equipmentSlot, owner);
+            return equipmentSlot == EquipmentSlot.OFFHAND || com.sakurakugu.archweaver.platform.PlatformHooks.canEquip(stack, equipmentSlot, owner);
         }
 
         @Override

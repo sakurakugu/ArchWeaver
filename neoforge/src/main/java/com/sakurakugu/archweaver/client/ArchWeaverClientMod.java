@@ -72,6 +72,13 @@ public final class ArchWeaverClientMod {
     private final TweakerooCameraCompat tweakerooCameraCompat;
 
     public ArchWeaverClientMod(IEventBus modBus, ModContainer container) {
+        com.sakurakugu.archweaver.client.ui.PlatformGui.install(new com.sakurakugu.archweaver.client.ui.PlatformGui.Backend() {
+            public void submit(net.minecraft.client.gui.GuiGraphicsExtractor graphics, net.minecraft.client.renderer.state.gui.GuiElementRenderState state) { graphics.submitGuiElementRenderState(state); }
+            public net.minecraft.client.gui.navigation.ScreenRectangle scissor(net.minecraft.client.gui.GuiGraphicsExtractor graphics) { return graphics.peekScissorStack(); }
+            public int leftPos(AbstractContainerScreen<?> screen) { return screen.getGuiLeft(); }
+            public int topPos(AbstractContainerScreen<?> screen) { return screen.getGuiTop(); }
+            public int imageHeight(AbstractContainerScreen<?> screen) { return screen.getYSize(); }
+        });
         ChunkMapClientConfig.install(NeoForgeConfigs.CLIENT);
         ChunkMapFrontends.setInstalled(MapBackend.JOURNEYMAP, ModList.get().isLoaded("journeymap"));
         boolean xaeroInstalled = ModList.get().isLoaded("xaeroworldmap");

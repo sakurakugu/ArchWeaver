@@ -642,7 +642,7 @@ public final class FakePlayerActions {
     }
 
     public void syncBodyRotation(ServerPlayer viewer) {
-        if (bodyYaw != null && viewer.connection.hasChannel(BodyRotationPayload.TYPE)) {
+        if (bodyYaw != null && com.sakurakugu.archweaver.platform.PlatformNetworking.canSend(viewer, BodyRotationPayload.TYPE)) {
             PlatformNetworking.sendToPlayer(viewer, new BodyRotationPayload(player.getId(), bodyYaw));
         }
     }

@@ -55,7 +55,7 @@ public final class ViewCube extends Button {
                 case NORTH, SOUTH -> 0xFFB0B8C0;
                 default -> 0xFF8C98A4;
             };
-            graphics.submitGuiElementRenderState(new CubeFace(new Matrix3x2f(graphics.pose()), graphics.peekScissorStack(),
+            com.sakurakugu.archweaver.client.ui.PlatformGui.submit(graphics, new CubeFace(new Matrix3x2f(graphics.pose()), com.sakurakugu.archweaver.client.ui.PlatformGui.scissor(graphics),
                 new ScreenRectangle(getX(), getY(), width, height), face.points(), (float) centerX(), (float) centerY(), color));
         }
         // 标签与角点在面片之后提交，避免被相邻面的绘制覆盖。

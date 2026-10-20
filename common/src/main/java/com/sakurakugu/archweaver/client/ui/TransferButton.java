@@ -51,8 +51,8 @@ public final class TransferButton extends Button {
             return List.of();
         }
         // 原版容器的物品栏标题位于底部区域，按钮与假人界面一样放在标题右侧。
-        int x = screen.getLeftPos() + 144;
-        int y = screen.getTopPos() + screen.getImageHeight() - 96;
+        int x = com.sakurakugu.archweaver.client.ui.PlatformGui.leftPos(screen) + 144;
+        int y = com.sakurakugu.archweaver.client.ui.PlatformGui.topPos(screen) + com.sakurakugu.archweaver.client.ui.PlatformGui.imageHeight(screen) - 96;
         return List.of(
             new TransferButton(x, y, Direction.TO_CONTAINER,
                 (all, hotbar) -> transfer(screen, true, all, hotbar)),

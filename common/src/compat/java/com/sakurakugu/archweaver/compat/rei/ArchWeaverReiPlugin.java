@@ -6,12 +6,10 @@ import java.util.List;
 import me.shedaniel.math.Rectangle;
 import me.shedaniel.rei.api.client.plugins.REIClientPlugin;
 import me.shedaniel.rei.api.client.registry.screen.ExclusionZones;
-import me.shedaniel.rei.forge.REIPluginClient;
 import net.minecraft.client.renderer.Rect2i;
 
 /** 由 REI 在客户端自行发现；未安装 REI 时不加载此类。 */
-@REIPluginClient
-public final class ArchWeaverReiPlugin implements REIClientPlugin {
+public class ArchWeaverReiPlugin implements REIClientPlugin {
     @Override
     public void registerExclusionZones(ExclusionZones zones) {
         zones.register(FakePlayerInventoryScreen.class, screen -> toRectangles(screen.getGuiExtraAreas()));

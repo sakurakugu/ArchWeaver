@@ -25,11 +25,4 @@ public abstract class InvisibilityLivingParticlesMixin {
         }
     }
 
-    @WrapOperation(method = "checkFallDamage", at = @At(value = "INVOKE", target =
-        "Lnet/minecraft/world/level/block/state/BlockState;addLandingEffects(Lnet/minecraft/server/level/ServerLevel;Lnet/minecraft/core/BlockPos;Lnet/minecraft/world/level/block/state/BlockState;Lnet/minecraft/world/entity/LivingEntity;I)Z"))
-    private boolean archweaver$hideLandingDust(BlockState block, ServerLevel level, BlockPos pos,
-                                              BlockState state, LivingEntity entity, int count,
-                                              Operation<Boolean> original) {
-        return InvisibilityLevels.hidesParticles(entity) || original.call(block, level, pos, state, entity, count);
-    }
 }

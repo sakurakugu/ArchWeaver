@@ -46,7 +46,7 @@ final class MapQuadBatch implements GuiElementRenderState {
         this.textureSetup = textureSetup;
         // 姿态在提取期会被修改，必须拷贝一份
         this.pose = new Matrix3x2f(graphics.pose());
-        this.scissorArea = graphics.peekScissorStack();
+        this.scissorArea = com.sakurakugu.archweaver.client.ui.PlatformGui.scissor(graphics);
         this.bounds = new ScreenRectangle(0, 0, width, height);
         this.count = 0;
     }

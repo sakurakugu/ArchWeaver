@@ -11,6 +11,18 @@ import org.jetbrains.annotations.ApiStatus;
 public final class PlatformHooks {
     private static Consumer<Connection> connectionConfigurator = connection -> { };
     private static BiConsumer<ServerPlayer, Runnable> handSwapHook = (player, action) -> action.run();
+    private static EquipmentCheck equipmentCheck = (stack, slot, entity) -> entity.isEquippableInSlot(stack, slot);
+
+    public static void installEquipmentCheck(EquipmentCheck check) { equipmentCheck = Objects.requireNonNull(check); }
+    public static boolean canEquip(net.minecraft.world.item.ItemStack stack, net.minecraft.world.entity.EquipmentSlot slot,
+                                   net.minecraft.world.entity.LivingEntity entity) {
+        return equipmentCheck.test(stack, slot, entity);
+    }
+    @FunctionalInterface
+    public interface EquipmentCheck {
+        boolean test(net.minecraft.world.item.ItemStack stack, net.minecraft.world.entity.EquipmentSlot slot,
+                     net.minecraft.world.entity.LivingEntity entity);
+    }
 
     private PlatformHooks() {
     }

@@ -8,6 +8,7 @@ param(
 $task = ":artifice:neoforge:runClient"
 $launchBoth = $false
 $neoforgeRequested = $false
+$fabricRequested = $false
 $javaPath = $null
 $releasePath = "D:\elric\Code\Repos\Minecraft\test-mc"
 $releaseRequested = $false
@@ -27,6 +28,10 @@ for ($index = 0; $index -lt $Arguments.Count; $index++) {
             $task = ":artifice:neoforge:runClient"
             $neoforgeRequested = $true
         }
+        "--fabric" {
+            $task = ":artifice:fabric:runClient"
+            $fabricRequested = $true
+        }
         "--both" { $launchBoth = $true }
         "--path" {
             if ($index + 1 -ge $Arguments.Count) {
@@ -45,9 +50,13 @@ for ($index = 0; $index -lt $Arguments.Count; $index++) {
             $releasePath = $Arguments[$index]
         }
         default {
-            throw "不支持的参数 '$($Arguments[$index])'。请使用 --build、--release、--neoforge、--both、--path 或 --release-path。"
+            throw "不支持的参数 '$($Arguments[$index])'。请使用 --build、--release、--neoforge、--fabric、--both、--path 或 --release-path。"
         }
     }
+}
+
+if ($fabricRequested -and ($neoforgeRequested -or $launchBoth -or $releaseRequested -or $buildRequested)) {
+    throw "参数 --fabric 用于启动单个 Fabric 开发客户端，不能与 --neoforge、--both、--release 或 --build 同用。"
 }
 
 if ($releaseRequested -and ($buildRequested -or $neoforgeRequested -or $launchBoth)) {
@@ -260,7 +269,7 @@ if ($task -eq "build") {
         Start-Process -FilePath $env:ComSpec -ArgumentList $client2Arguments -WorkingDirectory $rootPath
         Write-Host "已启动离线服务端和两个自动连接的 NeoForge 开发客户端。"
     } else {
-        # 启动单个 NeoForge 开发客户端。
+        # 启动所选加载器的单个开发客户端。
         .\gradlew.bat $task
     }
 }

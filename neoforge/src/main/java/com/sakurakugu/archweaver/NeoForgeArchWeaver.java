@@ -23,6 +23,9 @@ import net.neoforged.neoforge.network.registration.NetworkRegistry;
 public final class NeoForgeArchWeaver {
     public NeoForgeArchWeaver(IEventBus modBus, ModContainer container) {
         ArchWeaverConfig.install(NeoForgeConfigs.SERVER);
+        com.sakurakugu.archweaver.platform.PlatformMenus.install((player, provider, data) -> player.openMenu(provider, data));
+        PlatformHooks.installEquipmentCheck((stack, slot, entity) -> stack.canEquip(slot, entity));
+        PlatformNetworking.installChannelChecker((player, type) -> player.connection.hasChannel(type));
         ChunkLoaderManager.installTicketService(new NeoForgeChunkTicketService());
         PlatformNetworking.installPlayerSender((player, payload) -> PacketDistributor.sendToPlayer(player, payload));
         com.sakurakugu.archweaver.invisibility.InvisibilitySync.install(entity ->

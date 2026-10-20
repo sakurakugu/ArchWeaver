@@ -3,13 +3,21 @@ package com.sakurakugu.archweaver.platform;
 import java.util.Objects;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
-import java.util.function.BiConsumer;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.server.level.ServerPlayer;
 import org.jetbrains.annotations.ApiStatus;
 
 /** 加载器无关的网络发送边界，由平台入口在初始化时注入实现。 */
 public final class PlatformNetworking {
+    private static java.util.function.BiPredicate<ServerPlayer, CustomPacketPayload.Type<?>> channelChecker = (player, type) -> false;
+
+    public static void installChannelChecker(java.util.function.BiPredicate<ServerPlayer, CustomPacketPayload.Type<?>> checker) {
+        channelChecker = Objects.requireNonNull(checker);
+    }
+
+    public static boolean canSend(ServerPlayer player, CustomPacketPayload.Type<?> type) {
+        return channelChecker.test(player, type);
+    }
     private static Consumer<CustomPacketPayload> clientSender = payload -> {
         throw new IllegalStateException("平台网络尚未初始化");
     };

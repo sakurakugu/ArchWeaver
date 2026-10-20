@@ -282,7 +282,7 @@ public final class MannequinManager {
 
     /** 身体朝向不属于原版同步字段，改动后要逐个通知正在追踪的观察者。 */
     public static void sendBodyRotation(ServerPlayer viewer, Mannequin entity) {
-        if (viewer.connection.hasChannel(BodyRotationPayload.TYPE)) {
+        if (com.sakurakugu.archweaver.platform.PlatformNetworking.canSend(viewer, BodyRotationPayload.TYPE)) {
             PlatformNetworking.sendToPlayer(viewer, new BodyRotationPayload(entity.getId(), entity.yBodyRot));
         }
     }

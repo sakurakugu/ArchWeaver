@@ -184,7 +184,7 @@ public final class ChunkMapScreen extends Screen implements ChunkLoadMapFrontend
         graphics.enableScissor(0, 0, width, height);
         backgroundBatch.begin(false, RenderPipelines.GUI, TextureSetup.noTexture(), graphics, width, height);
         backgroundBatch.addRect(0, 0, width, height, BACKGROUND_COLOR);
-        graphics.submitGuiElementRenderState(backgroundBatch);
+        com.sakurakugu.archweaver.client.ui.PlatformGui.submit(graphics, backgroundBatch);
 
         int sampleY = minecraft.player == null ? 64 : minecraft.player.getBlockY();
         drawTerrain(graphics, sampleY);
@@ -193,7 +193,7 @@ public final class ChunkMapScreen extends Screen implements ChunkLoadMapFrontend
         drawChunkGrid();
         drawChunkOverlays();
         drawHighlightedRegion();
-        if (!overlayBatch.isEmpty()) graphics.submitGuiElementRenderState(overlayBatch);
+        if (!overlayBatch.isEmpty()) com.sakurakugu.archweaver.client.ui.PlatformGui.submit(graphics, overlayBatch);
 
         // 假人标记数量有限，直接走原版元素即可
         drawFakePlayers(graphics);
@@ -244,7 +244,7 @@ public final class ChunkMapScreen extends Screen implements ChunkLoadMapFrontend
             }
         }
         terrainAtlas.endFrame();
-        if (!terrainBatch.isEmpty()) graphics.submitGuiElementRenderState(terrainBatch);
+        if (!terrainBatch.isEmpty()) com.sakurakugu.archweaver.client.ui.PlatformGui.submit(graphics, terrainBatch);
     }
 
     /** 区块网格线：间距够大时才画，跨越整个视口，条数与屏幕尺寸而非区块数成正比。 */

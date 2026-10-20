@@ -21,7 +21,7 @@ public abstract class CameraViewMixin {
     @Shadow private boolean detached;
     @Shadow private float depthFar;
     @Shadow protected abstract void setPosition(Vec3 position);
-    @Shadow protected abstract void setRotation(float yaw, float pitch, float roll);
+    @Shadow protected abstract void setRotation(float yaw, float pitch);
     @Shadow private void setupOrtho(float near, float far, float width, float height, boolean invertY) { }
 
     @Inject(method = "alignWithEntity", at = @At("TAIL"))
@@ -29,7 +29,7 @@ public abstract class CameraViewMixin {
         ClientCamera.Transform transform = ClientCamera.transform(partial);
         if (transform == null) return;
         detached = true;
-        setRotation(transform.yaw(), transform.pitch(), 0);
+        setRotation(transform.yaw(), transform.pitch());
         setPosition(transform.position());
     }
 

@@ -1,0 +1,19 @@
+{
+  "required": true,
+  "package": "com.sakurakugu.archweaver.fabric.mixin",
+  "compatibilityLevel": "JAVA_25",
+  "mixins": [
+    "LoginMixin",
+    "PossessionDimensionMixin",
+    "LandingParticlesMixin",
+    "SpawningChunkMapMixin",
+    "SpawningChunkCacheMixin"
+  ],
+  "client": [
+    "DebugScreenEntriesMixin",
+    "ScreenNavigationMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

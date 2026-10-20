@@ -1,5 +1,6 @@
 pluginManagement {
     repositories {
+        maven { url = 'https://maven.fabricmc.net' }
         gradlePluginPortal()
     }
 }
@@ -9,4 +10,4 @@ plugins {
 }
 
 rootProject.name = 'archweaver'
-include 'common', 'api', 'neoforge', 'artifice:common', 'artifice:neoforge'
+include 'common', 'api', 'neoforge', 'fabric', 'artifice:common', 'artifice:neoforge', 'artifice:fabric'

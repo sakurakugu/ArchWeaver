@@ -225,7 +225,7 @@ public final class MannequinInventoryMenu extends AbstractContainerMenu implemen
         @Override public boolean mayPlace(ItemStack stack) {
             Mannequin mannequin = target.get();
             return mannequin != null && (equipmentSlot == EquipmentSlot.MAINHAND || equipmentSlot == EquipmentSlot.OFFHAND
-                || stack.canEquip(equipmentSlot, mannequin));
+                || com.sakurakugu.archweaver.platform.PlatformHooks.canEquip(stack, equipmentSlot, mannequin));
         }
         @Override public int getMaxStackSize() { return equipmentSlot == EquipmentSlot.MAINHAND || equipmentSlot == EquipmentSlot.OFFHAND ? 64 : 1; }
         // 四个盔甲槽和副手槽沿用原版的空槽图标，主手槽用模组自己的“主”字。

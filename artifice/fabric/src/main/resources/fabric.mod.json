@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "id": "archweaver_artifice",
+  "version": "${version}",
+  "name": "ArchWeaver Artifice",
+  "description": "ArchWeaver 内容扩展。",
+  "license": "MIT",
+  "icon": "icon.png",
+  "environment": "*",
+  "entrypoints": {"main": ["com.sakurakugu.archweaver.artifice.FabricArtifice"]},
+  "depends": {
+    "fabricloader": ">=${fabric_loader_version}",
+    "fabric-api": "*",
+    "archweaver": ">=1.0 <2.0",
+    "minecraft": "${minecraft_version}",
+    "java": ">=25"
+  }
+}

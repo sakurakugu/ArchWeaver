@@ -119,7 +119,7 @@ public final class ChunkMapManagementScreen extends Screen {
             Component.translatable("gui.archweaver.chunkloader.name")));
         name.setMaxLength(ChunkLoaderSavedData.MAX_NAME_LENGTH);
         name.setValue(selected.name());
-        name.setFilter(value -> value.codePoints().allMatch(ChunkMapManagementScreen::isNameCharacter));
+        com.sakurakugu.archweaver.client.ui.TextInputFilter.set(name, value -> value.codePoints().allMatch(ChunkMapManagementScreen::isNameCharacter));
         addRenderableWidget(new SolidButton(left + s(317), top + s(140), size(95), size(20),
             Component.translatable("gui.archweaver.chunkloader.rename"), button ->
                 sendRename(selected.name(), name.getValue())));

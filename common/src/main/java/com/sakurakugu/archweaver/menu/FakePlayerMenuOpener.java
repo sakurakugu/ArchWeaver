@@ -55,7 +55,7 @@ public final class FakePlayerMenuOpener {
             .map(fake -> fake.getGameProfile().name())
             .sorted(String.CASE_INSENSITIVE_ORDER)
             .toList();
-        viewer.openMenu(
+        com.sakurakugu.archweaver.platform.PlatformMenus.open(viewer,
             new ManagementMenuProvider(
                 (containerId, inventory, player) -> new PresetManagementMenu(
                     containerId, inventory, openGroupsInitially, presets, groups, onlinePlayers),
@@ -85,7 +85,7 @@ public final class FakePlayerMenuOpener {
     }
 
     private static void openSpawnMenu(ServerPlayer viewer) {
-        viewer.openMenu(
+        com.sakurakugu.archweaver.platform.PlatformMenus.open(viewer,
             new ManagementMenuProvider(
                 (containerId, inventory, player) -> new GlobalFakePlayerMenu(containerId, inventory),
                 Component.translatable("gui.archweaver.fakeplayer.global.title")
@@ -112,7 +112,7 @@ public final class FakePlayerMenuOpener {
         MannequinManager.syncAnglesTo(viewer);
         // 原版只同步玩家自己的药水效果，玩偶的效果要在打开页面时补发给查看者，药水面板才有内容。
         viewer.level().getServer().getPlayerList().sendActiveEffects(mannequin, viewer.connection);
-        viewer.openMenu(new ManagementMenuProvider(
+        com.sakurakugu.archweaver.platform.PlatformMenus.open(viewer, new ManagementMenuProvider(
             (containerId, inventory, player) -> new MannequinInventoryMenu(containerId, inventory, mannequin),
             Component.literal(mannequin.getName().getString())), data -> {
                 data.writeVarInt(mannequin.getId());
@@ -146,7 +146,7 @@ public final class FakePlayerMenuOpener {
         // 假人可能早于查看者加入世界，原版追踪初始化不会补发已有药水效果。
         fake.getActiveEffects().forEach(effect -> viewer.connection.send(
             new ClientboundUpdateMobEffectPacket(fake.getId(), effect, false)));
-        viewer.openMenu(
+        com.sakurakugu.archweaver.platform.PlatformMenus.open(viewer,
             new ManagementMenuProvider(
                 (containerId, inventory, player) -> new FakePlayerInventoryMenu(
                     containerId, inventory, fake, view, possessedByViewer, targetOccupied),
@@ -206,7 +206,6 @@ public final class FakePlayerMenuOpener {
             return constructor.createMenu(containerId, inventory, player);
         }
 
-        @Override
         public boolean shouldTriggerClientSideContainerClosingOnOpen() {
             return false;
         }

@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "id": "archweaver",
+  "version": "${version}",
+  "name": "ArchWeaver",
+  "description": "假人、区块加载与客户端相机工具。",
+  "license": "MIT",
+  "icon": "icon.png",
+  "environment": "*",
+  "entrypoints": {
+    "main": [
+      "com.sakurakugu.archweaver.FabricArchWeaver"
+    ],
+    "client": [
+      "com.sakurakugu.archweaver.client.FabricArchWeaverClient"
+    ],
+    "rei_client": [
+      "com.sakurakugu.archweaver.compat.rei.ArchWeaverReiPlugin"
+    ],
+    "journeymap": [
+      "com.sakurakugu.archweaver.compat.journeymap.ArchWeaverJourneyMapPlugin"
+    ]
+  },
+  "accessWidener": "archweaver.accesswidener",
+  "mixins": [
+    "archweaver.mixins.json",
+    "archweaver.fabric.mixins.json",
+    "archweaver.xaero.mixins.json",
+    "archweaver.journeymap.mixins.json"
+  ],
+  "depends": {
+    "fabricloader": ">=${fabric_loader_version}",
+    "fabric-api": "*",
+    "minecraft": "${minecraft_version}",
+    "java": ">=25"
+  }
+}

@@ -207,20 +207,19 @@ public final class FakePlayerAutomation {
             return 0;
         }
         ItemContainerContents contents = container.get(DataComponents.CONTAINER);
-        if (contents == null || contents.getSlots() == 0) {
+        if (contents == null) {
             return 0;
         }
 
-        List<ItemStack> updated = new ArrayList<>(contents.getSlots());
+        List<ItemStack> updated = new ArrayList<>(contents.allItemsCopyStream().toList());
         int moved = 0;
-        for (int slot = 0; slot < contents.getSlots(); slot++) {
-            ItemStack stack = contents.getStackInSlot(slot);
+        for (int slot = 0; slot < updated.size(); slot++) {
+            ItemStack stack = updated.get(slot);
             if (moved < limit && !stack.isEmpty() && ItemStack.isSameItemSameComponents(stack, requested)) {
                 int amount = Math.min(limit - moved, stack.getCount());
                 stack.shrink(amount);
                 moved += amount;
             }
-            updated.add(stack);
         }
         if (moved > 0) {
             container.set(DataComponents.CONTAINER, ItemContainerContents.fromItems(updated));

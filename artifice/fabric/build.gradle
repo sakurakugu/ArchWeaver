@@ -1,0 +1,39 @@
+plugins {
+    id 'java-library'
+    id 'net.fabricmc.fabric-loom'
+}
+
+version = artifice_mod_version
+base { archivesName = "${artifice_mod_id}-${minecraft_version}-fabric" }
+
+sourceSets.main {
+    java.srcDir project(':artifice:common').file('src/main/java')
+    resources.srcDir project(':artifice:common').file('src/main/resources')
+}
+
+dependencies {
+    minecraft "com.mojang:minecraft:${minecraft_version}"
+    implementation "net.fabricmc:fabric-loader:${fabric_loader_version}"
+    implementation "net.fabricmc.fabric-api:fabric-api:${fabric_api_version}"
+    // 内容版编译仅依赖公开 API，开发运行再加载核心实现。
+    compileOnly project(':api')
+    runtimeOnly files(rootProject.project(':fabric').sourceSets.main.output)
+}
+
+loom {
+    mods {
+        archweaver { sourceSet('main', ':fabric') }
+        archweaver_artifice { sourceSet sourceSets.main }
+    }
+    runs {
+        client { programArgs '--username', 'Player1' }
+        server { programArgs '--nogui' }
+    }
+}
+
+def metadataValues = [version: project.version, minecraft_version: minecraft_version,
+                      fabric_loader_version: fabric_loader_version]
+processResources {
+    inputs.properties metadataValues
+    filesMatching('fabric.mod.json') { expand metadataValues }
+}

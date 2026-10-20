@@ -1,0 +1,113 @@
+plugins {
+    id 'java-library'
+    id 'net.fabricmc.fabric-loom'
+}
+
+base { archivesName = "${mod_id}-${minecraft_version}-fabric" }
+
+sourceSets.main {
+    java.srcDir project(':common').file('src/main/java')
+    java.srcDir project(':api').file('src/main/java')
+    java.srcDir project(':common').file('src/compat/java')
+    resources.srcDir project(':common').file('src/main/resources')
+}
+
+dependencies {
+    minecraft "com.mojang:minecraft:${minecraft_version}"
+    implementation "net.fabricmc:fabric-loader:${fabric_loader_version}"
+    implementation "net.fabricmc.fabric-api:fabric-api:${fabric_api_version}"
+    compileOnly "org.jetbrains:annotations:${jetbrains_annotations_version}"
+}
+
+repositories {
+    maven {
+        url = 'https://api.modrinth.com/maven'
+        content { includeGroup 'maven.modrinth' }
+    }
+    // 下面两个是 REI 的依赖
+    // https://github.com/shedaniel/RoughlyEnoughItems
+    maven {
+        url = 'https://maven.shedaniel.me'
+        content {
+            includeGroup 'me.shedaniel'
+            includeGroup 'me.shedaniel.cloth'
+        }
+    }
+    maven {
+        url = 'https://maven.architectury.dev'
+        content {
+            includeGroup 'dev.architectury'
+        }
+    }
+    // JEI 物品管理器
+    // JourneyMap 旅行地图
+    maven {
+        url = 'https://maven.blamejared.com'
+        content {
+            // https://github.com/mezz/JustEnoughItems
+            includeGroup 'mezz.jei'
+            // https://github.com/TeamJM/journeymap-api
+            // https://github.com/TeamJM/journeymap
+            includeGroup 'info.journeymap'
+        }
+    }
+}
+
+configurations {
+    xaeroMapJar { canBeConsumed = false; transitive = false }
+}
+
+// ------- Xaero 世界地图依赖处理 -------
+// Xaero 把界面基类放在内嵌 XaeroLib 中；提取仅用于编译，发布包不携带第三方类。
+abstract class ExtractXaeroLib extends DefaultTask {
+    @InputFiles @Classpath abstract ConfigurableFileCollection getMapJars()
+    @OutputFile abstract RegularFileProperty getLibraryJar()
+
+    @TaskAction void extract() {
+        def output = libraryJar.get().asFile
+        output.parentFile.mkdirs()
+        new java.util.zip.ZipFile(mapJars.singleFile).withCloseable { zip ->
+            def entry = zip.entries().find { it.name.startsWith('META-INF/jars/xaerolib-') && it.name.endsWith('.jar') }
+            if (entry == null) throw new GradleException('Xaero 世界地图缺少内嵌 XaeroLib')
+            zip.getInputStream(entry).withCloseable { input -> output.withOutputStream { it << input } }
+        }
+    }
+}
+
+def extractXaeroLib = tasks.register('extractXaeroLib', ExtractXaeroLib) {
+    mapJars.from(configurations.xaeroMapJar)
+    libraryJar = layout.buildDirectory.file('xaero-compile/xaerolib.jar')
+}
+// -------------------------------------
+
+dependencies {
+    xaeroMapJar "maven.modrinth:xaeros-world-map:${xaero_world_map_fabric_version}"
+    compileOnly files(configurations.xaeroMapJar)
+    compileOnly files(extractXaeroLib.flatMap { it.libraryJar })
+    if (providers.gradleProperty('xaeroMapDev').map { it.toBoolean() }.getOrElse(false)) {
+        runtimeOnly "maven.modrinth:xaeros-world-map:${xaero_world_map_fabric_version}"
+    }
+    compileOnly "org.jetbrains:annotations:${jetbrains_annotations_version}"
+    compileOnly "info.journeymap:journeymap-api-fabric:${journeymap_api_version}"
+    // JEI 仅供兼容插件编译，安装与开发运行时均不强制携带。
+    compileOnly "mezz.jei:jei-${minecraft_version}-common-api:${jei_version}"
+    // REI API 仅用于编译，不随模组发布。
+    compileOnly "me.shedaniel:RoughlyEnoughItems-api-fabric:${rei_version}"
+    compileOnly "me.shedaniel.cloth:basic-math:0.6.1"
+}
+
+
+loom {
+    accessWidenerPath = file("src/main/resources/archweaver.accesswidener")
+    runs {
+        client { programArgs '--username', 'Player1' }
+        server { programArgs '--nogui' }
+    }
+}
+
+def metadataValues = [version: project.version, minecraft_version: minecraft_version,
+                      fabric_loader_version: fabric_loader_version]
+processResources {
+    inputs.properties metadataValues
+    filesMatching('fabric.mod.json') { expand metadataValues }
+}

@@ -2,7 +2,7 @@
 
 [English](./docs/all_readme/README_EN.md) | 简体中文
 
-适用于 Minecraft 26.1.2 / NeoForge 的辅助模组，目前提供假玩家管理、区块加载和客户端相机功能，支持假人/玩偶生成、背包管理、姿态控制等。
+适用于 Minecraft 26.1.2 / NeoForge、Fabric 的辅助模组，目前提供假玩家管理、区块加载和客户端相机功能，支持假人/玩偶生成、背包管理、姿态控制等。
 
 ![icon](./common/src/main/resources/icon.png)
 
@@ -23,6 +23,8 @@ Neoforge 高版本没有类似 Carpet 的假人 mod，还有做生电机器时�
 
 > 分开发布是为了：**ArchWeaver 可以随时装上或卸载，不会损坏存档**。
 > 需要注册的内容也因此只在 Artifice 里。两个包版本号独立，Artifice 对核心的依赖范围写得较宽，
+
+两个模组均提供 NeoForge 和 Fabric 版本，请选择与加载器匹配的 JAR。Fabric 版需要额外安装 **Fabric API**，要求 Fabric Loader 0.19.5 或更新版本及 Java 25。
 
 ## 简介
 
@@ -87,14 +89,25 @@ Neoforge 高版本没有类似 Carpet 的假人 mod，还有做生电机器时�
 运行开发客户端：
 
 ```powershell
-# 同时加载核心与内容版（日常开发用这个）
+# NeoForge：同时加载核心与内容版（日常开发用这个）
 .\gradlew.bat :artifice:neoforge:runClient
 
 # 只加载核心
 .\gradlew.bat :neoforge:runClient
+
+# Fabric：同时加载核心与内容版
+.\gradlew.bat :artifice:fabric:runClient
+
+# Fabric：只加载核心
+.\gradlew.bat :fabric:runClient
+
+# Fabric 专用服务端（核心与内容版）
+.\gradlew.bat :artifice:fabric:runServer
 ```
 
-在 Windows 上，也可以运行 `tools\1.一键启动mc脚本.ps1`。
+在 Windows 上，也可以运行 `tools\1.一键启动mc脚本.ps1`；默认启动 NeoForge，传入 `--fabric` 启动 Fabric。
+
+`common` 和 `api` 为核心共享逻辑与公开 API；`fabric`、`neoforge` 是平台入口；`artifice/common`、`artifice/fabric` 和 `artifice/neoforge` 对应内容版。可选地图与物品查询模组的共享兼容代码在 `common/src/compat`，仅由平台模块编译。
 
 ## 详细说明
 
@@ -105,6 +118,10 @@ Neoforge 高版本没有类似 Carpet 的假人 mod，还有做生电机器时�
 ## 配置文件
 
 首次加载后会自动生成服务端和客户端配置文件。配置文件中的布尔值使用 `true`/`false`（不要加双引号）。
+
+Fabric 版使用 UTF-8 `.properties` 文件：服务端位于 `<世界目录>/serverconfig/archweaver.properties`，客户端位于 `config/archweaver-client.properties`。键名为下面 TOML 的“节名.属性名”，例如 `commands.permissionLevel=2`、`profiles.strategy=ONLINE_PREFERRED`；字符串和枚举不加引号。相机配置使用 `camera.<设置键>`。首次启动会生成所有默认项，修改后重启生效。
+
+下面的 `.toml` 路径及示例适用于 NeoForge。
 
 ### 服务端配置
 

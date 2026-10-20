@@ -2,7 +2,7 @@
 
 English | [简体中文](../../README.md)
 
-A utility mod for Minecraft 26.1.2 / NeoForge, currently featuring fake player management, chunk loading, and client-side camera perspectives. It supports spawning fake players and mannequins, inventory management, pose control, and more.
+A utility mod for Minecraft 26.1.2 / NeoForge and Fabric, currently featuring fake player management, chunk loading, and client-side camera perspectives. It supports spawning fake players and mannequins, inventory management, pose control, and more.
 
 ![ArchWeaver icon](../../common/src/main/resources/icon.png)
 
@@ -72,6 +72,8 @@ This project produces two separate JARs:
 
 Supported views include vanilla first person, third person back and front (second person), as well as free camera, orthographic (follow player or independent camera), shoulder (left and right), orbit, fixed camera, and follow entity.
 
+Both ArchWeaver and Artifice provide separate Fabric and NeoForge JARs. Fabric requires **Fabric API**, Fabric Loader 0.19.5 or newer, and Java 25.
+
 ## Building
 
 ```powershell
@@ -89,6 +91,13 @@ Run the development client with both mods, or with ArchWeaver alone:
 .\gradlew.bat :artifice:neoforge:runClient
 
 .\gradlew.bat :neoforge:runClient
+
+# Fabric: core and Artifice
+.\gradlew.bat :artifice:fabric:runClient
+# Fabric: core only
+.\gradlew.bat :fabric:runClient
+# Fabric dedicated server: core and Artifice
+.\gradlew.bat :artifice:fabric:runServer
 ```
 
 On Windows, you can also run [`tools/1.一键启动mc脚本.ps1`](../../tools/1.一键启动mc脚本.ps1).
@@ -102,6 +111,10 @@ See the separate [command reference](../commands_en.md).
 ## Configuration
 
 Server and client configuration files are generated automatically on first load. Boolean values must use `true` or `false` without quotation marks.
+
+Fabric uses UTF-8 `.properties` files: `<world>/serverconfig/archweaver.properties` and `config/archweaver-client.properties`. Keys use `section.property`, for example `commands.permissionLevel=2` or `profiles.strategy=ONLINE_PREFERRED`, without quotes. Camera keys use `camera.<setting>`. Defaults are generated on first launch; restart after editing.
+
+The TOML paths and examples below apply to NeoForge.
 
 ### Server Configuration
 

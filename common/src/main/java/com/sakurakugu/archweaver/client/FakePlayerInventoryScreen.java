@@ -945,8 +945,8 @@ public final class FakePlayerInventoryScreen extends AbstractContainerScreen<Fak
             Component.translatable("gui.archweaver.fakeplayer.look_yaw")));
         pitchInput.setValue(Integer.toString(menu.pitch()));
         yawInput.setValue(Integer.toString(menu.yaw()));
-        pitchInput.setFilter(value -> value.matches("-?\\d{0,3}"));
-        yawInput.setFilter(value -> value.matches("-?\\d{0,3}"));
+        com.sakurakugu.archweaver.client.ui.TextInputFilter.set(pitchInput, value -> value.matches("-?\\d{0,3}"));
+        com.sakurakugu.archweaver.client.ui.TextInputFilter.set(yawInput, value -> value.matches("-?\\d{0,3}"));
         pitchInput.setResponder(value -> {
             if (syncingAimInputs) return;
             submitAngleInput(pitchInput, value, -90, 90, true);
