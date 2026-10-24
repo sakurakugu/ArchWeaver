@@ -23,7 +23,7 @@ ArchWeaver 是一个面向 Minecraft 的辅助模组，当前适配 Minecraft 26
 2. 注释用中文
 3. Gradle 首次编译或解析依赖可能耗时较长，执行编译命令时超时时间至少设置为 120 秒
 4. 不用兼容旧的数据，需要兼容时会亲自说的
-5. 其他相似相关mod 在 `other/参考mod`
-6. 内容版要用核心的能力时，在 `api` 里加门面，不要直接暴露 `common` 的内容。
-7. 开发启动用 `.\gradlew.bat :artifice:neoforge:runClient`（会把核心一起带上）；
+5. 内容版要用核心的能力时，在 `api` 里加门面，不要直接暴露 `common` 的内容。
+6. 开发启动用 `.\gradlew.bat :artifice:neoforge:runClient`（会把核心一起带上）；
    裸 `runClient` 会同时启动两个客户端。只测核心用 `:neoforge:runClient`。
+7. 如果需要 worktrees，放到 `../worktrees` 下，不需要的话，就在当前分支切换即可。
