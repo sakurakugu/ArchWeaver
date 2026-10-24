@@ -100,7 +100,16 @@ Run the development client with both mods, or with ArchWeaver alone:
 .\gradlew.bat :artifice:fabric:runServer
 ```
 
-On Windows, you can also run [`tools/1.一键启动mc脚本.ps1`](../../tools/1.一键启动mc脚本.ps1).
+On Windows, you can also use [`tools/1.一键启动mc脚本.py`](../../tools/1.一键启动mc脚本.py) (Python 3). Its command line mirrors the launcher from the `auto-torch` project:
+
+- no arguments or `--help`: print usage
+- `--neoforge` (default) / `--fabric`: launch that loader's development client
+- `--all`: launch the NeoForge client, then the Fabric client
+- `--build`: build (`--all` runs a full `clean build`; a single loader also builds the Artifice module)
+- `--release`: build each version in the background, deploy it to the PCL test instance, and launch the game
+- `--mc_version <version or range>`: work on local `mc/<version>` branches; worktrees are created under `../worktrees/<version>`
+- `--branch <branch>`: work on a specific branch (`main` or `mc/<version>`)
+- `--path <PCL test root>` / `--java-path <JDK path>`: override the default PCL test root (`D:\elric\Code\Repos\Minecraft\test-mc`) and JDK
 
 ## Reference
 

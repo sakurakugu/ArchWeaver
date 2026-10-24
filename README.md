@@ -105,7 +105,16 @@ Neoforge 高版本没有类似 Carpet 的假人 mod，还有做生电机器时�
 .\gradlew.bat :artifice:fabric:runServer
 ```
 
-在 Windows 上，也可以运行 `tools\1.一键启动mc脚本.ps1`；默认启动 NeoForge，传入 `--fabric` 启动 Fabric。
+在 Windows 上，也可以用 Python 启动脚本 `tools\1.一键启动mc脚本.py`（结构对齐 `auto-torch` 项目，需要 Python 3）：
+
+- 不带参数或加 `--help`：打印用法
+- `--neoforge`（默认）/ `--fabric`：只启动对应加载器的开发客户端
+- `--all`：依次启动 NeoForge、Fabric 开发客户端
+- `--build`：构建（`--all` 为全量 `clean build`，指定加载器时同时构建核心版与内容版）
+- `--release`：后台逐版本打包，完成后部署到 PCL 测试端并启动游戏
+- `--mc_version <版本号或闭区间>`：对本地 `mc/<版本>` 分支操作，工作树自动创建到 `../worktrees/<版本>`
+- `--branch <分支名>`：操作指定分支（`main` 或 `mc/<版本>`）
+- `--path <PCL 测试端路径>` / `--java-path <JDK 路径>`：覆盖默认 PCL 测试端（`D:\elric\Code\Repos\Minecraft\test-mc`）与 JDK
 
 `common` 和 `api` 为核心共享逻辑与公开 API；`fabric`、`neoforge` 是平台入口；`artifice/common`、`artifice/fabric` 和 `artifice/neoforge` 对应内容版。可选地图与物品查询模组的共享兼容代码在 `common/src/compat`，仅由平台模块编译。
 
