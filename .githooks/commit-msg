@@ -9,6 +9,9 @@ hook_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 # 取第一行
 title=$(head -n1 "$msg_file")
 
+# Git 自动生成的合并标题先转换成中文，再走统一校验。
+title=$(normalize_merge_commit_title "$title")
+
 # 标准化中文符号
 title=$(echo "$title" | sed -E '
     s/（/(/g;

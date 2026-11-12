@@ -1,5 +1,21 @@
 #!/bin/sh
 
+# 将 Git 自动生成的远程拉取和本地分支合并标题转换为中文。
+normalize_merge_commit_title() {
+    case "$1" in
+        "Merge branch '"*|"Merge branches '"*|"Merge remote-tracking branch '"*)
+            printf '%s\n' "$1" | sed -E "
+                s/^Merge remote-tracking branch /合并: 远程跟踪分支 /;
+                s/^Merge branches /合并: 分支 /;
+                s/^Merge branch /合并: 分支 /;
+                s/' of /'，来源 /;
+                s/' into /' 到 /;
+            "
+            ;;
+        *) printf '%s\n' "$1" ;;
+    esac
+}
+
 # 将允许的中英文提交类型统一为用于提交标题和更新日志的中文类型。
 normalize_commit_type() {
     case "$1" in
@@ -16,6 +32,7 @@ normalize_commit_type() {
         revert|回退) printf '%s\n' "回退" ;;
         merge|合并) printf '%s\n' "合并" ;;
         update|更新) printf '%s\n' "更新" ;;
+        sync|同步) printf '%s\n' "同步" ;;
         optimize|优化) printf '%s\n' "优化" ;;
         delete|移除|删除) printf '%s\n' "删除" ;;
         release|发布) printf '%s\n' "发布" ;;
@@ -27,7 +44,7 @@ normalize_commit_type() {
 # 判断标准类型是否属于用户可见的更新日志内容。
 is_release_note_commit_type() {
     case "$1" in
-        新增|修复|文档|重构|杂项|样式|性能|测试|集成|构建|回退|合并|更新|优化|删除|适配)
+        新增|修复|文档|重构|杂项|样式|性能|测试|集成|构建|回退|合并|更新|同步|优化|删除|适配)
             return 0
             ;;
         *)
@@ -52,6 +69,7 @@ print_allowed_commit_types() {
         "  revert / 回退" \
         "  merge / 合并" \
         "  update / 更新" \
+        "  sync / 同步" \
         "  optimize / 优化" \
         "  delete / 删除" \
         "  release / 发布" \
